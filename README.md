@@ -23,7 +23,7 @@ No install, no server, no build step: open `index.html` in a browser and go.
 ```bash
 git clone https://github.com/sugatoray/pptxdiff.git
 cd pptxdiff
-open index.html   # or just double-click it / serve the folder statically
+open src/pptxdiff/index.html   # or just double-click it / serve the folder statically
 ```
 
 The app ships with a built-in sample deck (`sample-pptx.js` generates it on load) so you can try every feature immediately — no files to upload. Drop in your own `.pptx` pair, or click **Reset to sample**.
@@ -31,15 +31,15 @@ The app ships with a built-in sample deck (`sample-pptx.js` generates it on load
 ## Project structure
 
 ```
-index.html        the whole application (template + logic, self-contained)
-support.js        DC runtime the app is authored against (pinned; don't casually upgrade)
-sample-pptx.js    builds the in-browser sample/test-fixture .pptx files
-docs/             project memory — read docs/STARTER.md first if you're extending this
+src/pptxdiff/index.html      the whole application (template + logic, self-contained)
+src/pptxdiff/support.js      DC runtime the app is authored against (pinned; don't casually upgrade)
+src/pptxdiff/sample-pptx.js  builds the in-browser sample/test-fixture .pptx files
+docs/.scrolls/                project memory — read docs/.scrolls/STARTER.md first if you're extending this
 ```
 
 ## Contributing / extending this project
 
-Start with **`docs/STARTER.md`** — it explains the reading order for the rest of `docs/` (`SPEC.md` for the full feature list, `HANDOFF.md` for the latest session's state, `GAP_ANALYSIS.md`/`GAP_CONTEXT.md` for known gaps and why, `PLAN.md` for the prioritized backlog, `WISDOM.md` for hard-won lessons and traps to avoid). These files are the project's working memory across sessions and are kept up to date as the app evolves.
+Start with **`docs/.scrolls/STARTER.md`** — it explains the reading order for the rest of `docs/.scrolls/` (`SPEC.md` for the full feature list, `HANDOFF.md` for the latest session's state, `GAP_ANALYSIS.md`/`GAP_CONTEXT.md` for known gaps and why, `PLAN.md` for the prioritized backlog, `WISDOM.md` for hard-won lessons and traps to avoid). These files are the project's working memory across sessions and are kept up to date as the app evolves.
 
 ## License
 
