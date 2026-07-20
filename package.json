@@ -1,6 +1,6 @@
 {
   "name": "pptxdiff",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Compare two PowerPoint decks with real fidelity rendering, deep diffing, and a full reviewer workflow. Runs locally in your browser, no build step.",
   "license": "Apache-2.0",
   "private": false,
@@ -14,7 +14,8 @@
   },
   "files": [
     "bin",
-    "src/pptxdiff"
+    "src/pptxdiff",
+    "docs/assets/banner_demo.png"
   ],
   "engines": {
     "node": ">=18"

@@ -1,4 +1,8 @@
-# pptxdiff — Slide Diff
+# pptxdiff — _A Diff Tool for Slides_
+
+![banner](docs/assets/banner_demo.png)
+
+## What is `pptxdiff`?
 
 A single-file, client-side tool for comparing two PowerPoint decks (or many pairs at once), rendered with real fidelity and diffed on text, formatting, images, tables, charts, animations, transitions, speaker notes, and more — with a full reviewer workflow (approvals, comments, history) built in.
 
