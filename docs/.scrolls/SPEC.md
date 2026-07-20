@@ -160,3 +160,9 @@ Word-level diff (LCS-based) highlights changed words within text/table-cell/char
   6. *Duplicate slide merging*: the actual export behavior above — `exportMergedPptx` skips a Before-only slide's redundant copy when `mergeDuplicateSlides` is on, rather than including both the original and its near-duplicate cousin in the merged output (the pre-existing behavior always included Before-only slides via the `(pb || pa)` fallback, which is unaffected when the toggle is off).
 - New Red/Green self-tests: threshold sensitivity (loose vs. strict), performance cap (skip vs. force), and `sectionForSlideIndex`.
 
+## 21. npm CLI packaging (added this session)
+- `pptxdiff` is now `npm`-installable as a CLI. `bin/cli.js` (stdlib-only: `node:http`/`node:fs`/`node:child_process`) serves `src/pptxdiff/{index.html,support.js,sample-pptx.js}` from a local server on an OS-assigned free port (`server.listen(0)`, no `--port` flag needed) and opens the default browser to it (`open`/`start`/`xdg-open` by platform; failure is swallowed — e.g. headless/no-GUI environments — since the URL is printed to stdout regardless).
+- This is NOT a native desktop app (no Electron/Tauri) — deliberate scope choice, see GAP_CONTEXT.md. It's still fundamentally the same client-only app (see WISDOM.md's "No backend" constraint); the local server is a static file server, not application logic.
+- Still requires internet access at runtime — React/ReactDOM/Babel-standalone (unpkg), `pptx-renderer` (esm.sh), JSZip (cdnjs), and fonts (Google Fonts) are all loaded from CDNs, unchanged from the browser-only usage. Not vendored/bundled for offline use — deliberate scope choice, see GAP_CONTEXT.md.
+- `package.json` (root): `bin: {pptxdiff: "./bin/cli.js"}`, `files: ["bin", "src/pptxdiff"]`, no runtime `dependencies`.
+

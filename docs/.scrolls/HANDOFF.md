@@ -2,6 +2,11 @@
 
 **Read `.scrolls/SPEC.md` first for the full feature list.** This file is the "what's the state of things right now" note — update it at the end of every session, keep it short and current (prune stale entries).
 
+## Update (2026-07-19 — npm CLI packaging)
+- Shipped `pptxdiff` as an npm-installable CLI: root `package.json` (`bin: pptxdiff → bin/cli.js`, no runtime deps) + `bin/cli.js` (stdlib-only static file server on an OS-assigned port + best-effort browser open). Serves `src/pptxdiff/{index.html,support.js,sample-pptx.js}` unchanged — no changes to the DC itself.
+- Two scope forks were resolved by direct user choice, not assumed: CLI+browser-tab (not Electron/Tauri) and CDN-based/online (not vendored offline). See SPEC.md §21 and GAP_ANALYSIS.md/GAP_CONTEXT.md's new "Packaging" entries.
+- Verified locally: server responds correctly for `/`, `/support.js`, `/sample-pptx.js`; `../`-style path traversal is blocked; process exits cleanly with no lingering server. Not yet published to the npm registry (deliberately not done without an explicit ask).
+
 ## Current state (as of 2026-07-19, latest session)
 - The earlier-session "nothing visible / hang" bug report was never reproduced or root-caused in a later session's investigation notes carried forward — if it recurs, start from the previous HANDOFF's trail (check whether `_probe.html` still exists; if so its CDN-load result was never captured). Assume RESOLVED-BY-ATTRITION only if the app has since loaded cleanly across multiple verification rounds (it has, in every round this session) — but do not delete this warning until someone explicitly confirms the root cause.
 - This session shipped: collapsible History/Self-tests panels, All-pairs checkbox selection + per-card collapse + global collapse-all, a corrected MOVED-tag system (IDENTICAL/CHANGED primary + ADDED/DELETED/MOVED secondary tags), keyboard shortcuts (A/R/←→/V/D/C/N), batch file drag-to-reorder, a merge-winner preview panel, and new regression tests. See SPEC.md §10.

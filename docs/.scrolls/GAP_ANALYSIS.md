@@ -101,3 +101,7 @@ Concrete, testable gaps between what SPEC.md describes and a fully "real" implem
 - [ ] The Sensitivity slider and per-pair Ignore list are global (apply to ALL cross-deck duplicate detection everywhere: single-pair view panel, merge preview, batch mode) -- there's no per-context override (e.g. a looser threshold just for batch mode).
 - [ ] 'Duplicate slide merging' only affects Before-only (removed) slides with a cross-deck duplicate -- it does not attempt anything symmetric for After-only (added) slides that might duplicate a Before slide's content in a different way (e.g. reordered AND slightly reworded).
 - [ ] Batch mode's cross-dup count is a single number per pair with no drill-down (no way to see WHICH slides duplicated from the batch results table -- would need to open that pair into the full view).
+
+## Packaging (newly identified gaps, this session)
+- [ ] `pptxdiff` npm CLI (`bin/cli.js`) opens a browser tab, not a real native window (no dock/taskbar icon, no app-like process) -- not a true "desktop app" in the Electron/Tauri sense.
+- [ ] The CLI still requires internet access at runtime (React/ReactDOM/Babel-standalone/pptx-renderer/JSZip/fonts all load from CDNs) -- doesn't work air-gapped/offline.
