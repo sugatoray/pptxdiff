@@ -1,0 +1,39 @@
+{
+  "name": "pptxdiff",
+  "version": "0.1.1",
+  "description": "Compare two PowerPoint decks with real fidelity rendering, deep diffing, and a full reviewer workflow. Runs locally in your browser, no build step.",
+  "license": "Apache-2.0",
+  "private": false,
+  "author": {
+    "name": "Sugato Ray",
+    "email": "sugatoray.dev@gmail.com",
+    "url": "https://github.com/sugatoray"
+  },
+  "bin": {
+    "pptxdiff": "./bin/cli.js"
+  },
+  "files": [
+    "bin",
+    "src/pptxdiff",
+    "docs/assets/banner_demo.png"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sugatoray/pptxdiff.git"
+  },
+  "homepage": "https://github.com/sugatoray/pptxdiff#readme",
+  "keywords": [
+    "pptx", 
+    "powerpoint",
+    "diff",
+    "compare",
+    "cli",
+    "presentation-review"
+  ],
+  "bugs": {
+    "url": "https://github.com/sugatoray/pptxdiff/issues"
+  }
+}
