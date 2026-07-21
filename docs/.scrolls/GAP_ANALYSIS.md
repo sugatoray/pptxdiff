@@ -35,6 +35,7 @@ Concrete, testable gaps between what SPEC.md describes and a fully "real" implem
 ## Testing / fixtures
 - [ ] Red/Green TDD sample deck covers most categories but NOT: hyperlink-on-shape (only on text run), duplicate slides, section headers, OLE objects, real (non-dummy) audio/video content, theme-color (schemeClr) diffing beyond the basic map.
 - [x] No automated test harness -- CLOSED (partial): an in-browser self-test suite (runSelfTests, triggered by a button) now covers the core algorithms plus a real merge-export round trip. Not a standalone CI-runnable suite.
+- [ ] `gen-sample-pptx.mjs`'s shape spec is a manually-kept-in-sync COPY of `buildSample()` in `index.html`, not a shared import (the DC is single-file/inline by convention). No automated check that the two stay identical — if `buildSample()` changes and the script isn't updated to match, `docs/assets/sample_*.pptx` silently drifts from the in-browser sample.
 
 ## Accessibility / i18n
 - [ ] No keyboard-only navigation audit (tab order through diff rows, approve/reject buttons, etc.).

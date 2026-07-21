@@ -171,3 +171,9 @@ When picking up a new ticket: update this file's status, and add a short note to
 1. **P4 — Per-context sensitivity/ignore-list** for cross-deck duplicates (currently one shared global setting across all three call sites).
 2. **P4 — Symmetric duplicate handling for After-only (added) slides.**
 3. **P4 — Batch mode cross-dup drill-down** (currently a count only, no per-slide detail without opening the pair).
+
+## Done this session (additions to the completed list)
+- [x] `src/pptxdiff/gen-sample-pptx.mjs` — Node script producing `docs/assets/sample_before.pptx` / `sample_after.pptx`, real on-disk copies of the built-in Red/Green sample deck, for testing the diff engine without a running browser session. Reuses `sample-pptx.js`'s `buildPptx()` directly (via a `JSZip`/`atob` global shim — see WISDOM.md) rather than a separate reimplementation. `jszip` added as a devDependency (generation-time only; shipped app is unaffected, still CDN-based).
+
+## New tickets opened this session
+1. **P4 — Fixture drift-check.** `gen-sample-pptx.mjs`'s shape spec is a manually-synced copy of `buildSample()` in `index.html` (see GAP_ANALYSIS.md/GAP_CONTEXT.md). A small CI/self-test step diffing the two, or regenerating the `.pptx` files and checking they're unchanged, would catch drift automatically — not built, since no test runner exists yet for this project (see the pre-existing "no automated regression suite" gap).
