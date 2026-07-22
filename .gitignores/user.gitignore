@@ -1,0 +1,10 @@
+## NOTE: User Defined Gitignore Template
+
+## Common Files/Folders to ignore
+.DS_Store
+__pychache__
+node_modules
+
+## Ignore headroom generated files
+.tokensave/
+.claude/.headroom_wrap_marker.json
