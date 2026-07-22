@@ -14,14 +14,21 @@
   },
   "files": [
     "bin",
-    "src/pptxdiff",
-    "docs/assets/banner_demo.png"
+    "src/pptxdiff/index.html",
+    "src/pptxdiff/support.js",
+    "src/pptxdiff/sample-pptx.js",
+    "docs/assets/banner_demo.png",
+    "docs/assets/sample_*.pptx"
   ],
   "engines": {
     "node": ">=18"
   },
   "devDependencies": {
-    "jszip": "^3.10.1"
+    "@aiden0z/pptx-renderer": "^1.2.4",
+    "jszip": "^3.10.1",
+    "pptxgenjs": "^4.0.1",
+    "prettier": "^3.0.0",
+    "typescript": "^5.2.2"
   },
   "repository": {
     "type": "git",

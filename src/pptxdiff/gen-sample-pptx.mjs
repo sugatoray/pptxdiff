@@ -1,181 +1,183 @@
-// Generates docs/assets/sample_before.pptx and sample_after.pptx by reusing this repo's own
-// sample-pptx.js buildPptx() with the exact buildSample() shape spec from src/pptxdiff/index.html
-// (the app's built-in Red/Green TDD fixture: every diff category + add/remove/move slides).
+// Generates docs/assets/sample_before.pptx and sample_after.pptx using pptxgenjs (a real,
+// battle-tested OOXML writer) instead of sample-pptx.js's hand-rolled XML. That homegrown
+// generator was only ever "valid enough" for this app's own tolerant parser/renderer — it
+// produced files real Microsoft PowerPoint could not open or even repair (invalid SmartArt
+// diagram XML, missing Content-Types overrides). pptxgenjs writes genuinely spec-compliant
+// parts, so it's used here in place of sample-pptx.js for on-disk fixtures.
 //
-// Requires jszip (devDependency, generation-time only — the shipped app loads JSZip from a CDN
-// and this script is never served/bundled with it). Run from the repo root:
-//   node src/pptxdiff/gen-sample-pptx.mjs [outBefore] [outAfter]
-import { writeFileSync } from 'node:fs';
+// Covers: text/font/size/color/bold/italic/align, hyperlinks, text wrap, shape border, images
+// (content differs before/after), tables (per-cell fill/border), charts (bar, series values
+// differ), speaker notes, slide backgrounds, and add/remove/move slide scenarios (deck-level
+// alignment testing). NOT covered (pptxgenjs has no API for these, or they were the proven
+// cause of real-PowerPoint corruption in the prior generator): SmartArt/diagrams, slide
+// transitions, embedded fonts, real video/audio media — see docs/.scrolls/GAP_ANALYSIS.md.
+//
+// Run from the repo root: node src/pptxdiff/gen-sample-pptx.mjs [outBefore] [outAfter]
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
-import JSZip from 'jszip';
-import { buildPptx } from './sample-pptx.js';
+import PptxGenJS from 'pptxgenjs';
 
-globalThis.JSZip = JSZip;
-globalThis.atob = (b64) => Buffer.from(b64, 'base64').toString('binary');
+// pptxgenjs's built-in 'LAYOUT_16x9' preset is 10 x 5.625in, NOT the 13.333 x 7.5in modern
+// PowerPoint widescreen default — every coordinate below is authored against the latter, so a
+// custom layout is defined to match (this mismatch was the root cause of shapes rendering
+// outside the slide bounds; see docs/.scrolls/HANDOFF.md).
+const SLIDE_W = 13.333;
+const SLIDE_H = 7.5;
 
-const EMU = 914400;
+// Two distinct, real, valid 1x1 PNGs (different pixel colors) so the image diff (content hash)
+// has something real to detect between before/after.
+const PNG_A = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
+const PNG_B = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 
-function mk(name, x, y, cx, cy, fmt, paras) {
-  return Object.assign({ name, x, y, cx, cy, font: 'Arial', size: 18, bold: false, italic: false, color: '#1F1E1B', align: 'l' }, fmt, { paras });
+// Regression guard: every add* call site below passes through here so a future coordinate typo
+// (or another wrong-canvas-size mistake) fails loudly at generation time instead of silently
+// producing a slide with content past its edges.
+function checkBounds(label, { x = 0, y = 0, w = 0, h = 0 }) {
+  const right = x + w;
+  const bottom = y + h;
+  if (x < 0 || y < 0 || right > SLIDE_W + 1e-6 || bottom > SLIDE_H + 1e-6) {
+    throw new Error(`${label}: bounds [x=${x}, y=${y}, w=${w}, h=${h}] (right=${right.toFixed(3)}, bottom=${bottom.toFixed(3)}) exceed slide ${SLIDE_W}x${SLIDE_H}in`);
+  }
+}
+function placedText(slide, label, text, opts) {
+  checkBounds(label, opts);
+  slide.addText(text, opts);
+}
+function placedImage(slide, label, opts) {
+  checkBounds(label, opts);
+  slide.addImage(opts);
+}
+function placedTable(slide, label, rows, opts) {
+  checkBounds(label, opts); // h is auto (content-driven) for tables, so only x/y/w are checked
+  slide.addTable(rows, opts);
+}
+function placedChart(slide, label, type, data, opts) {
+  checkBounds(label, opts);
+  slide.addChart(type, data, opts);
 }
 
-const _PNG_DEFAULT = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
-const _PNG_ALT = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
-function _pngSeed(seed) {
-  const b64 = seed === 'red-v2' ? _PNG_ALT : _PNG_DEFAULT;
-  const bin = atob(b64);
-  const u8 = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
-  return u8;
-}
-function _mediaSeed(kind, seed, kb) {
-  const len = kb * 1024;
-  const u8 = new Uint8Array(len);
-  let h = 0; const str = kind + ':' + seed;
-  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
-  for (let i = 0; i < len; i++) { h = (h * 1103515245 + 12345) >>> 0; u8[i] = h & 0xff; }
-  return { bytes: u8 };
-}
-
-// Same shape spec as buildSample() in Slide Diff.dc.html (index.html) — kept in sync deliberately;
-// see docs/.scrolls/WISDOM.md for the "build the parser and the sample-data generator together"
-// rule this project follows, which this script's sibling relationship to sample-pptx.js continues.
-function buildSample() {
-  const E = EMU;
-  const A = [{
-    w: Math.round(13.333 * E), h: 7.5 * E,
-    shapes: [
-      mk('Title', 0.75 * E, 0.55 * E, 11.8 * E, 1.2 * E, { font: 'Georgia', size: 40, bold: true, color: '#1F1E1B', align: 'l' }, [{ text: 'Q3 Business Review', bullet: false }]),
-      mk('Subtitle', 0.75 * E, 1.8 * E, 9 * E, 0.55 * E, { font: 'Arial', size: 18, color: '#6B655A' }, [{ text: 'Prepared by the Strategy Team', bullet: false }]),
-      mk('Key points', 1.0 * E, 3.0 * E, 8.2 * E, 3.0 * E, { font: 'Arial', size: 22, color: '#1F1E1B', align: 'l' }, [
-        { text: 'Revenue up 12% year over year', bullet: true },
-        { text: 'Churn down to 4.1%', bullet: true },
-        { text: 'Three new markets launched', bullet: true }
-      ]),
-      mk('Note', 8.0 * E, 4.9 * E, 4.4 * E, 1.2 * E, { font: 'Arial', size: 14, italic: true, color: '#9A9486', align: 'l' }, [{ text: 'Draft — internal only', bullet: false }]),
-      mk('Footer', 0.75 * E, 6.85 * E, 6 * E, 0.4 * E, { font: 'Arial', size: 12, color: '#9A9486' }, [{ text: 'Confidential — 2026', bullet: false }])
-    ],
-    tables: [{ name: 'Metrics table', x: 0.9 * E, y: 4.55 * E, cx: 6 * E, cy: 1.7 * E, rows: [['Metric', 'Q2', 'Q3'], ['Revenue', '$4.1M', '$4.6M'], ['Churn', '4.3%', '4.1%']] }],
-    bg: '#FFFFFF'
-  }];
-  const B = [{
-    w: Math.round(13.333 * E), h: 7.5 * E,
-    shapes: [
-      mk('Title', 0.75 * E, 0.55 * E, 11.8 * E, 1.2 * E, { font: 'Arial', size: 44, bold: true, color: '#C9684A', align: 'l' }, [{ text: 'Q3 Business Review', bullet: false }]),
-      mk('Subtitle', 0.75 * E, 1.8 * E, 9 * E, 0.55 * E, { font: 'Arial', size: 18, color: '#6B655A' }, [{ text: 'Prepared by Strategy & Finance', bullet: false }]),
-      mk('Key points', 1.0 * E, 3.0 * E, 8.2 * E, 3.0 * E, { font: 'Arial', size: 22, color: '#1F1E1B', align: 'l' }, [
-        { text: 'Revenue up 15% year over year', bullet: true },
-        { text: 'Churn down to 4.1%', bullet: true },
-        { text: 'Three new markets launched', bullet: true }
-      ]),
-      mk('Callout', 9.0 * E, 3.1 * E, 3.5 * E, 1.3 * E, { font: 'Georgia', size: 20, italic: true, color: '#C9684A', align: 'ctr' }, [{ text: 'On track for a record Q4', bullet: false }]),
-      mk('Footer', 6.6 * E, 6.85 * E, 6 * E, 0.4 * E, { font: 'Arial', size: 12, color: '#9A9486', align: 'r' }, [{ text: 'Confidential — 2026', bullet: false }])
-    ],
-    tables: [{ name: 'Metrics table', x: 0.9 * E, y: 4.55 * E, cx: 6 * E, cy: 1.7 * E, rows: [['Metric', 'Q2', 'Q3'], ['Revenue', '$4.1M', '$4.6M'], ['Churn', '4.3%', '4.1%'], ['New logos', '18', '27']] }],
-    bg: '#FBF8F1'
-  }];
-
-  const redA = {
-    w: Math.round(13.333 * E), h: 7.5 * E, bg: '#FFFFFF',
-    transition: { type: 'fade', spd: 'med', advTm: null },
-    notes: 'Walk through the roadmap slide slowly — leadership cares about Q4 dates.',
-    shapes: [
-      mk('Title', 0.75 * E, 0.5 * E, 11.8 * E, 1.0 * E, { font: 'Georgia', size: 32, bold: true }, [{ text: 'Feature Showcase', bullet: false }]),
-      Object.assign(mk('Details link', 0.75 * E, 1.6 * E, 6 * E, 0.5 * E, { font: 'Arial', size: 16, color: '#2A6FDB' }, [{ text: 'Full roadmap and details', bullet: false }]), { link: 'https://example.com/roadmap-2026-draft', wrap: 'square' }),
-      Object.assign(mk('Wrapped note', 7.1 * E, 1.55 * E, 2.2 * E, 0.9 * E, { font: 'Arial', size: 13, color: '#6B655A' }, [{ text: 'This note wraps across lines inside a narrow box.', bullet: false }]), { wrap: 'square' }),
-      Object.assign(mk('Bordered callout', 0.75 * E, 5.35 * E, 4.6 * E, 1.15 * E, { font: 'Arial', size: 16, bold: true, color: '#1F1E1B' }, [{ text: 'On track for GA', bullet: false }]), { border: { w: 1, color: '#3E7C5A' } }),
-      mk('Footer', 0.75 * E, 6.9 * E, 6 * E, 0.4 * E, { font: 'Arial', size: 12, color: '#9A9486' }, [{ text: 'Confidential — draft v1', bullet: false }])
-    ],
-    images: [{ name: 'Product shot', x: 9.3 * E, y: 0.55 * E, cx: 3.2 * E, cy: 1.9 * E, bytes: _pngSeed('red-v1') }],
-    tables: [{ name: 'Formatting table', x: 0.75 * E, y: 2.65 * E, cx: 6.2 * E, cy: 2.4 * E, rows: [
-      [{ text: 'Region', bg: '#EAE4D6' }, { text: 'Owner', bg: '#EAE4D6' }, { text: 'Status', bg: '#EAE4D6' }],
-      [{ text: 'AMER', bg: '#FFFFFF', border: { w: 0.75, color: '#CCCCCC' } }, { text: 'A. Chen' }, { text: 'Green', bg: '#E4F3E9' }],
-      [{ text: 'EMEA', bg: '#FFFFFF' }, { text: 'R. Diaz' }, { text: 'At risk', bg: '#FBEFEC' }]
-    ] }],
-    charts: [{ name: 'Adoption chart', x: 9.3 * E, y: 2.65 * E, cx: 3.2 * E, cy: 2.4 * E, chartType: 'bar', series: [{ name: 'Adoption', values: [12, 18, 24] }] }],
-    smartArt: [{ name: 'Process diagram', x: 9.3 * E, y: 5.2 * E, cx: 3.2 * E, cy: 1.3 * E, texts: ['Plan', 'Build', 'Launch'] }],
-    media: [Object.assign({ name: 'Demo clip', x: 4.6 * E, y: 5.35 * E, cx: 2.0 * E, cy: 1.15 * E }, { kind: 'video' }, _mediaSeed('video', 'red-v1', 24))]
-  };
-  const redB = {
-    w: Math.round(13.333 * E), h: 7.5 * E, bg: '#F4EFE3',
-    transition: { type: 'push', spd: 'fast', advTm: 4000 },
-    notes: { text: 'Walk through the roadmap slide slowly — leadership cares about Q4 dates. Mention the EMEA slip.', bold: true, color: '#C9684A' },
-    shapes: [
-      mk('Title', 0.75 * E, 0.5 * E, 11.8 * E, 1.0 * E, { font: 'Georgia', size: 32, bold: true }, [{ text: 'Feature Showcase', bullet: false }]),
-      Object.assign(mk('Details link', 0.75 * E, 1.6 * E, 6 * E, 0.5 * E, { font: 'Arial', size: 16, color: '#2A6FDB' }, [{ text: 'Full roadmap and details', bullet: false }]), { link: 'https://example.com/roadmap-2026-final', wrap: 'square' }),
-      Object.assign(mk('Wrapped note', 7.1 * E, 1.55 * E, 2.2 * E, 0.9 * E, { font: 'Arial', size: 13, color: '#6B655A' }, [{ text: 'This note wraps across lines inside a narrow box.', bullet: false }]), { wrap: 'none' }),
-      Object.assign(mk('Bordered callout', 0.75 * E, 5.35 * E, 4.6 * E, 1.15 * E, { font: 'Arial', size: 16, bold: true, color: '#1F1E1B' }, [{ text: 'On track for GA', bullet: false }]), { border: { w: 3, color: '#C9684A' } }),
-      mk('Footer', 0.75 * E, 6.9 * E, 6 * E, 0.4 * E, { font: 'Arial', size: 12, color: '#9A9486' }, [{ text: 'Confidential — final', bullet: false }])
-    ],
-    images: [{ name: 'Product shot', x: 9.3 * E, y: 0.55 * E, cx: 3.2 * E, cy: 1.9 * E, bytes: _pngSeed('red-v2') }],
-    tables: [{ name: 'Formatting table', x: 0.75 * E, y: 2.65 * E, cx: 6.2 * E, cy: 2.4 * E, rows: [
-      [{ text: 'Region', bg: '#EAE4D6' }, { text: 'Owner', bg: '#EAE4D6' }, { text: 'Status', bg: '#EAE4D6' }],
-      [{ text: 'AMER', bg: '#FFFFFF', border: { w: 2, color: '#3E7C5A' } }, { text: 'A. Chen' }, { text: 'Green', bg: '#E4F3E9' }],
-      [{ text: 'EMEA', bg: '#FBEFEC' }, { text: 'R. Diaz' }, { text: 'Blocked', bg: '#FBEFEC' }]
-    ] }],
-    charts: [{ name: 'Adoption chart', x: 9.3 * E, y: 2.65 * E, cx: 3.2 * E, cy: 2.4 * E, chartType: 'bar', series: [{ name: 'Adoption', values: [12, 18, 31] }] }],
-    smartArt: [{ name: 'Process diagram', x: 9.3 * E, y: 5.2 * E, cx: 3.2 * E, cy: 1.3 * E, texts: ['Plan', 'Build', 'Launch', 'Iterate'] }],
-    media: [Object.assign({ name: 'Demo clip', x: 4.6 * E, y: 5.35 * E, cx: 2.0 * E, cy: 1.15 * E }, { kind: 'video' }, _mediaSeed('video', 'red-v2', 30))]
-  };
-
-  const greenSpec = {
-    w: Math.round(13.333 * E), h: 7.5 * E, bg: '#FFFFFF',
-    transition: { type: 'fade', spd: 'slow', advTm: null },
-    notes: 'This slide should show zero differences — a control for the diff engine.',
-    shapes: [
-      mk('Title', 0.75 * E, 0.5 * E, 11.8 * E, 1.0 * E, { font: 'Georgia', size: 32, bold: true }, [{ text: 'Stable Slide (control)', bullet: false }]),
-      Object.assign(mk('Link', 0.75 * E, 1.6 * E, 6 * E, 0.5 * E, { font: 'Arial', size: 16, color: '#2A6FDB' }, [{ text: 'Unchanged reference link', bullet: false }]), { link: 'https://example.com/stable', wrap: 'square' }),
-      Object.assign(mk('Bordered box', 0.75 * E, 2.3 * E, 4.6 * E, 1.15 * E, { font: 'Arial', size: 16, bold: true }, [{ text: 'No changes here', bullet: false }]), { border: { w: 1.5, color: '#8A8273' } })
-    ],
-    images: [{ name: 'Static shot', x: 6.0 * E, y: 2.3 * E, cx: 2.6 * E, cy: 1.6 * E, bytes: _pngSeed('green-const') }],
-    tables: [{ name: 'Control table', x: 0.75 * E, y: 4.0 * E, cx: 6.2 * E, cy: 1.4 * E, rows: [
-      [{ text: 'Item', bg: '#EAE4D6' }, { text: 'Value', bg: '#EAE4D6' }],
-      [{ text: 'Uptime', bg: '#FFFFFF' }, { text: '99.98%' }]
-    ] }],
-    smartArt: [{ name: 'Static diagram', x: 0.75 * E, y: 5.6 * E, cx: 4.6 * E, cy: 1.2 * E, texts: ['Same', 'Same', 'Same'] }]
-  };
-  const greenA = structuredClone(greenSpec);
-  const greenB = structuredClone(greenSpec);
-
-  const E2 = EMU;
-  const deprecatedSlide = {
-    w: Math.round(13.333 * E2), h: 7.5 * E2, bg: '#FFFFFF',
-    shapes: [
-      mk('Title', 0.75 * E2, 0.55 * E2, 11.8 * E2, 1.0 * E2, { font: 'Georgia', size: 32, bold: true }, [{ text: 'Deprecated Process (remove in v2)', bullet: false }]),
-      mk('Body', 0.75 * E2, 1.9 * E2, 10 * E2, 2 * E2, { font: 'Arial', size: 18 }, [{ text: 'This workflow was retired ahead of the v2 review.', bullet: false }])
-    ]
-  };
-  const onboardingSlide = {
-    w: Math.round(13.333 * E2), h: 7.5 * E2, bg: '#FFFFFF',
-    shapes: [
-      mk('Title', 0.75 * E2, 0.55 * E2, 11.8 * E2, 1.0 * E2, { font: 'Georgia', size: 32, bold: true }, [{ text: 'Onboarding Flow', bullet: false }]),
-      mk('Body', 0.75 * E2, 1.9 * E2, 10 * E2, 2 * E2, { font: 'Arial', size: 18 }, [{ text: 'New-user activation steps and drop-off metrics.', bullet: false }])
-    ]
-  };
-  const billingSlide = {
-    w: Math.round(13.333 * E2), h: 7.5 * E2, bg: '#FFFFFF',
-    shapes: [
-      mk('Title', 0.75 * E2, 0.55 * E2, 11.8 * E2, 1.0 * E2, { font: 'Georgia', size: 32, bold: true }, [{ text: 'Billing Flow', bullet: false }]),
-      mk('Body', 0.75 * E2, 1.9 * E2, 10 * E2, 2 * E2, { font: 'Arial', size: 18 }, [{ text: 'Invoice generation and payment retry logic.', bullet: false }])
-    ]
-  };
-
-  A.push(redA, greenA, deprecatedSlide, onboardingSlide, billingSlide);
-  B.push(redB, greenB, billingSlide, onboardingSlide);
-  return { A, B };
+function buildSlide1(pptx, isBefore) {
+  const s = pptx.addSlide();
+  s.background = { color: isBefore ? 'FFFFFF' : 'FBF8F1' };
+  placedText(s, 'slide1:title', 'Q3 Business Review', isBefore
+    ? { x: 0.75, y: 0.4, w: 11.8, h: 1.0, fontFace: 'Georgia', fontSize: 40, bold: true, color: '1F1E1B', align: 'left' }
+    : { x: 0.75, y: 0.4, w: 11.8, h: 1.0, fontFace: 'Arial', fontSize: 44, bold: true, color: 'C9684A', align: 'left' });
+  placedText(s, 'slide1:subtitle', isBefore ? 'Prepared by the Strategy Team' : 'Prepared by Strategy & Finance',
+    { x: 0.75, y: 1.5, w: 9, h: 0.5, fontFace: 'Arial', fontSize: 18, color: '6B655A' });
+  placedText(s, 'slide1:bullets', [
+    { text: isBefore ? 'Revenue up 12% year over year' : 'Revenue up 15% year over year', options: { bullet: true, breakLine: true } },
+    { text: 'Churn down to 4.1%', options: { bullet: true, breakLine: true } },
+    { text: 'Three new markets launched', options: { bullet: true } }
+  ], { x: 1.0, y: 2.3, w: 8.2, h: 2.2, fontFace: 'Arial', fontSize: 22, color: '1F1E1B' });
+  if (isBefore) {
+    placedText(s, 'slide1:note', 'Draft — internal only', { x: 8.0, y: 4.9, w: 4.4, h: 0.8, fontFace: 'Arial', fontSize: 14, italic: true, color: '9A9486' });
+  } else {
+    placedText(s, 'slide1:callout', 'On track for a record Q4', { x: 9.0, y: 3.1, w: 3.5, h: 1.0, fontFace: 'Georgia', fontSize: 20, italic: true, color: 'C9684A', align: 'center' });
+  }
+  placedText(s, 'slide1:footer', 'Confidential — 2026', {
+    x: isBefore ? 0.75 : 6.6, y: 6.85, w: 6, h: 0.4, fontFace: 'Arial', fontSize: 12, color: '9A9486', align: isBefore ? 'left' : 'right'
+  });
+  const metricsHeader = [
+    { text: 'Metric', options: { bold: true, fill: { color: 'EAE4D6' } } },
+    { text: 'Q2', options: { bold: true, fill: { color: 'EAE4D6' } } },
+    { text: 'Q3', options: { bold: true, fill: { color: 'EAE4D6' } } }
+  ];
+  const metricsRows = [metricsHeader, ['Revenue', '$4.1M', '$4.6M'], ['Churn', '4.3%', '4.1%']];
+  if (!isBefore) metricsRows.push(['New logos', '18', '27']);
+  placedTable(s, 'slide1:table', metricsRows, { x: 0.9, y: 4.55, w: 6, fontSize: 14, border: { type: 'solid', color: 'CCCCCC', pt: 0.75 } });
 }
 
-const s = buildSample();
-const E = EMU, cx = Math.round(13.333 * E), cy = Math.round(7.5 * E);
-const bufA = await buildPptx(s.A, cx, cy, { embeddedFonts: ['Brand Sans'] });
-const bufB = await buildPptx(s.B, cx, cy, { embeddedFonts: ['Brand Sans', 'Brand Mono'] });
+function buildSlide2(pptx, isBefore) {
+  const s = pptx.addSlide();
+  s.background = { color: isBefore ? 'FFFFFF' : 'F4EFE3' };
+  placedText(s, 'slide2:title', 'Feature Showcase', { x: 0.75, y: 0.5, w: 11.8, h: 1.0, fontFace: 'Georgia', fontSize: 32, bold: true, color: '1F1E1B' });
+  placedText(s, 'slide2:link', 'Full roadmap and details', {
+    x: 0.75, y: 1.6, w: 6, h: 0.5, fontFace: 'Arial', fontSize: 16, color: '2A6FDB',
+    hyperlink: { url: isBefore ? 'https://example.com/roadmap-2026-draft' : 'https://example.com/roadmap-2026-final' }
+  });
+  placedText(s, 'slide2:wrappedNote', 'This note wraps across lines inside a narrow box.', {
+    x: 7.1, y: 1.55, w: 2.2, h: 0.9, fontFace: 'Arial', fontSize: 13, color: '6B655A', wrap: isBefore
+  });
+  placedText(s, 'slide2:borderedCallout', 'On track for GA', {
+    x: 0.75, y: 5.35, w: 4.6, h: 1.15, fontFace: 'Arial', fontSize: 16, bold: true, color: '1F1E1B',
+    line: isBefore ? { color: '3E7C5A', width: 1 } : { color: 'C9684A', width: 3 }
+  });
+  placedText(s, 'slide2:footer', isBefore ? 'Confidential — draft v1' : 'Confidential — final', { x: 0.75, y: 6.9, w: 6, h: 0.4, fontFace: 'Arial', fontSize: 12, color: '9A9486' });
+  placedImage(s, 'slide2:image', { data: `image/png;base64,${isBefore ? PNG_A : PNG_B}`, x: 9.3, y: 0.55, w: 3.2, h: 1.9 });
+  const fmtHeader = [
+    { text: 'Region', options: { bold: true, fill: { color: 'EAE4D6' } } },
+    { text: 'Owner', options: { bold: true, fill: { color: 'EAE4D6' } } },
+    { text: 'Status', options: { bold: true, fill: { color: 'EAE4D6' } } }
+  ];
+  const fmtRows = isBefore
+    ? [fmtHeader,
+      [{ text: 'AMER', options: { fill: { color: 'FFFFFF' }, border: { type: 'solid', color: 'CCCCCC', pt: 0.75 } } }, 'A. Chen', { text: 'Green', options: { fill: { color: 'E4F3E9' } } }],
+      [{ text: 'EMEA', options: { fill: { color: 'FFFFFF' } } }, 'R. Diaz', { text: 'At risk', options: { fill: { color: 'FBEFEC' } } }]]
+    : [fmtHeader,
+      [{ text: 'AMER', options: { fill: { color: 'FFFFFF' }, border: { type: 'solid', color: '3E7C5A', pt: 2 } } }, 'A. Chen', { text: 'Green', options: { fill: { color: 'E4F3E9' } } }],
+      [{ text: 'EMEA', options: { fill: { color: 'FBEFEC' } } }, 'R. Diaz', { text: 'Blocked', options: { fill: { color: 'FBEFEC' } } }]];
+  placedTable(s, 'slide2:table', fmtRows, { x: 0.75, y: 2.65, w: 6.2, fontSize: 13 });
+  placedChart(s, 'slide2:chart', pptx.ChartType.bar,
+    [{ name: 'Adoption', labels: ['C1', 'C2', 'C3'], values: isBefore ? [12, 18, 24] : [12, 18, 31] }],
+    { x: 9.3, y: 2.65, w: 3.2, h: 2.4, showTitle: false, showLegend: false });
+  s.addNotes(isBefore
+    ? 'Walk through the roadmap slide slowly — leadership cares about Q4 dates.'
+    : 'Walk through the roadmap slide slowly — leadership cares about Q4 dates. Mention the EMEA slip.');
+}
+
+function buildSlide3(pptx) {
+  const s = pptx.addSlide();
+  s.background = { color: 'FFFFFF' };
+  placedText(s, 'slide3:title', 'Stable Slide (control)', { x: 0.75, y: 0.5, w: 11.8, h: 1.0, fontFace: 'Georgia', fontSize: 32, bold: true, color: '1F1E1B' });
+  placedText(s, 'slide3:link', 'Unchanged reference link', { x: 0.75, y: 1.6, w: 6, h: 0.5, fontFace: 'Arial', fontSize: 16, color: '2A6FDB', hyperlink: { url: 'https://example.com/stable' } });
+  placedText(s, 'slide3:box', 'No changes here', { x: 0.75, y: 2.3, w: 4.6, h: 1.15, fontFace: 'Arial', fontSize: 16, bold: true, color: '1F1E1B', line: { color: '8A8273', width: 1.5 } });
+  placedImage(s, 'slide3:image', { data: `image/png;base64,${PNG_A}`, x: 6.0, y: 2.3, w: 2.6, h: 1.6 });
+  placedTable(s, 'slide3:table', [
+    [{ text: 'Item', options: { bold: true, fill: { color: 'EAE4D6' } } }, { text: 'Value', options: { bold: true, fill: { color: 'EAE4D6' } } }],
+    ['Uptime', '99.98%']
+  ], { x: 0.75, y: 4.0, w: 6.2, fontSize: 14 });
+  s.addNotes('This slide should show zero differences — a control for the diff engine.');
+}
+
+// Slides 4-6 — deletion + reorder: a Before-only slide (removed), and two slides that swap
+// order between Before and After (moved).
+function simpleSlide(pptx, title, body) {
+  const s = pptx.addSlide();
+  s.background = { color: 'FFFFFF' };
+  placedText(s, `simple:${title}:title`, title, { x: 0.75, y: 0.55, w: 11.8, h: 1.0, fontFace: 'Georgia', fontSize: 32, bold: true });
+  placedText(s, `simple:${title}:body`, body, { x: 0.75, y: 1.9, w: 10, h: 2, fontFace: 'Arial', fontSize: 18 });
+}
+
+function buildDeck(variant) {
+  const isBefore = variant === 'before';
+  const pptx = new PptxGenJS();
+  pptx.defineLayout({ name: 'PPTXDIFF_16X9', width: SLIDE_W, height: SLIDE_H });
+  pptx.layout = 'PPTXDIFF_16X9';
+  pptx.author = 'pptxdiff';
+  pptx.company = 'pptxdiff';
+  pptx.title = isBefore ? 'Sample Before' : 'Sample After';
+
+  buildSlide1(pptx, isBefore);
+  buildSlide2(pptx, isBefore);
+  buildSlide3(pptx);
+
+  if (isBefore) {
+    simpleSlide(pptx, 'Deprecated Process (remove in v2)', 'This workflow was retired ahead of the v2 review.');
+    simpleSlide(pptx, 'Onboarding Flow', 'New-user activation steps and drop-off metrics.');
+    simpleSlide(pptx, 'Billing Flow', 'Invoice generation and payment retry logic.');
+  } else {
+    simpleSlide(pptx, 'Billing Flow', 'Invoice generation and payment retry logic.');
+    simpleSlide(pptx, 'Onboarding Flow', 'New-user activation steps and drop-off metrics.');
+  }
+
+  return pptx;
+}
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const outBefore = process.argv[2] || path.join(repoRoot, 'docs/assets/sample_before.pptx');
 const outAfter = process.argv[3] || path.join(repoRoot, 'docs/assets/sample_after.pptx');
 
-writeFileSync(outBefore, Buffer.from(bufA));
-writeFileSync(outAfter, Buffer.from(bufB));
-console.log('wrote', outBefore, bufA.byteLength, 'bytes');
-console.log('wrote', outAfter, bufB.byteLength, 'bytes');
+await buildDeck('before').writeFile({ fileName: outBefore });
+await buildDeck('after').writeFile({ fileName: outAfter });
+console.log('wrote', outBefore);
+console.log('wrote', outAfter);
