@@ -10,7 +10,7 @@
     "url": "https://github.com/sugatoray"
   },
   "bin": {
-    "pptxdiff": "./bin/cli.js"
+    "pptxdiff": "bin/cli.js"
   },
   "files": [
     "bin",
@@ -32,11 +32,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/sugatoray/pptxdiff.git"
+    "url": "git+https://github.com/sugatoray/pptxdiff.git"
   },
   "homepage": "https://github.com/sugatoray/pptxdiff#readme",
   "keywords": [
-    "pptx", 
+    "pptx",
     "powerpoint",
     "diff",
     "compare",
