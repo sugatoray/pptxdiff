@@ -2,6 +2,13 @@
 
 ![banner](docs/assets/banner_demo.png)
 
+---
+
+> [!warning] 
+> :warning: **_THIS PROJECT IS URRENTLY BEING DEVELOPED RAPIDLY. FEATURES MAY BREAK OR YOU MAY FIND BUGS AS THIS IS IN EARLY STAGE OF DEVELOPMENT_**.
+
+---
+
 ## What is `pptxdiff`?
 
 A single-file, client-side tool for comparing two PowerPoint decks (or many pairs at once), rendered with real fidelity and diffed on text, formatting, images, tables, charts, animations, transitions, speaker notes, and more — with a full reviewer workflow (approvals, comments, history) built in.
@@ -80,9 +87,11 @@ docs/.scrolls/                # project memory — read docs/.scrolls/STARTER.md
 
 ## Contributing / extending this project
 
-**AI Driven Development**:
+> [!note] Not Open to Contributions
+> 
+> Currently not accepting contributions. Please feel free to open issues at the GitHub repository.
 
-Start with **`docs/.scrolls/STARTER.md`** — it explains the reading order for the rest of `docs/.scrolls/` (`SPEC.md` for the full feature list, `HANDOFF.md` for the latest session's state, `GAP_ANALYSIS.md`/`GAP_CONTEXT.md` for known gaps and why, `PLAN.md` for the prioritized backlog, `WISDOM.md` for hard-won lessons and traps to avoid). These files are the project's working memory across sessions and are kept up to date as the app evolves.
+**AI Driven Development**: See `CLAUDE.md`.
 
 ## License
 
