@@ -1,3 +1,5 @@
+## NOTE: JS/TS Gitignore Template
+
 # Logs
 logs
 *.log
@@ -141,6 +143,8 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+## NOTE: Python Gitignore Template
+
 .zed
 
 # Byte-compiled / optimized / DLL files
@@ -350,3 +354,9 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+## NOTE: User Defined Gitignore Template
+
+## Common Files/Folders to ignore
+.DS_Store
+__pychache__
+node_modules

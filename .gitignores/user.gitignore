@@ -1,0 +1,6 @@
+## NOTE: User Defined Gitignore Template
+
+## Common Files/Folders to ignore
+.DS_Store
+__pychache__
+node_modules
