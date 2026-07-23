@@ -1,11 +1,11 @@
-# pptxdiff — _A Diff Tool for Slides_
+# **`PptxDiff`** — _A Diff Tool for Slides_
 
-![banner](docs/assets/banner_demo.png)
+![banner](docs/assets/pptxdiff_banner.png)
 
 ---
 
 > [!warning] 
-> :warning: **_THIS PROJECT IS URRENTLY BEING DEVELOPED RAPIDLY. FEATURES MAY BREAK OR YOU MAY FIND BUGS AS THIS IS IN EARLY STAGE OF DEVELOPMENT_**.
+> :warning: **_THIS PROJECT IS BEING DEVELOPED RAPIDLY. FEATURES MAY BREAK OR YOU MAY FIND BUGS AS THIS IS IN EARLY STAGE OF DEVELOPMENT_**.
 
 ---
 
@@ -14,6 +14,8 @@
 A single-file, client-side tool for comparing two PowerPoint decks (or many pairs at once), rendered with real fidelity and diffed on text, formatting, images, tables, charts, animations, transitions, speaker notes, and more — with a full reviewer workflow (approvals, comments, history) built in.
 
 No build step, and no install required if you'd rather just open `index.html` directly — or install it as a CLI via npm.
+
+![demo-banner-allpairs](docs/assets/pptxdiff_demo_1_allpairs.png)
 
 ## Features
 
