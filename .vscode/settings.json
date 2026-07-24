@@ -1,3 +1,5 @@
 {
-    "makefile.configureOnOpen": false
+    "makefile.configureOnOpen": false,
+    // Settings for showing badges
+    "explorer.decorations.badges": true
 }

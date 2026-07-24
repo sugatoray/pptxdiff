@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 No changes yet.
 
+## [0.3.1] - 2026-07-24
+
+### Changed
+
+- Updated README with badges for npm and vscode marketplace.
+- 📦 Introduced a VS Code Extension. `PptxDiff` can now be installed from VS Code as well: 📦 → Search for `pptxdiff` [![vscode-badge][#vsce-svg-url-version]][#vsce-marketplace-url]
+
+[#vsce-svg-url-version]: https://vsmarketplacebadges.dev/version/sugatoray.pptxdiff-vscode.svg
+
+[#vsce-marketplace-url]: https://marketplace.visualstudio.com/items?itemName=sugatoray.pptxdiff-vscode
+
 ## [0.3.0] - 2026-07-23
 
 ### Added
