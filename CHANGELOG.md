@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 No changes yet.
 
+## [0.3.0] - 2026-07-23
+
+### Added
+
+- New packaged project assets for npm consumers: `docs/assets/pptxdiff_banner.png`, `pptxdiff_logo.png`, `icon.png`, and `pptxdiff_demo_1_allpairs.png`.
+- README demo image showing the all-pairs comparison workflow.
+
+### Changed
+
+- Renamed the app-facing brand from "Slide Diff" to `PptxDiff` across the main app UI and generated report titles.
+- Updated exported report filenames to use the `pptxdiff-report.*` naming convention for JSON, HTML, Markdown, Notion Markdown, and Confluence text exports.
+- Updated npm package metadata to version `0.3.0`.
+- Expanded the npm package `files` allow-list to include the refreshed banner, logo, icon, and demo assets.
+- Updated the main README title, banner reference, warning copy, and demo imagery for the `PptxDiff` npm package.
+
 ## [0.2.0] - 2026-07-21
 
 ### Added
