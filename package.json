@@ -1,7 +1,7 @@
 {
   "name": "pptxdiff",
   "version": "0.3.0",
-  "description": "Compare two PowerPoint decks with real fidelity rendering, deep diffing, and a full reviewer workflow. Runs locally in your browser, no build step.",
+  "description": "A diff tool to compare two PowerPoint decks. Completely local, no cloud upload.",
   "license": "Apache-2.0",
   "private": false,
   "author": {
@@ -13,6 +13,7 @@
     "pptxdiff": "bin/cli.js"
   },
   "scripts": {
+    "build:npm": "mkdir -p dist && npm pack --pack-destination dist",
     "package:vscode": "cd src/packages/pptxdiff-vscode && mkdir -p dist && vsce package --out dist/pptxdiff-vscode-$(node -p \"require('./package.json').version\").vsix"
   },
   "files": [
