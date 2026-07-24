@@ -2,7 +2,13 @@
 
 All notable changes to the pptxdiff VS Code extension will be documented in this file.
 
-## [0.1.3] - 2026-07-22
+## [0.1.4] - 2026-07-24
+
+### Changed
+
+- Updated README with badge, and corrected image urls for publishing on the vscode marketplace.
+
+## [0.1.3] - 2026-07-23
 
 ### Changed
 
