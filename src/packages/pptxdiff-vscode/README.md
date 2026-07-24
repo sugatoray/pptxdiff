@@ -1,6 +1,22 @@
+<!-- markdownlint-disable MD041 -->
+
+[![vscode-badge][#vsce-png-url-version]][#vsce-marketplace-url]
+<!---
+[![Installs][#vsce-png-url-installs]][#vsce-marketplace-url]
+[![Downloads][#vsce-png-url-downloads]][#vsce-marketplace-url]
+--->
+[#vsce-png-url-version]: https://vsmarketplacebadges.dev/version/sugatoray.pptxdiff-vscode.png
+<!---
+[#vsce-png-url-installs]: https://vsmarketplacebadges.dev/installs/sugatoray.pptxdiff-vscode.png
+[#vsce-png-url-downloads]: https://vsmarketplacebadges.dev/downloads/sugatoray.pptxdiff-vscode.png
+--->
+[#vsce-marketplace-url]: https://marketplace.visualstudio.com/items?itemName=sugatoray.pptxdiff-vscode
+<!-- markdownlint-enable MD041 -->
+
+
 # PptxDiff for VS Code
 
-![banner](https://github.com/sugatoray/pptxdiff/HEAD/docs/assets/pptxdiff_banner.png)
+![banner](https://raw.githubusercontent.com/sugatoray/pptxdiff/HEAD/docs/assets/pptxdiff_banner.png)
 
 Opens the [pptxdiff](https://github.com/sugatoray/pptxdiff) PowerPoint diff tool in your browser.
 
@@ -8,4 +24,4 @@ Opens the [pptxdiff](https://github.com/sugatoray/pptxdiff) PowerPoint diff tool
 
 Run **`pptxdiff: Open Diff Tool`** from the Command Palette (windows: `Ctrl+Shift+P`, mac: `Cmd+Shift+P`).
 
-![demo-banner-allpairs](https://github.com/sugatoray/pptxdiff/HEAD/docs/assets/pptxdiff_demo_1_allpairs.png)
+![demo-banner-allpairs](https://raw.githubusercontent.com/sugatoray/pptxdiff/HEAD/docs/assets/pptxdiff_demo_1_allpairs.png)
