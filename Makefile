@@ -19,6 +19,7 @@
 VSCE_PUBLISHER := sugatoray
 VSCE_NAME := pptxdiff-vscode
 PYTHON := python3
+NPM_PKG_DIR_RELPATH := .
 VSCE_PKG_DIR_RELPATH := ./src/packages/pptxdiff-vscode
 
 ########################## DONOT CHANGE PARAMETERS BELOW ###############################
@@ -33,6 +34,15 @@ ROOT_MAKEFILE := $(firstword $(MAKEFILE_LIST))
 _ROOT_DIR := $(dir $(abspath $(ROOT_MAKEFILE)))
 ROOT_DIR := $(call remove_trailing_slash,$(_ROOT_DIR))
 UTILS := source $(ROOT_DIR)/src/tools/utils.sh
+
+NPM_PKG_DIR := $(abspath $(ROOT_DIR)/$(NPM_PKG_DIR_RELPATH))
+NPM_PKGJSON_PATH := $(NPM_PKG_DIR)/package.json
+NPM_PKG_VERSION := $(shell node -p "require('$(NPM_PKGJSON_PATH)').version")
+NPM_PKG_NAME := $(shell node -p "require('$(NPM_PKGJSON_PATH)').name")
+NPM_PKG_PATH_LOCAL := dist/$(NPM_PKG_NAME)-$(NPM_PKG_VERSION).tgz
+
+NPM_PACKAGE_URL := https://www.npmjs.com/package/$(NPM_PKG_NAME)
+NPM_PACKAGE_VERSION_URL := $(NPM_PACKAGE_URL)/v/$(NPM_PKG_VERSION)
 
 VSCE_PKG_DIR := $(abspath $(ROOT_DIR)/$(VSCE_PKG_DIR_RELPATH))
 VSCE_PKGJSON_PATH := $(VSCE_PKG_DIR)/package.json
@@ -147,8 +157,20 @@ load.utils:
 
 ############################## ..: COMMANDS pkg.*:.. ################################
 
-.PHONY: pkg.vsce.package
-pkg.vsce.package:
+pkg.npm.build:
+	@## npm run build:npm
+	@echo -e "\n✨ Building NPM package... ⏳\n"
+	@cd $(NPM_PKG_DIR) && npm run build:npm
+
+## NOTE: pkg.npm.publish does not work yet. Use: "npm publish" instead.
+.PHONY: pkg.npm.publish
+pkg.npm.publish: pkg.npm.build
+	@## npm publish
+	@echo -e "\n✨ Publishing NPM package... ⏳\n"
+	@cd $(NPM_PKG_DIR) && npm publish $(NPM_PKG_PATH_LOCAL)
+
+.PHONY: pkg.vsce.build
+pkg.vsce.build:
 	@## npm run package:vscode
 	@echo -e "\n✨ Packaging VS Code extension... ⏳\n"	
 	@cd $(VSCE_PKG_DIR) && vsce package --out dist/
@@ -160,7 +182,7 @@ pkg.vsce.publish:
 	@cd $(VSCE_PKG_DIR) && vsce publish --packagePath $(VSIX_EXT_PATH_LOCAL)
 
 .PHONY: pkg.vsce.release
-pkg.vsce.release: pkg.vsce.package pkg.vsce.publish
+pkg.vsce.release: pkg.vsce.build pkg.vsce.publish
 	@## npm run release:vscode
 	@echo -e "\n✨ Releasing VS Code extension... ⏳\n"
 	@make vsce.info.min
@@ -174,6 +196,21 @@ pkg.vsce.install.local:
 	
 
 ############################## ..: COMMANDS vsce.*:.. ################################
+
+.PHONY: npm.info
+npm.info:
+	@echo -e "\n✨ NPM Package Info... ⏳\n"
+	@printf " - %s  %-28s %s\n" "🏠"  "Project Root Directory:"    "$(ROOT_DIR)"
+	@printf " - %s  %-28s %s\n" "📁"  "Package Dir AbsPath:"       "$(NPM_PKG_DIR)"
+	@printf " - %s  %-28s %s\n" "📁"  "Package Dir RelPath:"       "$(NPM_PKG_DIR_RELPATH)"
+	@printf " - %s  %-28s %s\n" "🏢"  "Package Publisher:"         "$(NPM_PUBLISHER)"
+	@printf " - %s  %-28s %s\n" "🧩"  "Package Name:"              "$(NPM_PKG_NAME)"
+	@printf " - %s  %-28s %s\n" "🔖"  "Package Version:"           "$(NPM_PKG_VERSION)"
+	@printf " - %s  %-28s %s\n" "📦"  "Package Path:"              "$(NPM_PKG_PATH_LOCAL)"
+	@printf " - %s  %-28s %s\n" "🛒"  "Package URL:"               "$(NPM_PACKAGE_URL)"
+	@printf " - %s  %-28s %s\n" "⚙️ " "Package Version URL:"       "$(NPM_PACKAGE_VERSION_URL)"
+	@printf " - %s  %-28s %s\n" "🔐"  "Package Token URL:"         "$(NPM_TOKEN_URL)"
+
 
 .PHONY: vsce.info
 vsce.info:
