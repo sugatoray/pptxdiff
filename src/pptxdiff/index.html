@@ -38,7 +38,7 @@
           <div style="width:11px;height:11px;border-radius:50%;background:{{ accent }}"></div>
           <div style="font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:{{ theme.muted }};font-weight:600">PowerPoint review</div>
         </div>
-        <h1 style="font-family:'Spectral',Georgia,serif;font-weight:500;font-size:40px;line-height:1.05;margin:10px 0 0;letter-spacing:-.01em">Slide&nbsp;Diff</h1>
+        <h1 style="font-family:'Spectral',Georgia,serif;font-weight:500;font-size:40px;line-height:1.05;margin:10px 0 0;letter-spacing:-.01em">PptxDiff</h1>
         <p style="margin:8px 0 0;color:{{ theme.muted }};font-size:15px;max-width:48ch;line-height:1.45">Compare two slides side by side — rendered with full fidelity, then diffed on text, fonts, color, alignment and position. Drop in a pair of <code style="font-family:ui-monospace,Menlo,monospace;font-size:13px;background:#EBE6D8;padding:1px 5px;border-radius:4px">.pptx</code> files or review the sample.</p>
       </div>
       <div class="no-print" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -2123,7 +2123,7 @@ class Component extends DCLogic {
     const rows = this.buildReportRows();
     const changed = rows.filter(r => r.diffs.length > 0).length;
     const lines = [
-      'Slide Diff report: ' + this.state.nameA + ' vs ' + this.state.nameB,
+      'PptxDiff report: ' + this.state.nameA + ' vs ' + this.state.nameB,
       rows.length + ' slide pair(s), ' + changed + ' with differences.', ''
     ];
     rows.forEach(r => { lines.push('• ' + r.label + ' — ' + (r.diffs.length ? r.diffs.length + ' change(s) [' + r.decision + ']' : 'identical')); });
@@ -2135,7 +2135,7 @@ class Component extends DCLogic {
     catch (e) { this.downloadBlob('slack-summary.txt', text, 'text/plain'); }
   }
   exportEmailSummary() {
-    const subject = encodeURIComponent('Slide Diff report: ' + this.state.nameA + ' vs ' + this.state.nameB);
+    const subject = encodeURIComponent('PptxDiff report: ' + this.state.nameA + ' vs ' + this.state.nameB);
     const body = encodeURIComponent(this.buildPlainSummary());
     window.open('mailto:?subject=' + subject + '&body=' + body, '_blank');
   }
@@ -2143,7 +2143,7 @@ class Component extends DCLogic {
     const rows = this.buildReportRows();
     const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const body = rows.map(r => `<section style="margin:0 0 24px;padding-bottom:16px;border-bottom:1px solid #ddd"><h3>${esc(r.label)} — ${esc(r.decision)}</h3>${r.diffs.length ? '<ul>' + r.diffs.map(d => `<li><strong>${esc(d.type)}:</strong> ${esc(d.oldText)} → ${esc(d.newText || '')}</li>`).join('') + '</ul>' : '<p>Identical</p>'}</section>`).join('');
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Slide Diff Report</title></head><body style="font-family:sans-serif;max-width:800px;margin:40px auto"><h1>Slide Diff Report</h1><p>${esc(this.state.nameA)} → ${esc(this.state.nameB)}</p>${body}</body></html>`;
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>PptxDiff Report</title></head><body style="font-family:sans-serif;max-width:800px;margin:40px auto"><h1>PptxDiff Report</h1><p>${esc(this.state.nameA)} → ${esc(this.state.nameB)}</p>${body}</body></html>`;
     const url = 'data:text/html;base64,' + btoa(unescape(encodeURIComponent(html)));
     try { await navigator.clipboard.writeText(url); this.showToast('Shareable link copied (self-contained; paste into a browser)'); }
     catch (e) { this.showToast('Could not copy — export HTML instead'); }
@@ -2346,7 +2346,7 @@ class Component extends DCLogic {
       history: st.history,
       uiState: { collapsedPairs: st.collapsedPairs, selectedPairs: st.selectedPairs, mergeWinnerOverrides: st.mergeWinnerOverrides }
     };
-    this.downloadBlob('slide-diff-report.json', JSON.stringify(report, null, 2), 'application/json');
+    this.downloadBlob('pptxdiff-report.json', JSON.stringify(report, null, 2), 'application/json');
   }
   /* ---------- report-JSON round-trip import ---------- */
   /* Pure parser (no DOM/state I/O) so it's directly unit-testable: takes a parsed report object
@@ -2448,12 +2448,12 @@ class Component extends DCLogic {
         : '<div style="color:#3E7C5A">Identical</div>'}
       ${r.comments.length ? '<div style="margin-top:10px;font-size:13px;color:#4A463E"><strong>Comments:</strong>' + r.comments.map(c => `<div style="margin-top:4px">— ${esc(c.author)}: ${esc(c.text)}</div>`).join('') + '</div>' : ''}
     </section>`).join('');
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Slide Diff Report</title></head>
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>PptxDiff Report</title></head>
       <body style="font-family:-apple-system,Helvetica,Arial,sans-serif;max-width:900px;margin:40px auto;padding:0 20px;color:#1F1E1B">
-      <h1 style="font-family:Georgia,serif">Slide Diff Report</h1>
+      <h1 style="font-family:Georgia,serif">PptxDiff Report</h1>
       <div style="color:#6B655A;margin-bottom:24px">${esc(this.state.nameA)} → ${esc(this.state.nameB)} · generated ${esc(new Date().toLocaleString())}</div>
       ${body}</body></html>`;
-    this.downloadBlob('slide-diff-report.html', html, 'text/html');
+    this.downloadBlob('pptxdiff-report.html', html, 'text/html');
   }
   exportDecisionsJson() {
     this.downloadBlob('decisions.json', JSON.stringify(this.buildReportRows().map(r => ({ slide: r.label, decision: r.decision, reviewerVotes: r.reviewerVotes, comments: r.comments.map(c => c.author + ': ' + c.text) })), null, 2), 'application/json');
@@ -2467,7 +2467,7 @@ class Component extends DCLogic {
   buildMarkdownBody() {
     const st = this.state;
     const rows = this.buildReportRows();
-    const lines = ['# Slide Diff report', '', '**Before:** ' + st.nameA, '**After:** ' + st.nameB, '**Generated:** ' + new Date().toLocaleString(), ''];
+    const lines = ['# PptxDiff report', '', '**Before:** ' + st.nameA, '**After:** ' + st.nameB, '**Generated:** ' + new Date().toLocaleString(), ''];
     rows.forEach(r => {
       lines.push('## ' + r.label + ' — ' + r.decision.charAt(0).toUpperCase() + r.decision.slice(1));
       if (!r.diffs.length) { lines.push('', '_Identical_', ''); }
@@ -2485,12 +2485,12 @@ class Component extends DCLogic {
     return lines.join('\n');
   }
   exportMarkdownSummary() {
-    this.downloadBlob('slide-diff-report.md', this.buildMarkdownBody(), 'text/markdown');
+    this.downloadBlob('pptxdiff-report.md', this.buildMarkdownBody(), 'text/markdown');
   }
   /* Notion's importer (Settings → Import → Markdown) reads standard Markdown/tables directly —
      the same body works, saved with a name that signals its purpose. */
   exportNotionMarkdown() {
-    this.downloadBlob('slide-diff-report.notion.md', this.buildMarkdownBody(), 'text/markdown');
+    this.downloadBlob('pptxdiff-report.notion.md', this.buildMarkdownBody(), 'text/markdown');
     this.showToast('Markdown saved — in Notion use Settings & members → Import → Markdown to bring it in as a page');
   }
   /* Confluence's editor accepts pasted "wiki markup" via Insert → Markup, or import via Import Word
@@ -2499,7 +2499,7 @@ class Component extends DCLogic {
     const st = this.state;
     const rows = this.buildReportRows();
     const esc = (s) => String(s == null ? '' : s).replace(/\|/g, '\\|');
-    const lines = ['h1. Slide Diff report', '', '*Before:* ' + st.nameA, '*After:* ' + st.nameB, '*Generated:* ' + new Date().toLocaleString(), ''];
+    const lines = ['h1. PptxDiff report', '', '*Before:* ' + st.nameA, '*After:* ' + st.nameB, '*Generated:* ' + new Date().toLocaleString(), ''];
     rows.forEach(r => {
       lines.push('h2. ' + r.label + ' — ' + r.decision);
       if (!r.diffs.length) lines.push('', '_Identical_', '');
@@ -2517,7 +2517,7 @@ class Component extends DCLogic {
     return lines.join('\n');
   }
   exportConfluencePage() {
-    this.downloadBlob('slide-diff-report.confluence.txt', this.buildConfluenceWikiMarkup(), 'text/plain');
+    this.downloadBlob('pptxdiff-report.confluence.txt', this.buildConfluenceWikiMarkup(), 'text/plain');
     this.showToast('Wiki markup saved — in Confluence, open a page, choose Insert → Markup → Wiki Markup, and paste this file\'s contents');
   }
   /* ---------- live push: Slack webhook / Notion API / Confluence API ---------- */

@@ -8,3 +8,6 @@ node_modules
 ## Ignore headroom generated files
 .tokensave/
 .claude/.headroom_wrap_marker.json
+
+## Ignore vscode extension artifacts
+*.vsix
