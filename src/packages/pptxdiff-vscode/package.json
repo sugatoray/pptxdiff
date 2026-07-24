@@ -1,0 +1,43 @@
+{
+  "name": "pptxdiff-vscode",
+  "displayName": "PptxDiff",
+  "description": "Compare two PowerPoint decks with real fidelity rendering, deep diffing, and a full reviewer workflow — right from VS Code.",
+  "version": "0.1.5",
+  "license": "Apache-2.0",
+  "publisher": "sugatoray",
+  "private": true,
+  "icon": "media/icon.png",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./extension.js",
+  "activationEvents": [],
+  "scripts": {
+    "build": "node ./build.js",
+    "vscode:prepublish": "npm run build",
+    "pretest": "npm run build",
+    "test": "node ./test_extension.js"
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "pptxdiff.open",
+        "title": "pptxdiff: Open Diff Tool"
+      }
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sugatoray/pptxdiff.git"
+  },
+  "homepage": "https://github.com/sugatoray/pptxdiff#readme",
+  "keywords": [
+    "pptx",
+    "powerpoint",
+    "diff",
+    "compare"
+  ]
+}
