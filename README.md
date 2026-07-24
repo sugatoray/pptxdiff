@@ -1,5 +1,20 @@
 # **`PptxDiff`** — _A Diff Tool for Slides_
 
+<!-- markdownlint-disable MD041 -->
+![NPM Version](https://img.shields.io/npm/v/pptxdiff)
+[![vscode-badge][#vsce-svg-url-version]][#vsce-marketplace-url]
+<!---
+[![Installs][#vsce-svg-url-installs]][#vsce-marketplace-url]
+[![Downloads][#vsce-svg-url-downloads]][#vsce-marketplace-url]
+--->
+[#vsce-svg-url-version]: https://vsmarketplacebadges.dev/version/sugatoray.pptxdiff-vscode.svg
+<!---
+[#vsce-svg-url-installs]: https://vsmarketplacebadges.dev/installs/sugatoray.pptxdiff-vscode.svg
+[#vsce-svg-url-downloads]: https://vsmarketplacebadges.dev/downloads/sugatoray.pptxdiff-vscode.svg
+--->
+[#vsce-marketplace-url]: https://marketplace.visualstudio.com/items?itemName=sugatoray.pptxdiff-vscode
+<!-- markdownlint-enable MD041 -->
+
 ![banner](docs/assets/pptxdiff_banner.png)
 
 ---
