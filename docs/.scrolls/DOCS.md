@@ -2,6 +2,8 @@
 
 Written 2026-07-26. Covers the decision behind, and implementation of, the documentation website at `src/pptxdiff/docs-site/`.
 
+**Updated later the same session** (§7-§8 added): a separate branch/PR added offline-capability + `PPTXDIFF_LITE_MODE` content across most pages, and built a documentation-coverage tracking system (registry + front matter + sync script + Jinja-rendered coverage page). Per the standing rule now in `STARTER.md`, this file is the place any future documentation-related change gets checked against/recorded in — read §7-§8 before touching anything under `docs-site/`, not just §1-§6.
+
 ## 1. The ask
 
 Build a visually appealing documentation website for `pptxdiff` (the npm library/app in `src/pptxdiff/`), living inside `src/pptxdiff/`, with a walkthrough of every feature. Evaluate **GreatDocs**, **Zensical**, **mkdocs-material**, and **Sphinx** first, and pick one — factoring maintainability, features, bugs, vulnerabilities, funding, and developer track record. Stated preference: **author docs in plain Markdown**.
@@ -68,8 +70,12 @@ There is no Python surface at all beyond incidental dev tooling (`gen-sample-ppt
 
 ```
 src/pptxdiff/docs-site/
-  mkdocs.yml               # site config: nav, Material theme, markdown extensions, snippets
+  mkdocs.yml               # site config: nav, Material theme, markdown extensions, snippets, macros plugin
+  main.py                  # mkdocs-macros-plugin hook (module_name: main) — see §8
   README.md                # how to preview/build this site
+  scripts/
+    coverage_registry.yml   # canonical feature/limitation checklist — see §8
+    sync_doc_coverage.py    # --write/--check the documentation-coverage page — see §8
   docs/
     index.md               # home page — feature grid, screenshots, install tabs
     getting-started.md      # npx/npm/file install options, dev workflow, project structure
@@ -83,14 +89,15 @@ src/pptxdiff/docs-site/
       batch-mode.md          # multi-pair upload, pairing modes, drag reorder
       merge.md                # per-diff picks, merge-winner preview, beta .pptx export
       exports.md              # PDF/HTML/JSON/CSV/Markdown/Notion/Confluence + live push
-      ui-shortcuts.md         # dark mode, keyboard shortcuts, touch, accessibility
+      ui-shortcuts.md         # dark mode, keyboard shortcuts, touch, accessibility, Offline Mode toggle
       self-tests.md           # the in-browser Red/Green regression suite
-    cli.md                  # bin/cli.js reference
+    cli.md                  # bin/cli.js reference, incl. PPTXDIFF_LITE_MODE
     vscode-extension.md      # the VS Code extension
-    architecture.md          # why one file, no backend, CDN runtime deps, testing philosophy
+    architecture.md          # why one file, no backend, vendored runtime deps, testing philosophy
     limitations.md           # known/accepted trade-offs table
     faq.md
     changelog.md             # transcludes the real root CHANGELOG.md via pymdownx.snippets
+    documentation-coverage.md # Jinja-rendered coverage report — see §8
     assets/img/               # copies of docs/assets/*.png used on the site
 ```
 
@@ -100,7 +107,7 @@ Content was sourced directly from `docs/.scrolls/SPEC.md` (the authoritative fea
 
 - **Site lives under `src/pptxdiff/` per the request**, as `docs-site/` (a sibling to `index.html`), rather than reusing the repo-root `docs/` directory — which already means something else in this repo (project working-memory scrolls + static image/`.pptx` assets), not a documentation website. Keeping them separate avoids overloading `docs/`'s existing meaning.
 - **`docs/changelog.md` transcludes the real `CHANGELOG.md`** (via `pymdownx.snippets` with `base_path: ["."]`, included with `--8<-- "CHANGELOG.md"`) instead of duplicating it — one source of truth, can't drift.
-- **Python tooling wired into the existing `uv`/`pyproject.toml` setup**: added a `[dependency-groups] docs = ["mkdocs>=1.6.1", "mkdocs-material>=9.7.7"]` group, so `uv run --group docs mkdocs ...` works without polluting the app's runtime dependency list (which stays JS-only, no runtime deps — see `package.json`).
+- **Python tooling wired into the existing `uv`/`pyproject.toml` setup**: added a `[dependency-groups] docs = ["mkdocs>=1.6.1", "mkdocs-material>=9.7.7", "mkdocs-macros-plugin>=1.3.7"]` group, so `uv run --group docs mkdocs ...` works without polluting the app's runtime dependency list (which stays JS-only, no runtime deps — see `package.json`). `mkdocs-macros-plugin` was added later, in the same session that built the documentation-coverage tracker — see §8.
 - **`.gitignore`** gained `src/pptxdiff/docs-site/site/` (the root already ignored `/site` and `docs/_build/`, but that pattern is anchored to the repo root and wouldn't have caught this site's own build output one level down).
 - **Mermaid support is configured but unused**: `mkdocs.yml` includes the standard `pymdownx.superfences` custom-fence wiring for Mermaid diagrams (in case a future page wants one), but no page currently uses it — a test diagram in `architecture.md` was replaced with a plain-text box diagram after confirming Mermaid's dynamic CDN-loaded JS doesn't render reliably in this sandboxed build/preview environment. Nothing about this choice affects the shipped site (there was no shipped Mermaid content).
 - **Social icon fix**: `extra.social` originally referenced `simple/visualstudiocode`, which isn't bundled in this Material version's icon set — swapped for the bundled `material/microsoft-visual-studio-code`.
@@ -120,8 +127,32 @@ uv run --group docs mkdocs build -f src/pptxdiff/docs-site/mkdocs.yml --strict  
 
 Not wired into CI/deployment (e.g. GitHub Pages) in this session — no publishing target was specified. `site_url` in `mkdocs.yml` is set to `https://sugatoray.github.io/pptxdiff/` as a placeholder for a future GitHub Pages deploy; update it if the real publish target differs.
 
+**Later-session addendum**: `uv run --group docs ...` also resolves and installs the ROOT `[project]` dependencies (`headroom-ai[all]`, which pulls in `torch`/CUDA packages — hundreds of MB, and in a network-restricted sandbox this can time out entirely). Prefer `uv run --only-group docs ...` for anything docs-site-only (building, serving, running `sync_doc_coverage.py`) — it installs just the `docs` group's own packages and is dramatically faster/more reliable. Only use `--group docs` (not `--only-group`) if you specifically also need the root project's dependencies available in the same invocation.
+
 ## 6. Maintenance notes for future sessions
 
 - **Keep `docs-site/docs/features/*.md` in sync with `docs/.scrolls/SPEC.md`** when shipping a new feature — `SPEC.md` is the source of truth for *what* the app does; the doc site is the reader-facing explanation of the same features. They should never contradict each other.
 - **`changelog.md` needs no manual updates** — it transcludes the real file.
 - **Revisit Zensical** once it ships a stable (non-alpha) release — check `pip index versions zensical` or its PyPI page; migration is expected to be low-effort given the team's explicit compatibility goal with existing Material `mkdocs.yml` projects.
+- **When you add or change a page's `doc_coverage:` front matter (see §8), re-run `sync_doc_coverage.py --write` and commit the regenerated `documentation-coverage.md` in the same change** — don't leave it stale for someone else to notice. `--check` will catch a forgotten regeneration (see §8), but don't rely on that as the first line of defense; it's a safety net, not a substitute for actually running `--write`.
+- **This file (DOCS.md) is the standing reference for anything about the docs SITE itself** — tooling, layout, cross-page mechanisms like the coverage tracker. Per `STARTER.md`, read it before any docs-site change beyond routine single-page content edits, and update it (not just SPEC.md/HANDOFF.md) whenever such a change happens. Routine content edits to an EXISTING page (fixing a typo, adding a paragraph to an existing feature page) don't need a DOCS.md update — see the `STARTER.md` note for exactly where that line sits.
+
+## 7. Content updates: offline capability, `PPTXDIFF_LITE_MODE`, "Offline Mode" toggle (added later this session)
+
+A separate line of work in the same session made pptxdiff fully offline-capable by default (vendoring React/ReactDOM/Babel/JSZip/`pptx-renderer`/fonts — see `SPEC.md` §24) and added an opt-in `PPTXDIFF_LITE_MODE` escape hatch back to CDN sourcing, in three forms: an env var, a `?lite=1` query param, and an in-app corner toggle (see `SPEC.md` §25). This is an APP feature, documented per this file's own §6 rule (SPEC.md is the source of truth for what the app does; the doc site explains it):
+
+- **7 pages corrected**, not just extended: `architecture.md`, `limitations.md`, `getting-started.md`, `index.md`, `faq.md`, `cli.md`, `features/rendering.md` were all originally written (§1-§6 above) against a CDN-dependent app — genuinely accurate when written, since this docs-site session and the offline-vendoring session forked from the same commit and were developed independently. Rebasing one onto the other surfaced the contradiction; every stale "requires internet"/"loaded from a CDN" claim was corrected to match the vendored reality rather than left to rot.
+- **New content added**: `cli.md` gained a full "Lite mode (CDN sourcing)" section; `features/ui-shortcuts.md` gained an "Offline Mode" section (the natural home, next to the dark-mode toggle it's styled to complement) covering the in-app corner toggle; `architecture.md`'s "Runtime dependencies" section got a pointer to the opt-out.
+- **Lesson for future doc-site work**: when an app-level change lands on a DIFFERENT branch than the one currently touching the docs site, expect exactly this kind of staleness on rebase/merge — grep the docs site for the specific claim being invalidated (here: `CDN`/`internet`/`unpkg`/`esm.sh`/`cdnjs`/`fonts.googleapis`) rather than assuming a page untouched by your own branch is still accurate.
+
+## 8. Documentation coverage tracking (added later this session)
+
+A programmatic tracker for whether every known pptxdiff feature and limitation actually has real documentation on this site — not a vibe check. Built in response to an explicit ask, using MkDocs Material's YAML front matter + `mkdocs-macros-plugin` for real Jinja-in-Markdown rendering (Material alone only Jinja-templates the *theme*, never page bodies — this needed an explicit added dependency). Full technical writeup lives in `SPEC.md` §26 (it's as much an app-adjacent feature as a docs-site one); this section covers the docs-SITE-specific implementation choices.
+
+- **`scripts/coverage_registry.yml`** — the canonical checklist (21 feature ids + 12 limitation ids), curated from `SPEC.md`/`GAP_ANALYSIS.md` rather than inventing a parallel taxonomy. NOT under `docs/`, not built by mkdocs.
+- **Per-page `doc_coverage:` front matter** (`id`/`quality`/`anchor?`) — added to all 17 content pages that document something. Human-readable titles live ONLY in the registry (pages reference by `id`); this was a direct response to a design-review question ("does front matter `title:` reflect what you want shown?") that flagged the risk of duplicating/mismatching title strings across many files before any code existed.
+- **`scripts/sync_doc_coverage.py --write`/`--check`** — PEP 723 standalone (matches `test_gen-sample-pptx.py`'s existing convention), `uv run`-able, `pyyaml` as its only dependency. `--check` is the actual Red/Green test: fails on dangling ids, broken anchors, duplicate registry entries, or staleness (NOT on incomplete coverage — `partial`/`missing` are legitimate, non-failing states). Verified for real, not just described: RED before the coverage page existed, GREEN after `--write`; then three deliberate breaks (bad id, bad anchor, duplicate registry id) each caught with a specific message, each fixed back to GREEN.
+- **`documentation-coverage.md` + `main.py`** — the page's body is two Jinja macro calls (`render_coverage_summary()`, `render_coverage_table(kind=...)`) reading that page's OWN `coverage_summary` front matter straight off disk inside `main.py` (not via the plugin's live "current page" API — simpler, and doesn't depend on plugin-internals staying stable across versions).
+- **The one real technical risk, and how it was closed**: `mkdocs-macros-plugin`, left at its default config, would try to Jinja-evaluate ANY literal `{{ }}` appearing anywhere in the docs — and this app's OWN template syntax (`index.html`) literally IS `{{ theme.border }}`-style. Set `render_by_default: false` in `mkdocs.yml` so Jinja rendering is opt-in per page (`render_macros: true` in front matter), not opt-out. Checked the current docs tree first (`grep -rn '{{' docs-site/docs/` — zero real hits) but the scoping decision is what keeps this closed permanently, including against a FUTURE page that quotes the app's template syntax.
+- **First honest baseline, deliberately not padded**: 25/33 items complete (21/21 features, 4/12 limitation categories) as of when this was built. The 8 missing are real, pre-existing gaps already in `GAP_ANALYSIS.md` that were simply never carried into the public `limitations.md` or any feature page — left `missing` in the same session the tracker shipped rather than quickly patched, so the tool's first-ever report is a true baseline. See `GAP_CONTEXT.md`'s entry on this for the reasoning against padding a tool's own first measurement.
+- **Maintenance**: see §6's new bullet above — run `--write` and commit the regenerated page in the SAME change as any `doc_coverage:` edit.
