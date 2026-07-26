@@ -1,3 +1,9 @@
+---
+doc_coverage:
+  - id: vscode-extension
+    quality: complete
+---
+
 # VS Code extension
 
 PptxDiff is also available as a VS Code extension — [`sugatoray.pptxdiff-vscode`](https://marketplace.visualstudio.com/items?itemName=sugatoray.pptxdiff-vscode) on the Marketplace.

@@ -1,3 +1,15 @@
+---
+doc_coverage:
+  - id: exports
+    quality: complete
+  - id: live-push
+    quality: complete
+    anchor: live-push
+  - id: exports-limitations
+    quality: complete
+    anchor: sharing
+---
+
 # Exports & live push
 
 Every export is built client-side from the same underlying report data (`buildReportRows()`), so formats stay consistent with each other.

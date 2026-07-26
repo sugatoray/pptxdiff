@@ -1,3 +1,15 @@
+---
+doc_coverage:
+  - id: rendering-fidelity
+    quality: complete
+  - id: rendering-limitations
+    quality: complete
+    anchor: known-rendering-limitations
+  - id: transitions-limitations
+    quality: complete
+    anchor: known-rendering-limitations
+---
+
 # Rendering fidelity
 
 PptxDiff parses real `.pptx` files — full OOXML: slides, relationships, layouts, masters, themes, notes, charts, tables, diagrams — using JSZip in the browser. Nothing is converted server-side; there is no server.

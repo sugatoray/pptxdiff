@@ -1,3 +1,15 @@
+---
+doc_coverage:
+  - id: npm-cli-packaging
+    quality: partial
+  - id: offline-capability
+    quality: partial
+    anchor: requirements
+  - id: static-sample-fixtures
+    quality: complete
+    anchor: try-it-with-the-bundled-sample-files
+---
+
 # Getting started
 
 PptxDiff ships three equivalent ways to run it — pick whichever fits your workflow. All three serve the exact same `src/pptxdiff/index.html` app; none of them upload your files anywhere.

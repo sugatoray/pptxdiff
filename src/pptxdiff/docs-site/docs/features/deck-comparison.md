@@ -1,3 +1,12 @@
+---
+doc_coverage:
+  - id: deck-level-comparison
+    quality: complete
+  - id: views
+    quality: complete
+    anchor: views
+---
+
 # Deck-level comparison
 
 Real decks rarely line up 1:1 — slides get inserted, deleted, and reordered between revisions. PptxDiff aligns two whole decks before it diffs anything, so a single inserted slide near the top doesn't make every slide after it look "changed."

@@ -1,3 +1,12 @@
+---
+doc_coverage:
+  - id: three-way-merge
+    quality: complete
+  - id: reviewer-workflow-limitations
+    quality: complete
+    anchor: why-not-a-full-ooxml-round-trip
+---
+
 # Three-way merge
 
 PptxDiff can plan — and, in beta, actually produce — a merged deck from your Before/After diff decisions.
