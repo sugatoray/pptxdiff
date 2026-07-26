@@ -22,11 +22,25 @@
 //   node src/pptxdiff/docs-site/scripts/capture_screenshots.mjs [options]
 //
 // Options:
-//   --list             Print scenario ids and exit, capturing nothing.
+//   --list              Print scenario ids and exit, capturing nothing.
 //   --only a,b,c        Comma-separated scenario ids to run (default: all).
-//   --out-dir DIR       Where to write output files (default: docs-site/docs/assets/img).
+//   --staging-dir DIR   Where captures are written first (default: <target-dir>/.staging).
+//   --target-dir DIR    The committed image directory (default: docs-site/docs/assets/img).
+//   --check             Dry run: report what would change, don't touch --target-dir.
 //   --headed            Launch a visible browser (default: headless).
 //   --keep-gif-frames   Don't delete the intermediate PNG frame sequence for GIF scenarios.
+//
+// Every capture lands in --staging-dir first, never directly in --target-dir.
+// Each staged file is then compared PIXEL-BY-PIXEL (compare_images.py, not a
+// byte/hash diff — see its header comment for why) against the same-named
+// file already in --target-dir; --target-dir is only written to for files
+// that are new or whose pixels actually changed. This keeps the capture
+// PARAMETERS (viewport, crop, fullPage, fps, the run() steps themselves —
+// see SCENARIOS below) completely unchanged from a plain capture; only the
+// destination and the promotion decision are different. See
+// test_scenario_manifest.mjs, which locks those parameters against
+// accidental drift, and test_sync_staging_to_target.mjs, which covers the
+// promotion logic itself.
 
 // `playwright` is resolved lazily via requirePlaywright() (CJS require, so
 // NODE_PATH is honored) rather than a static ESM import, since ESM import
@@ -43,7 +57,9 @@ import path from "node:path";
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.join(DIR, "..", "..", "..", ".."); // scripts -> docs-site -> pptxdiff -> src -> repo root
 const CLI_JS = path.join(REPO_ROOT, "bin", "cli.js");
-const DEFAULT_OUT_DIR = path.join(REPO_ROOT, "src/pptxdiff/docs-site/docs/assets/img");
+const DEFAULT_TARGET_DIR = path.join(REPO_ROOT, "src/pptxdiff/docs-site/docs/assets/img");
+const DEFAULT_STAGING_DIR = path.join(DEFAULT_TARGET_DIR, ".staging");
+const COMPARE_SCRIPT = path.join(DIR, "compare_images.py");
 const FIXTURE_BEFORE = path.join(REPO_ROOT, "docs/assets/sample_before.pptx");
 const FIXTURE_AFTER = path.join(REPO_ROOT, "docs/assets/sample_after.pptx");
 const VIEWPORT = { width: 1280, height: 900 };
@@ -87,7 +103,7 @@ async function resetToLightMode(page) {
 
 /* ---------- scenarios ---------- */
 
-const SCENARIOS = [
+export const SCENARIOS = [
   {
     id: "single-pair-view",
     file: "pptxdiff_single-pair-view.png",
@@ -216,9 +232,63 @@ const SCENARIOS = [
   },
 ];
 
+/* ---------- scenario metadata (for test_scenario_manifest.mjs) ---------- */
+
+// Plain-data projection of SCENARIOS -- deliberately excludes the run()/
+// locateCropTarget() function bodies (comparing function source would be
+// brittle to any harmless refactor); this is exactly the set of knobs the
+// staging workflow promises to leave alone: resolution (viewport), crop mode
+// (fullPage vs a located element), and GIF frame rate. Used both by the CLI
+// (--list) and by test_scenario_manifest.mjs to lock these against silent
+// drift.
+export function scenarioMetadata() {
+  return SCENARIOS.map((s) => ({
+    id: s.id,
+    file: s.file,
+    kind: s.kind,
+    viewport: s.viewport || VIEWPORT,
+    fullPage: s.kind === "png" ? !!s.fullPage : undefined,
+    fps: s.kind === "gif" ? s.fps : undefined,
+    hasCropTarget: !!s.locateCropTarget,
+  }));
+}
+
+/* ---------- staging -> target promotion (pixel-level, not byte-level) ---------- */
+
+// Compares stagingPath against targetPath with compare_images.py (decoded
+// pixels, not file bytes -- see that script's header for why) and copies
+// staging over target only when they differ (or target doesn't exist yet).
+// Synchronous and side-effect-free when check=true, which is what makes it
+// cheaply unit-testable in test_sync_staging_to_target.mjs without a browser.
+export function syncStagedFileToTarget({ stagingPath, targetPath, check = false }) {
+  if (!fs.existsSync(stagingPath)) {
+    throw new Error(`staged file not found: ${stagingPath}`);
+  }
+  const targetExists = fs.existsSync(targetPath);
+  let matches = false;
+  if (targetExists) {
+    const result = spawnSync(
+      "uv",
+      ["run", "--no-project", "--with", "pillow", "python3", COMPARE_SCRIPT, stagingPath, targetPath],
+      { stdio: "pipe", encoding: "utf8" }
+    );
+    if (result.status !== 0 && result.status !== 1) {
+      throw new Error(`compare_images.py failed (exit ${result.status}): ${result.stderr}`);
+    }
+    matches = result.status === 0;
+  }
+  const action = !targetExists ? "created" : matches ? "unchanged" : "updated";
+  const changed = action !== "unchanged";
+  if (changed && !check) {
+    fs.mkdirSync(path.dirname(targetPath), { recursive: true });
+    fs.copyFileSync(stagingPath, targetPath);
+  }
+  return { action, changed };
+}
+
 /* ---------- ffmpeg (Playwright-bundled) resolution ---------- */
 
-function findBundledFfmpeg() {
+export function findBundledFfmpeg() {
   const browsersDir =
     process.env.PLAYWRIGHT_BROWSERS_PATH && process.env.PLAYWRIGHT_BROWSERS_PATH !== "0"
       ? process.env.PLAYWRIGHT_BROWSERS_PATH
@@ -302,13 +372,23 @@ function startServer() {
 
 /* ---------- CLI ---------- */
 
-function parseArgs(argv) {
-  const args = { only: null, outDir: DEFAULT_OUT_DIR, headed: false, list: false, keepGifFrames: false };
+export function parseArgs(argv) {
+  const args = {
+    only: null,
+    stagingDir: DEFAULT_STAGING_DIR,
+    targetDir: DEFAULT_TARGET_DIR,
+    headed: false,
+    list: false,
+    check: false,
+    keepGifFrames: false,
+  };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--list") args.list = true;
     else if (a === "--only") args.only = argv[++i].split(",").map((s) => s.trim());
-    else if (a === "--out-dir") args.outDir = path.resolve(argv[++i]);
+    else if (a === "--staging-dir") args.stagingDir = path.resolve(argv[++i]);
+    else if (a === "--target-dir") args.targetDir = path.resolve(argv[++i]);
+    else if (a === "--check") args.check = true;
     else if (a === "--headed") args.headed = true;
     else if (a === "--keep-gif-frames") args.keepGifFrames = true;
     else {
@@ -319,11 +399,15 @@ function parseArgs(argv) {
   return args;
 }
 
-async function main() {
+export async function main() {
   const args = parseArgs(process.argv.slice(2));
 
   if (args.list) {
-    for (const s of SCENARIOS) console.log(`${s.id}\t${s.kind}\t${s.file}`);
+    for (const m of scenarioMetadata()) {
+      const size = `${m.viewport.width}x${m.viewport.height}`;
+      const mode = m.kind === "gif" ? `${m.fps}fps` : m.fullPage ? "fullPage" : "viewport";
+      console.log(`${m.id}\t${m.kind}\t${size}\t${mode}\t${m.file}`);
+    }
     return;
   }
 
@@ -337,12 +421,14 @@ async function main() {
     }
   }
 
-  await fsp.mkdir(args.outDir, { recursive: true });
+  await fsp.mkdir(args.stagingDir, { recursive: true });
+  if (!args.check) await fsp.mkdir(args.targetDir, { recursive: true });
 
   const pw = requirePlaywright();
   console.log("Starting bin/cli.js...");
   const { url, child: serverProcess } = await startServer();
   console.log(`Server up at ${url}`);
+  if (args.check) console.log("--check: staging only, target-dir will not be modified");
 
   const browser = await pw.chromium.launch({ headless: !args.headed });
   const results = [];
@@ -352,21 +438,21 @@ async function main() {
       process.stdout.write(`Capturing ${scenario.id}... `);
       try {
         const viewport = scenario.viewport || VIEWPORT;
+        const stagingPath = path.join(args.stagingDir, scenario.file);
+        const targetPath = path.join(args.targetDir, scenario.file);
+
         if (scenario.kind === "png") {
           const context = await browser.newContext({ viewport });
           const page = await context.newPage();
           await page.goto(url);
           await scenario.run(page);
-          const outPath = path.join(args.outDir, scenario.file);
           let target = page;
           if (scenario.locateCropTarget) {
             const cropped = await scenario.locateCropTarget(page);
             if (cropped) target = cropped;
           }
-          await target.screenshot({ path: outPath, fullPage: scenario.fullPage ?? false });
+          await target.screenshot({ path: stagingPath, fullPage: scenario.fullPage ?? false });
           await context.close();
-          console.log(`done -> ${path.relative(REPO_ROOT, outPath)}`);
-          results.push({ id: scenario.id, ok: true, file: outPath });
         } else if (scenario.kind === "gif") {
           const videoDir = await fsp.mkdtemp(path.join(os.tmpdir(), "pptxdiff-gif-video-"));
           const context = await browser.newContext({ viewport, recordVideo: { dir: videoDir, size: viewport } });
@@ -375,17 +461,21 @@ async function main() {
           await scenario.run(page);
           await context.close(); // finalizes the .webm
           const video = await page.video().path();
-          const outPath = path.join(args.outDir, scenario.file);
-          const ok = await webmToGif({ webmPath: video, outPath, fps: scenario.fps, width: viewport.width, keepFrames: args.keepGifFrames });
+          const ok = await webmToGif({ webmPath: video, outPath: stagingPath, fps: scenario.fps, width: viewport.width, keepFrames: args.keepGifFrames });
           await fsp.rm(videoDir, { recursive: true, force: true });
-          if (ok) {
-            console.log(`done -> ${path.relative(REPO_ROOT, outPath)}`);
-            results.push({ id: scenario.id, ok: true, file: outPath });
-          } else {
+          if (!ok) {
             console.log("skipped (see warning above)");
             results.push({ id: scenario.id, ok: false });
+            continue;
           }
         }
+
+        const { action, changed } = syncStagedFileToTarget({ stagingPath, targetPath, check: args.check });
+        const verb = args.check
+          ? { created: "would create", updated: "would update", unchanged: "unchanged" }[action]
+          : { created: "created", updated: "updated", unchanged: "unchanged" }[action];
+        console.log(`${verb} -> ${path.relative(REPO_ROOT, targetPath)}`);
+        results.push({ id: scenario.id, ok: true, action, changed });
       } catch (e) {
         console.log(`FAILED: ${e.message}`);
         results.push({ id: scenario.id, ok: false, error: e.message });
@@ -397,14 +487,19 @@ async function main() {
   }
 
   const failed = results.filter((r) => !r.ok);
+  const changed = results.filter((r) => r.ok && r.changed);
   console.log(`\n${results.length - failed.length}/${results.length} scenarios captured.`);
+  console.log(`${changed.length} target file(s) ${args.check ? "would change" : "changed"}: ${changed.map((r) => r.id).join(", ") || "(none)"}`);
   if (failed.length) {
     console.log(`Not captured: ${failed.map((f) => f.id).join(", ")}`);
     process.exitCode = 1;
   }
 }
 
-main().catch((e) => {
-  console.error(e);
-  process.exit(1);
-});
+const isMain = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMain) {
+  main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}
