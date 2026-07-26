@@ -210,6 +210,12 @@ When picking up a new ticket: update this file's status, and add a short note to
 - [x] **P1 — End-to-end Playwright verification of both modes**: default mode still zero external requests/88 self-tests (no regression); `?lite=1` mode confirmed targeting the real CDN hosts via captured request URLs (sandbox network policy blocks the actual fetches here, unrelated to the code — see WISDOM.md).
 
 ## New tickets opened this session
-1. **P4 — No in-app UI indicator for lite mode** (console-log-only signal) — deliberate, not requested; see GAP_CONTEXT.md.
+1. **[DONE] P4 — No in-app UI indicator for lite mode** (console-log-only signal) — see below.
 2. **P4 — Lite mode is all-5-or-nothing**, no per-dependency mixing — deliberate, not requested; see GAP_CONTEXT.md.
 3. **P4 — `?lite=1` has no equivalent for the VS Code extension or a generic static-file-server usage path** beyond manually typing the query param — the env var itself only reaches `bin/cli.js`'s own auto-opened tab.
+
+## Done this session (additions to the completed list)
+- [x] **P2 — In-app "Offline Mode" corner toggle.** Closes the previous session's "no UI indicator" gap, per explicit follow-up ask. Mockup built and approved (real color/type tokens, not a generic placeholder) before any app code was written — see HANDOFF.md/GAP_CONTEXT.md for the process note. Pure `computeLiteModeToggleUrl()` + 4 new self-tests (92 total, up from 88); default-mode direction fully E2E-verified via Playwright (correct switch state, correct click→URL navigation, no regressions).
+
+## New tickets opened this session
+1. **P4 — Confirm the "Offline Mode" toggle's OFF/CDN visual state on a machine with real internet access** — this dev sandbox's outbound-proxy blocking prevented a full live-boot confirmation of that specific state; the ON/default state and the underlying logic are fully verified. See GAP_ANALYSIS.md.

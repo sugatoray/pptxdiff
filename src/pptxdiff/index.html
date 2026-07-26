@@ -48,7 +48,14 @@
 </helmet>
 
 <div class="sd-scroll" style="min-height:100vh;background:{{ theme.bg }};color:{{ theme.text }};font-family:-apple-system,'Helvetica Neue',Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;padding:32px 28px 80px;transition:background .15s,color .15s">
-  <div style="max-width:1180px;margin:0 auto">
+  <div style="max-width:1180px;margin:0 auto;position:relative">
+
+    <button onClick="{{ toggleLiteMode }}" role="switch" aria-checked="{{ liteAriaChecked }}" title="{{ liteToggleTitle }}" class="no-print" style="position:absolute;top:14px;right:16px;z-index:5;display:flex;align-items:center;gap:9px;font:inherit;background:{{ theme.card }};border:1px solid {{ theme.border }};border-radius:999px;padding:6px 8px 6px 14px;box-shadow:0 8px 24px -8px rgba(31,30,27,.25);cursor:pointer">
+      <span style="font-size:12.5px;font-weight:600;color:{{ theme.text }};white-space:nowrap">Offline Mode</span>
+      <span style="position:relative;width:36px;height:20px;border-radius:999px;background:{{ liteTrackBg }};transition:background .18s ease;flex:none;display:inline-block">
+        <span style="position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.35);transition:transform .18s ease;transform:{{ liteThumbTransform }}"></span>
+      </span>
+    </button>
 
     <!-- Header -->
     <header style="display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:20px;padding-bottom:22px;border-bottom:1px solid {{ theme.border }}">
@@ -922,6 +929,22 @@ class Component extends DCLogic {
   COL = { change: '#C9684A', add: '#3E7C5A', remove: '#B23A2E' };
   accent() { return this.props.accentColor || '#C9684A'; }
 
+  /* ---------- PPTXDIFF_LITE_MODE corner toggle ---------- */
+  // Pure: given the current URL and the desired offline-ness, returns the URL to navigate to.
+  // Preserves every other query param — only the `lite` param is added/removed.
+  computeLiteModeToggleUrl(href, wantOffline) {
+    const u = new URL(href);
+    if (wantOffline) u.searchParams.delete('lite');
+    else u.searchParams.set('lite', '1');
+    return u.toString();
+  }
+  // Impure shell: flips the current state and does a real navigation (reload) — the loaded
+  // library set is a load-time-only decision (see support.js), so it can't be swapped live.
+  toggleLiteMode() {
+    const currentlyOffline = !(typeof window !== 'undefined' && window.__PPTXDIFF_LITE_MODE__);
+    window.location.href = this.computeLiteModeToggleUrl(window.location.href, !currentlyOffline);
+  }
+
   /* ---------- reviewer-state persistence (localStorage) ---------- */
   restorePersisted() {
     try {
@@ -1560,6 +1583,14 @@ class Component extends DCLogic {
     // SOURCE of componentDidMount rather than re-invoking it (which would re-run real async
     // network/import side effects unsafely from within a test).
     assert('componentDidMount() calls restorePersisted() so saved reviewer state/decisions actually restore on load', this.componentDidMount.toString().includes('this.restorePersisted()'));
+
+    // RED/GREEN for the "Offline Mode" corner toggle's URL computation (pure function; the
+    // impure navigation shell — toggleLiteMode() — isn't safe to invoke from a self-test since
+    // it does a real window.location.href reload).
+    assert('computeLiteModeToggleUrl: wantOffline=true strips an existing ?lite=1', this.computeLiteModeToggleUrl('http://x/?lite=1', true) === 'http://x/');
+    assert('computeLiteModeToggleUrl: wantOffline=false adds ?lite=1 to a bare URL', this.computeLiteModeToggleUrl('http://x/', false) === 'http://x/?lite=1');
+    assert('computeLiteModeToggleUrl: preserves unrelated query params when adding lite', this.computeLiteModeToggleUrl('http://x/?foo=bar', false) === 'http://x/?foo=bar&lite=1');
+    assert('computeLiteModeToggleUrl: preserves unrelated query params when stripping lite', this.computeLiteModeToggleUrl('http://x/?lite=1&foo=bar', true) === 'http://x/?foo=bar');
 
     // RED/GREEN for extended cross-deck duplicate detection: threshold, performance cap, sections.
     const cdSlideA = (txt) => ({ w: 9144000, h: 6858000, shapes: [{ name: 's', x: 0, y: 0, cx: 1, cy: 1, font: 'Arial', size: 18, bold: false, italic: false, color: '#000', align: 'l', paras: [{ text: txt, bullet: false }], wrap: 'square', border: null, links: [] }], tables: [], images: [], media: [], charts: [], smartArt: [] });
@@ -3523,6 +3554,14 @@ class Component extends DCLogic {
       ? { bg: '#1C1B18', card: '#252420', border: '#3A382F', text: '#EDE9DE', muted: '#A79F8E', codeBg: '#33322B', chip: '#2B2A25' }
       : { bg: '#F4F1E9', card: '#FBFAF5', border: '#E2DCCE', text: '#1F1E1B', muted: '#6B655A', codeBg: '#EBE6D8', chip: '#EFEADB' };
     const toggleTheme = () => this.setState({ uiTheme: isDark ? 'light' : 'dark' });
+    // PPTXDIFF_LITE_MODE corner toggle (see support.js/bin/cli.js for the other two triggers).
+    // window.__PPTXDIFF_LITE_MODE__ is a load-time-only decision (set once, before this class
+    // even evals) — this button just reflects that decision and, on click, navigates to flip it
+    // (a real reload, since which libraries got loaded can't be swapped live). See toggleLiteMode().
+    const liteModeOn = !(typeof window !== 'undefined' && window.__PPTXDIFF_LITE_MODE__);
+    const liteToggleTitle = liteModeOn
+      ? 'Offline Mode: loading React/ReactDOM/Babel/JSZip/pptx-renderer/fonts from local vendor/ files. Click to switch to CDN sourcing (adds ?lite=1) — reloads the page.'
+      : 'Lite mode: loading React/ReactDOM/Babel/JSZip/pptx-renderer/fonts from CDNs. Click to switch back to the vendored local copies — reloads the page.';
     const word = this.props.wordLevelDiff !== false;
     const sA = st.slidesA[Math.min(st.idxA, st.slidesA.length - 1)];
     const sB = st.slidesB[Math.min(st.idxB, st.slidesB.length - 1)];
@@ -3828,6 +3867,10 @@ class Component extends DCLogic {
       summaryText: diffs.length === 0 ? 'No differences' : (diffs.length + (diffs.length === 1 ? ' difference' : ' differences')),
       hasError: !!st.errorMsg, errorMsg: st.errorMsg,
       theme, isDark, toggleTheme, themeToggleLabel: isDark ? 'Light mode' : 'Dark mode',
+      liteModeOn, liteAriaChecked: String(liteModeOn), liteToggleTitle,
+      liteTrackBg: liteModeOn ? '#3E7C5A' : theme.border,
+      liteThumbTransform: liteModeOn ? 'translateX(16px)' : 'translateX(0)',
+      toggleLiteMode: () => this.toggleLiteMode(),
       viewModeBatch: st.viewMode === 'batch', goBatch: () => this.setState({ viewMode: 'batch' }),
       batchTabBg: st.viewMode === 'batch' ? this.accent() : theme.card, batchTabFg: st.viewMode === 'batch' ? '#fff' : theme.muted,
       onBatchA: (e) => this.onBatchFiles('A', e), onBatchB: (e) => this.onBatchFiles('B', e),
