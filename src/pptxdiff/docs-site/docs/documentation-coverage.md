@@ -2,13 +2,13 @@
 title: Documentation Coverage
 render_macros: true
 coverage_summary:
-  generated_at: '2026-07-26T21:25:52Z'
+  generated_at: '2026-07-26T21:39:20Z'
   totals:
     overall:
       items: 33
-      complete: 25
+      complete: 33
       partial: 0
-      missing: 8
+      missing: 0
     feature:
       items: 21
       complete: 21
@@ -16,9 +16,9 @@ coverage_summary:
       missing: 0
     limitation:
       items: 12
-      complete: 4
+      complete: 12
       partial: 0
-      missing: 8
+      missing: 0
   items:
   - id: accessibility
     kind: feature
@@ -196,24 +196,32 @@ coverage_summary:
   - id: accessibility-limitations
     kind: limitation
     title: Accessibility limitations (English-only UI, no full keyboard-nav audit)
-    quality: missing
-    locations: []
+    quality: complete
+    locations:
+    - page: limitations.md
+      anchor: null
   - id: batch-limitations
     kind: limitation
     title: Batch mode limitations (untuned filename-similarity threshold)
-    quality: missing
-    locations: []
+    quality: complete
+    locations:
+    - page: limitations.md
+      anchor: null
   - id: deck-comparison-limitations
     kind: limitation
     title: Deck-level comparison limitations (fixed/untuned alignment thresholds)
-    quality: missing
-    locations: []
+    quality: complete
+    locations:
+    - page: limitations.md
+      anchor: null
   - id: diff-engine-limitations
     kind: limitation
     title: Diff engine limitations (partial theme-color map, table-diff cap, no section/OLE/3D
       diff)
-    quality: missing
-    locations: []
+    quality: complete
+    locations:
+    - page: limitations.md
+      anchor: null
   - id: exports-limitations
     kind: limitation
     title: 'Export limitations (shareable link is a data: URL, Notion/Confluence live
@@ -227,19 +235,25 @@ coverage_summary:
   - id: lite-mode-limitations
     kind: limitation
     title: Lite mode is all 5 dependencies at once, no per-dependency mixing
-    quality: missing
-    locations: []
+    quality: complete
+    locations:
+    - page: limitations.md
+      anchor: null
   - id: offline-capability-limitations
     kind: limitation
     title: Offline-capability limitations (pdfjs-dist unvendored, latin-only font
       subset)
-    quality: missing
-    locations: []
+    quality: complete
+    locations:
+    - page: limitations.md
+      anchor: null
   - id: packaging-limitations
     kind: limitation
     title: Packaging limitations (opens a browser tab, not a native window)
-    quality: missing
-    locations: []
+    quality: complete
+    locations:
+    - page: limitations.md
+      anchor: null
   - id: rendering-limitations
     kind: limitation
     title: Rendering fidelity limitations (schematic fallback, non-pixel-perfect master/layout)
@@ -264,8 +278,10 @@ coverage_summary:
   - id: testing-fixtures-limitations
     kind: limitation
     title: On-disk sample fixture gaps (no SmartArt/transitions/embedded-fonts/real-media)
-    quality: missing
-    locations: []
+    quality: complete
+    locations:
+    - page: limitations.md
+      anchor: null
   - id: transitions-limitations
     kind: limitation
     title: Transition preview is a simplified crossfade, not per-type accurate

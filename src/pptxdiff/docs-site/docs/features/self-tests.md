@@ -12,6 +12,8 @@ PptxDiff carries its own in-browser regression suite — no separate test runner
 
 Click **Run self-tests** in the app. `runSelfTests()` is `async` and reports pass/fail results in a panel once it completes.
 
+![The self-test results panel, all passing](../assets/img/pptxdiff_self-tests.png)
+
 ## What's covered
 
 - Word-level diff correctness

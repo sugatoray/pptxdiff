@@ -28,6 +28,8 @@ Every matched or unmatched slide gets a primary tag, plus optional stackable sec
 - **MOVED** — an orthogonal tag shown alongside the primary tag when a slide's relative order changed (e.g. "CHANGED, MOVED").
 - **DUPLICATE** — see [Duplicate detection](duplicate-detection.md); a slide can be both MOVED and a DUPLICATE at once.
 
+![All-pairs view with status tags, filter chips, and reviewer selection](../assets/img/pptxdiff_all-pairs-view.png)
+
 ## Views
 
 - **Single pair** — two large slide previews (with prev/next steppers per side) plus the full diff list below, for focused review.

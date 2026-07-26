@@ -11,6 +11,8 @@ doc_coverage:
 
 For every aligned slide pair, PptxDiff runs a deep, property-by-property diff — this is the core of the tool.
 
+![The Differences panel, showing FONT/SIZE/COLOR/TEXT/POSITION/TABLE diffs with word-level highlighting](../assets/img/pptxdiff_diff-list.png)
+
 ## What gets diffed
 
 | Category | Details |
