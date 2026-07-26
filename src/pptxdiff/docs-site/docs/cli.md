@@ -10,7 +10,7 @@ npx pptxdiff        # no install
 npm install -g pptxdiff && pptxdiff   # global install
 ```
 
-There are no flags or options — running the command is the entire interface.
+There are no command-line flags. One optional environment variable is supported — see [Lite mode](#lite-mode-cdn-sourcing) below.
 
 ## What it does
 
@@ -25,10 +25,20 @@ There are no flags or options — running the command is the entire interface.
 
 The server resolves request paths against its serving root and rejects anything that would traverse outside it (`filePath.startsWith(ROOT)`), so `../`-style path traversal requests are blocked with a `403`.
 
+## Lite mode (CDN sourcing)
+
+By default the app loads React, ReactDOM, Babel, JSZip, `@aiden0z/pptx-renderer`, and the Spectral font from the vendored local copies in `src/pptxdiff/vendor/` — no internet needed. Set `PPTXDIFF_LITE_MODE` to switch all five back to their original CDN sources instead:
+
+```bash
+PPTXDIFF_LITE_MODE=1 npx pptxdiff
+```
+
+Accepted values: `1`, `y`, `yes`, `true` (case-insensitive). The CLI opens your browser at `<url>/?lite=1` — that query param is the actual mechanism (env vars aren't visible to the browser), so you can also just append `?lite=1` to the URL yourself, including for the "just open `index.html`" install path, which has no Node process to read an env var from. Off by default; this is an opt-in escape hatch (e.g. for comparing against unmodified upstream CDN builds), not something most users need.
+
 ## Requirements
 
 - **Node.js ≥ 18** (see `engines` in `package.json`).
-- No internet access required at runtime — the app's dependencies are vendored locally (see [Getting Started](getting-started.md#requirements)).
+- No internet access required at runtime — the app's dependencies are vendored locally (see [Getting Started](getting-started.md#requirements)), unless you opt into lite mode above.
 
 ## Running from source
 

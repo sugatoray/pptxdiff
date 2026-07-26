@@ -36,7 +36,7 @@ The app ships a built-in **sample deck** — `sample-pptx.js` generates a Before
 ## Requirements
 
 - **Node.js ≥ 18** if you're using the `npx`/`npm` install paths (see `engines` in `package.json`).
-- **No internet connection required, for any install option.** React, ReactDOM, Babel-standalone, `@aiden0z/pptx-renderer`, JSZip, and fonts are all vendored locally under `src/pptxdiff/vendor/` and loaded from disk, not from a CDN. The app works fully offline/air-gapped.
+- **No internet connection required, for any install option.** React, ReactDOM, Babel-standalone, `@aiden0z/pptx-renderer`, JSZip, and fonts are all vendored locally under `src/pptxdiff/vendor/` and loaded from disk, not from a CDN. The app works fully offline/air-gapped by default — an opt-in `PPTXDIFF_LITE_MODE` switches back to CDN sourcing if you ever want that; see the [CLI reference](cli.md#lite-mode-cdn-sourcing).
 - **Your `.pptx` files never leave your machine.** Parsing, rendering, and diffing all happen client-side, in your browser's memory.
 
 ## Try it with the bundled sample files

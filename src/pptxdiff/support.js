@@ -1017,7 +1017,23 @@
     }
     return cur;
   }
-  var BABEL_URL = "./vendor/babel.min.js";
+  // PPTXDIFF_LITE_MODE (see bin/cli.js): when set, the CLI opens the app at
+  // `?lite=1` instead of injecting anything server-side, so the app itself
+  // (not the static file server) decides whether to load React/ReactDOM/
+  // Babel/JSZip/pptx-renderer/fonts from vendor/ or their original CDNs.
+  // Computed once, here, as early as possible in this file (the first
+  // script to run), and exposed on window so index.html's own inline
+  // helmet script and the component's LIB_URL can read the same decision
+  // without re-implementing the regex.
+  var PPTXDIFF_LITE_MODE = /(?:^|[?&])lite=(1|y|yes|true)(?:&|$)/i.test(
+    (typeof location !== "undefined" && location.search) || ""
+  );
+  try {
+    window.__PPTXDIFF_LITE_MODE__ = PPTXDIFF_LITE_MODE;
+  } catch (e) {}
+  var BABEL_URL = PPTXDIFF_LITE_MODE
+    ? "https://unpkg.com/@babel/standalone@7.26.4/babel.min.js"
+    : "./vendor/babel.min.js";
   var GLOBAL_POLL_INTERVAL_MS = 50;
   var GLOBAL_POLL_TIMEOUT_MS = 3e4;
   function createExternalModules(onResolved) {
@@ -1511,9 +1527,16 @@
   }
 
   // src/index.ts
-  var REACT_URL = "./vendor/react.production.min.js";
+  // Same SRI hash works for both sources — the vendored copies are
+  // byte-identical to what unpkg serves for this exact pinned version
+  // (verified when they were vendored; see docs/.scrolls/WISDOM.md).
+  var REACT_URL = PPTXDIFF_LITE_MODE
+    ? "https://unpkg.com/react@18.3.1/umd/react.production.min.js"
+    : "./vendor/react.production.min.js";
   var REACT_SRI = "sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z";
-  var REACT_DOM_URL = "./vendor/react-dom.production.min.js";
+  var REACT_DOM_URL = PPTXDIFF_LITE_MODE
+    ? "https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"
+    : "./vendor/react-dom.production.min.js";
   var REACT_DOM_SRI = "sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1";
   function hideRawTemplate() {
     const s = document.createElement("style");
