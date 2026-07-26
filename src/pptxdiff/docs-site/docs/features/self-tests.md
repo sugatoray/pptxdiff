@@ -1,3 +1,9 @@
+---
+doc_coverage:
+  - id: self-tests
+    quality: complete
+---
+
 # Self-tests
 
 PptxDiff carries its own in-browser regression suite — no separate test runner, no build step, no CI required to exercise it.
@@ -17,7 +23,7 @@ Click **Run self-tests** in the app. `runSelfTests()` is `async` and reports pas
 - Diff rollups ("X of Y reviewed")
 - Filename similarity (used by batch mode's filename-pairing mode)
 - A real merge-export round-trip: builds a 2-slide `.pptx` via `buildPptx`, re-parses it with the app's own reader, and asserts slide count and text survived
-- Every pure decision/builder function added alongside a feature — `mergeReportPatch`, `buildConfluenceNewBody`, `interpretSlackDeliveryOutcome`, `buildCredsPayload`, `computeDecisionsToClear`, `buildConfirmConfig`, and others — each with a dedicated Red/Green test
+- Every pure decision/builder function added alongside a feature — `mergeReportPatch`, `buildConfluenceNewBody`, `interpretSlackDeliveryOutcome`, `buildCredsPayload`, `computeDecisionsToClear`, `buildConfirmConfig`, `computeLiteModeToggleUrl` (the [Offline Mode toggle](ui-shortcuts.md#offline-mode)'s URL logic), and others — each with a dedicated Red/Green test
 
 ## A standing regression guard
 

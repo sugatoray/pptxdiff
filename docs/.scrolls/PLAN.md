@@ -219,3 +219,10 @@ When picking up a new ticket: update this file's status, and add a short note to
 
 ## New tickets opened this session
 1. **P4 — Confirm the "Offline Mode" toggle's OFF/CDN visual state on a machine with real internet access** — this dev sandbox's outbound-proxy blocking prevented a full live-boot confirmation of that specific state; the ON/default state and the underlying logic are fully verified. See GAP_ANALYSIS.md.
+
+## Done this session (additions to the completed list)
+- [x] **P1 — Documentation coverage tracking system.** `scripts/coverage_registry.yml` (canonical checklist, 33 items), per-page `doc_coverage:` front matter, `scripts/sync_doc_coverage.py --write`/`--check`, and a Jinja-rendered `documentation-coverage.md` (via `mkdocs-macros-plugin`, scoped with `render_by_default: false` so no other page is affected). Red/Green verified for real: RED before the coverage page existed, GREEN after `--write`; three deliberate breaks (bad id/anchor/duplicate) each caught and each fixed back to GREEN. First honest baseline: 25/33 complete (21/21 features, 4/12 limitation categories).
+
+## New tickets opened this session
+1. **P2 — Close the 8 documentation-coverage gaps the tracker just surfaced** (diff-engine/deck-comparison/batch/testing-fixtures/accessibility/packaging/offline-capability/lite-mode limitations, all real in `GAP_ANALYSIS.md` but not yet in the public docs site). Deliberately not done in the same session as building the tracker — see GAP_CONTEXT.md.
+2. **P4 — Screenshots/GIFs of the app in use**, one per feature page (the plan for this was agreed with the user in this session but not yet executed — building the coverage-tracking system took priority per the user's explicit ask). Still pending.

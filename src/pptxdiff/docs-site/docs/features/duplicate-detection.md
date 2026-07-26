@@ -1,3 +1,9 @@
+---
+doc_coverage:
+  - id: duplicate-detection
+    quality: complete
+---
+
 # Duplicate detection
 
 Beyond diffing matched pairs, PptxDiff looks for slides that closely resemble *other* slides — a common source of deck bloat and reviewer confusion.

@@ -1,6 +1,18 @@
 ---
 title: PptxDiff
 description: A single-file, client-side diff tool for comparing PowerPoint decks.
+doc_coverage:
+  - id: rendering-fidelity
+    quality: partial
+  - id: diff-engine
+    quality: partial
+  - id: deck-level-comparison
+    quality: partial
+    anchor: see-it-in-action
+  - id: reviewer-workflow
+    quality: partial
+  - id: offline-capability
+    quality: partial
 ---
 
 # PptxDiff — a diff tool for slides

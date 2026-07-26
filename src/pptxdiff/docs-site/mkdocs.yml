@@ -76,6 +76,15 @@ markdown_extensions:
 
 plugins:
   - search
+  - macros:
+      module_name: main
+      # Opt-in Jinja rendering, not opt-out: without this, the plugin would try
+      # to Jinja-evaluate any literal {{ }} appearing anywhere in the docs --
+      # and this app's OWN template syntax (index.html) literally is
+      # {{ theme.border }}-style, so a future page quoting it must stay inert.
+      # Only documentation-coverage.md opts in, via its own `render_macros: true`
+      # front matter.
+      render_by_default: false
 
 extra:
   social:
@@ -107,3 +116,4 @@ nav:
   - Limitations: limitations.md
   - FAQ: faq.md
   - Changelog: changelog.md
+  - Documentation Coverage: documentation-coverage.md

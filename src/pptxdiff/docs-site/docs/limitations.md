@@ -1,3 +1,15 @@
+---
+doc_coverage:
+  - id: reviewer-workflow-limitations
+    quality: complete
+  - id: transitions-limitations
+    quality: complete
+  - id: rendering-limitations
+    quality: complete
+  - id: exports-limitations
+    quality: complete
+---
+
 # Known limitations
 
 These are documented, accepted trade-offs — not bugs waiting to be fixed. Each stems directly from a deliberate scope decision (see [Architecture](architecture.md)).

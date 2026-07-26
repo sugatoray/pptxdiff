@@ -1,3 +1,15 @@
+---
+doc_coverage:
+  - id: npm-cli-packaging
+    quality: complete
+  - id: lite-mode
+    quality: complete
+    anchor: lite-mode-cdn-sourcing
+  - id: offline-mode-toggle
+    quality: partial
+    anchor: lite-mode-cdn-sourcing
+---
+
 # CLI reference
 
 `pptxdiff` ships a minimal CLI whose only job is to serve the app locally and open your browser — it has **no runtime dependencies** and doesn't touch your `.pptx` files at all; all parsing/diffing still happens in the browser.
