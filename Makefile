@@ -21,6 +21,7 @@ VSCE_NAME := pptxdiff-vscode
 PYTHON := python3
 NPM_PKG_DIR_RELPATH := .
 VSCE_PKG_DIR_RELPATH := ./src/packages/pptxdiff-vscode
+MKDOCS_YML_RELPATH := ./src/pptxdiff/docs-site/mkdocs.yml
 
 ########################## DONOT CHANGE PARAMETERS BELOW ###############################
 
@@ -49,6 +50,8 @@ VSCE_PKGJSON_PATH := $(VSCE_PKG_DIR)/package.json
 VSCE_EXT_VERSION := $(shell node -p "require('$(VSCE_PKGJSON_PATH)').version")
 VSCE_EXT_NAME := $(shell node -p "require('$(VSCE_PKGJSON_PATH)').name")
 VSIX_EXT_PATH_LOCAL := dist/$(VSCE_EXT_NAME)-$(VSCE_EXT_VERSION).vsix
+
+MKDOCS_YML_PATH := $(abspath $(ROOT_DIR)/$(MKDOCS_YML_RELPATH))
 
 ####################### DETERMINE VSCODE EDITOR TYPE ###########################
 
@@ -179,7 +182,7 @@ pkg.vsce.build:
 pkg.vsce.publish:
 	@## npm run publish:vscode
 	@echo -e "\n✨ Publishing VS Code extension... ⏳\n"
-	@cd $(VSCE_PKG_DIR) && vsce publish --packagePath $(VSIX_EXT_PATH_LOCAL)
+	@cd $(VSCE_PKG_DIR) && vsce publish --packagePath $(VSIX_EXT_PATH_LOCAL) -p $(VSCE_PAT)
 
 .PHONY: pkg.vsce.release
 pkg.vsce.release: pkg.vsce.build pkg.vsce.publish
@@ -272,6 +275,18 @@ py.clear: # Clear off various python artifacts (files/folders)
 chore.update.gitignore:
 	@echo -e "\n✨ Update .gitignore file... ⏳\n"
 	@source "$(ROOT_DIR)/.gitignores/combine.sh"
+
+############################## ..: COMMANDS docs.*:.. ############################
+
+.PHONY: docs.build
+docs.build:
+	@echo -e "\n✨ Generate Documentaion using MkDocs-Material... ⏳\n"
+	@cd $(VSCE_PKG_DIR) && uv run --group docs mkdocs build -f $(MKDOCS_YML_PATH)
+
+.PHONY: docs.serve
+docs.serve:
+	@echo -e "\n✨ Serve Documentaion using MkDocs-Material... ⏳\n"
+	@cd $(VSCE_PKG_DIR) && uv run --group docs mkdocs serve -f $(MKDOCS_YML_PATH)
 
 ############################## ..: COMMANDS trial.*:.. ############################
 
