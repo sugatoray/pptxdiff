@@ -18,9 +18,9 @@ There is no server component beyond the CLI's static file server (see [CLI refer
 - **"Shareable link" is a self-contained `data:` URL**, not a hosted short link — there's no server to host one on.
 - **Review state lives in `localStorage`**, not a shared database — a review session is local to one browser unless you explicitly export/import a JSON report.
 
-## Runtime dependencies, loaded from CDNs
+## Runtime dependencies, vendored locally
 
-The app loads React, ReactDOM, Babel-standalone, [`@aiden0z/pptx-renderer`](https://www.npmjs.com/package/@aiden0z/pptx-renderer), JSZip, and fonts from CDNs (unpkg, esm.sh, cdnjs, Google Fonts) at runtime. This is a deliberate trade-off: it keeps the shipped file small and dependency-free to *distribute*, at the cost of requiring internet access to *run* — even for the fully offline `.pptx` files you're comparing. Vendoring these for offline use was considered and deliberately deferred (see `docs/.scrolls/GAP_ANALYSIS.md` in the repository for the full reasoning).
+React, ReactDOM, Babel-standalone, [`@aiden0z/pptx-renderer`](https://www.npmjs.com/package/@aiden0z/pptx-renderer), JSZip, and the Spectral font are all vendored under `src/pptxdiff/vendor/` and loaded from disk — not from a CDN. `pptx-renderer` in particular ships as a single self-contained `esbuild` bundle (its own `jszip` runtime dependency inlined) rather than the dynamic `esm.sh` import it originally used. This means the app runs fully offline/air-gapped: no runtime dependency needs internet access, on top of your `.pptx` files already never leaving your machine. See `docs/.scrolls/SPEC.md` §24 in the repository for the full vendoring breakdown.
 
 ## Packaging layers
 

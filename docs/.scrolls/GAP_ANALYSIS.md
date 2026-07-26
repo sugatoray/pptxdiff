@@ -106,7 +106,10 @@ Concrete, testable gaps between what SPEC.md describes and a fully "real" implem
 
 ## Packaging (newly identified gaps, this session)
 - [ ] `pptxdiff` npm CLI (`bin/cli.js`) opens a browser tab, not a real native window (no dock/taskbar icon, no app-like process) -- not a true "desktop app" in the Electron/Tauri sense.
-- [x] The CLI required internet access at runtime -- CLOSED: React/ReactDOM/Babel-standalone/JSZip/pptx-renderer/Spectral font are all vendored locally under `src/pptxdiff/vendor/` and loaded from disk; zero CDN dependency remains for the app to boot and function. See SPEC.md §23 and GAP_CONTEXT.md for the reasoning (this reverses last session's deliberate "kept CDN-based" scope call, per this session's explicit user ask).
+- [x] The CLI required internet access at runtime -- CLOSED: React/ReactDOM/Babel-standalone/JSZip/pptx-renderer/Spectral font are all vendored locally under `src/pptxdiff/vendor/` and loaded from disk; zero CDN dependency remains for the app to boot and function. See SPEC.md §24 and GAP_CONTEXT.md for the reasoning (this reverses last session's deliberate "kept CDN-based" scope call, per this session's explicit user ask).
+
+## Documentation site (newly identified gap, this session)
+- [x] The `docs-site/` pages (`architecture.md`, `limitations.md`, `getting-started.md`, `index.md`, `faq.md`, `cli.md`, `features/rendering.md`) described the app as CDN-dependent/requiring internet access -- CLOSED: that content was written in a session that forked before the offline-vendoring work landed. Rebased this branch onto `master` (which had merged the docs-site) and corrected every stale CDN/internet-access claim across those 7 pages to match the now-vendored reality; re-verified with `mkdocs build --strict` (clean).
 
 ## Offline capability (newly identified gaps, this session)
 - [ ] `pdfjs-dist` (an optional peer dependency of `@aiden0z/pptx-renderer`, used only to render embedded PDF objects inside a slide) is loaded via a runtime-constructed `import(pdfjsUrl)` string inside a Web Worker and was NOT part of this app's dependency set even before vendoring -- it remains unvendored and would fail offline if a `.pptx` ever contained an embedded PDF object exercising that code path. Narrow, pre-existing, not a regression from this session's vendoring work.

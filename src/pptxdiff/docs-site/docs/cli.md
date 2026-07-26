@@ -17,7 +17,7 @@ There are no flags or options — running the command is the entire interface.
 `bin/cli.js` is a stdlib-only Node script (`node:http` / `node:fs` / `node:child_process`, no npm dependencies):
 
 1. Starts a static file server bound to an **OS-assigned free port** (`server.listen(0)` — no `--port` flag needed, no port conflicts to manage).
-2. Serves `src/pptxdiff/index.html`, `support.js`, and `sample-pptx.js` **unchanged** — the CLI is a pure delivery mechanism, not a build step.
+2. Serves `src/pptxdiff/index.html`, `support.js`, `sample-pptx.js`, and the vendored assets under `vendor/` **unchanged** — the CLI is a pure delivery mechanism, not a build step.
 3. Prints the URL to stdout.
 4. Best-effort opens your default browser to that URL (`open` on macOS, `start` on Windows, `xdg-open` on Linux). If that fails — e.g. a headless environment with no GUI — it's swallowed silently, since the URL was already printed and you can open it yourself.
 
@@ -28,7 +28,7 @@ The server resolves request paths against its serving root and rejects anything 
 ## Requirements
 
 - **Node.js ≥ 18** (see `engines` in `package.json`).
-- Internet access at runtime, same as every other install path — the app itself loads its dependencies from CDNs (see [Getting Started](getting-started.md#requirements)).
+- No internet access required at runtime — the app's dependencies are vendored locally (see [Getting Started](getting-started.md#requirements)).
 
 ## Running from source
 

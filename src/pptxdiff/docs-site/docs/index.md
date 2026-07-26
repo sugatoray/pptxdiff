@@ -94,8 +94,8 @@ See the full [feature walkthrough](features/index.md) for a guided tour of each 
     open src/pptxdiff/index.html
     ```
 
-!!! note "Internet access is still required"
-    The app loads React, Babel, `@aiden0z/pptx-renderer`, and fonts from CDNs at runtime, regardless of which install option you use above — but your `.pptx` files never leave your machine.
+!!! note "Works fully offline"
+    React, Babel, `@aiden0z/pptx-renderer`, and fonts are all vendored locally — no CDN, no internet connection required, for any install option above. Your `.pptx` files never leave your machine either.
 
 ## Links
 

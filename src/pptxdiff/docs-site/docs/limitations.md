@@ -9,7 +9,6 @@ These are documented, accepted trade-offs — not bugs waiting to be fixed. Each
 | **Master/layout thumbnails are schematic, not pixel-perfect** | The renderer library (`@aiden0z/pptx-renderer`) renders slides, not raw layout/master parts, so these fall back to dashed placeholder rectangles. |
 | **"Shareable link" is a `data:` URL, not a hosted short link** | There's no backend server to host a real short link on — see [Architecture](architecture.md#no-backend-by-design). |
 | **Notion and Confluence live push usually fail from a static page** | Neither service exposes a browser-origin-enabled write API; both are caught gracefully with a fallback pointer to the working file-based export. Slack is the one live-push integration reasonably likely to succeed client-side. See [Exports & live push](features/exports.md#live-push). |
-| **Requires internet access even for fully offline `.pptx` files** | React/ReactDOM/Babel-standalone/`pptx-renderer`/JSZip/fonts load from CDNs at runtime, on every install path. Your files stay local; the app's own runtime dependencies do not. |
 | **Chart/SmartArt/media parts may render as "Schematic," not "Rendered"** | A graceful fallback for parts the renderer library can't fully parse — expected behavior, not a parsing failure. |
 | **Review state is local to one browser** | `localStorage`-backed, not a shared/synced database. Use the JSON report export/import round-trip to hand a review session to someone else. |
 
