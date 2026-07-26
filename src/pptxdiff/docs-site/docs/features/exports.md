@@ -14,6 +14,8 @@ doc_coverage:
 
 Every export is built client-side from the same underlying report data (`buildReportRows()`), so formats stay consistent with each other.
 
+![The Export ▾ dropdown menu, showing all available formats](../assets/img/pptxdiff_export-menu.png)
+
 ## File exports
 
 | Format | What you get |

@@ -45,6 +45,8 @@ Works even without Node — `index.html` is self-contained, and needs no interne
 
 The app ships a built-in **sample deck** — `sample-pptx.js` generates a Before/After pair on load — so you can try every feature immediately, with nothing to upload. Drop in your own `.pptx` pair whenever you're ready, or click **Reset to sample** to go back to the demo data.
 
+![PptxDiff on first load, showing the sample deck's single-pair view](assets/img/pptxdiff_single-pair-view.png)
+
 ## Requirements
 
 - **Node.js ≥ 18** if you're using the `npx`/`npm` install paths (see `engines` in `package.json`).

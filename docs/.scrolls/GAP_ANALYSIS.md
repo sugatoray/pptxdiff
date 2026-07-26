@@ -123,12 +123,12 @@ Concrete, testable gaps between what SPEC.md describes and a fully "real" implem
 - [ ] The in-app "Offline Mode" toggle's OFF (CDN/lite) rendered state — track color, thumb position, `aria-checked="false"` — was not confirmed in a live, fully-booted browser in this dev sandbox, since `?lite=1` can't complete a real boot here (the same outbound-proxy blocking noted elsewhere). The underlying logic is the identical one-line ternary pattern already proven correct for `LIB_URL`/`REACT_URL`/etc., and the ON state (default) was fully E2E-verified, but a from-scratch visual confirmation of the OFF state specifically is still owed on a machine with normal internet access.
 
 ## Documentation coverage (newly identified gaps, this session — surfaced BY the new tracking system itself)
-- [ ] **Diff engine limitations undocumented publicly** — partial theme-color (`schemeClr`) map, table-diff cap, single-signature animation diff, no section/OLE/3D/ink diff are all in `GAP_ANALYSIS.md` but not in `docs-site/docs/limitations.md` or `features/diff-engine.md`.
-- [ ] **Deck-level comparison limitations undocumented publicly** — fixed/untuned alignment thresholds (0.12/0.55/0.18), never validated against a real large deck.
-- [ ] **Batch mode limitations undocumented publicly** — untuned filename-similarity (bigram Dice, 0.3) threshold.
-- [ ] **On-disk sample fixture gaps undocumented publicly** — `gen-sample-pptx.mjs`'s fixtures don't cover SmartArt/transitions/embedded-fonts/real-media (the in-browser sample deck does, for its own narrower purpose).
-- [ ] **Accessibility limitations undocumented publicly** — English-only UI, no full keyboard-nav/focus-ring audit.
-- [ ] **Packaging limitations undocumented publicly** — the npm CLI opens a browser tab, not a real native window (no dock icon, no app process).
-- [ ] **Offline-capability limitations undocumented publicly** — `pdfjs-dist` (embedded-PDF-object rendering) remains unvendored; the vendored Spectral font is latin-subset only.
-- [ ] **Lite-mode limitations undocumented publicly** — `PPTXDIFF_LITE_MODE`/`?lite=1` is all 5 dependencies at once, no per-dependency mixing.
-- All eight are real, pre-existing gaps in `GAP_ANALYSIS.md`/`GAP_CONTEXT.md` (the internal working-memory scrolls) that were simply never carried into the PUBLIC docs site. Deliberately left `missing` in `documentation-coverage.md` rather than patched in the same session the tracker was built — see GAP_CONTEXT.md for why.
+- [x] **Diff engine limitations undocumented publicly** — CLOSED: added to `limitations.md` ("Diff engine coverage isn't exhaustive" row).
+- [x] **Deck-level comparison limitations undocumented publicly** — CLOSED: added to `limitations.md` ("Deck-alignment thresholds are fixed" row).
+- [x] **Batch mode limitations undocumented publicly** — CLOSED: added to `limitations.md` ("Batch filename-similarity pairing uses an untuned threshold" row).
+- [x] **On-disk sample fixture gaps undocumented publicly** — CLOSED: added to `limitations.md` ("On-disk sample fixtures don't cover everything..." row).
+- [x] **Accessibility limitations undocumented publicly** — CLOSED: added to `limitations.md` ("English-only UI, no full accessibility audit" row).
+- [x] **Packaging limitations undocumented publicly** — CLOSED: added to `limitations.md` ("The npm CLI opens a browser tab..." row).
+- [x] **Offline-capability limitations undocumented publicly** — CLOSED: added to `limitations.md` ("Offline vendoring has two known gaps" row).
+- [x] **Lite-mode limitations undocumented publicly** — CLOSED: added to `limitations.md` ("`PPTXDIFF_LITE_MODE` is all 5 dependencies at once" row).
+- All eight were real, pre-existing gaps in `GAP_ANALYSIS.md`/`GAP_CONTEXT.md` (the internal working-memory scrolls) that were never carried into the PUBLIC docs site. Deliberately left `missing` in the session that built the tracker (see GAP_CONTEXT.md for why), then closed with real content — sourced from this same file, not invented — in an explicit follow-up the same day. `documentation-coverage.md` is now 33/33 complete.

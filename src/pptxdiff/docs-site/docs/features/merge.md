@@ -11,6 +11,8 @@ doc_coverage:
 
 PptxDiff can plan — and, in beta, actually produce — a merged deck from your Before/After diff decisions.
 
+![The merge-winner preview panel, showing computed Before/After winners per slide](../assets/img/pptxdiff_merge-preview.png)
+
 ## Per-diff picks
 
 For each individual diff within a slide, pick **Keep Before**, **Keep After**, or **Custom**. This is the same per-diff decision surface used for approve/reject in the [reviewer workflow](reviewer-workflow.md); merge reuses it rather than introducing a separate choice mechanism.

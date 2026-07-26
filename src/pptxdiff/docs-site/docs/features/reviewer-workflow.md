@@ -11,6 +11,8 @@ doc_coverage:
 
 PptxDiff isn't just a diff viewer — it's built for a team to actually sign off on a deck revision together, all client-side (state lives in `localStorage`, nothing is sent to a server).
 
+![A reviewer added and voting, with the comments box and per-slide differences visible](../assets/img/pptxdiff_reviewer-workflow.png)
+
 ## Reviewers
 
 Add a reviewer with a required `@handle` or email plus an optional display name; each becomes a removable chip. Click a chip to set who you're currently "voting as."

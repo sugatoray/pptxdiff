@@ -23,6 +23,8 @@ doc_coverage:
 
 A dark/light toggle threads a full theme palette (background, card, border, text, muted, chip colors) through every panel in the app — not just a CSS class swap.
 
+![Toggling dark mode](../assets/img/pptxdiff_dark-mode-toggle.gif)
+
 ## Keyboard shortcuts
 
 Press `?` any time to open the full shortcuts help modal (closable via `Esc`, click-outside, or ✕). Shortcuts are ignored while focus is in an input, textarea, or contenteditable element.
@@ -44,6 +46,8 @@ A labeled switch in the extreme top-right corner of the page — deliberately se
 
 - **ON** (the default) — React, ReactDOM, Babel, JSZip, `@aiden0z/pptx-renderer`, and the Spectral font all load from the vendored local copies (see [Architecture](../architecture.md#runtime-dependencies-vendored-locally)). Track color is `#3E7C5A`, this app's existing semantic "good" color.
 - **OFF** — the same five load from their original CDNs instead (`?lite=1` in the URL).
+
+![The Offline Mode toggle, ON (default), in the extreme top-right corner](../assets/img/pptxdiff_single-pair-view.png)
 
 Clicking it navigates to the flipped URL — a real page reload, not a live toggle, since which libraries got loaded is decided once, before the app even mounts, and can't be swapped out from under a running page. Any currently-uploaded (not-yet-persisted) Before/After files are lost on that reload, same as manually editing the URL would do today.
 
