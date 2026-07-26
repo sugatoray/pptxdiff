@@ -229,3 +229,9 @@ When picking up a new ticket: update this file's status, and add a short note to
 
 ## New tickets opened this session
 1. **P4 — `features/duplicate-detection.md` has no screenshot** — the built-in sample deck's default 3 slide pairs didn't obviously trigger a cross-deck-duplicate note within this session's time budget; not forced. Would need either the right fixture content or deliberately similar slides.
+
+## Done this session (additions to the completed list)
+- [x] **P3 — `capture_screenshots.mjs` + `webm_to_gif.py`: turned the above's one-off hand capture into a committed, reusable tool.** Explicit follow-up ask ("do you have a module/script for this?"). 9 named scenarios covering every current screenshot + the dark-mode GIF; `--list`/`--only`/`--out-dir` flags; re-running it against the real `docs-site/docs/assets/img/` reproduced the existing assets (pixel-equivalent, minor encoder-timestamp deltas only) plus a smaller, better-cropped dark-mode GIF (841KB vs the original 963KB hand-cropped one, down from a first full-viewport attempt at 2.6MB). See DOCS.md §10 for the technical writeup (blank-leading-frame heuristic, per-scenario viewport override, why Node+`createRequire` instead of Python for this one script).
+
+## New tickets opened this session
+1. **P4 — `features/duplicate-detection.md`'s missing screenshot (ticket above) is now much cheaper to close** — add one scenario to `capture_screenshots.mjs` once the right fixture/slide content exists, rather than a fully manual capture. Still needs the underlying fixture-content problem solved first; not attempted this session.
