@@ -8,7 +8,7 @@ description: A single-file, client-side diff tool for comparing PowerPoint decks
 ![PptxDiff banner](assets/img/pptxdiff_banner.png)
 
 !!! warning "Early stage"
-    This project is developed rapidly. Features may break or you may find bugs — it's in an early stage of development.
+    This project is being developed rapidly. Features may break or you may find bugs — it's in an early stage of development.
 
 **PptxDiff** compares two PowerPoint decks (or many pairs at once), renders them with real fidelity, and diffs text, formatting, images, tables, charts, animations, transitions, and speaker notes — with a full reviewer workflow (approvals, comments, history) built in.
 
