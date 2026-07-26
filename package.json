@@ -21,6 +21,7 @@
     "src/pptxdiff/index.html",
     "src/pptxdiff/support.js",
     "src/pptxdiff/sample-pptx.js",
+    "src/pptxdiff/vendor",
     "docs/assets/pptxdiff_banner.png",
     "docs/assets/pptxdiff_logo.png",
     "docs/assets/icon.png",

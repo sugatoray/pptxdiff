@@ -1,0 +1,37 @@
+/*
+ * Vendored, offline-capable subset of the Spectral font (Google Fonts,
+ * SIL Open Font License 1.1 — see licenses/spectral.OFL.txt), covering the
+ * weights/styles this app actually uses (400/500/600 normal + 400 italic,
+ * latin subset only — the app's UI is English-only, see docs/.scrolls/SPEC.md
+ * "Accessibility / i18n"). Originally loaded from
+ * https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400
+ * at runtime; vendored locally so pptxdiff works fully offline/air-gapped.
+ */
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(./spectral-400-normal.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(./spectral-500-normal.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Spectral';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(./spectral-600-normal.woff2) format('woff2');
+}
+@font-face {
+  font-family: 'Spectral';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url(./spectral-400-italic.woff2) format('woff2');
+}
