@@ -235,3 +235,9 @@ When picking up a new ticket: update this file's status, and add a short note to
 
 ## New tickets opened this session
 1. **P4 — `features/duplicate-detection.md`'s missing screenshot (ticket above) is now much cheaper to close** — add one scenario to `capture_screenshots.mjs` once the right fixture/slide content exists, rather than a fully manual capture. Still needs the underlying fixture-content problem solved first; not attempted this session.
+
+## Done this session (additions to the completed list)
+- [x] **P2 — Staging + pixel-level compare-and-promote workflow for `capture_screenshots.mjs`, with a real test suite.** Explicit ask: captures land in a staging dir, get pixel-compared (`compare_images.py`, Pillow) against the committed target, and only overwrite it on a genuine mismatch — plus Red/Green TDD (verified RED, then GREEN, then a deliberate-break-and-catch rigor pass on all three new test files: `test_compare_images.py`, `test_scenario_manifest.mjs`, `test_sync_staging_to_target.mjs`). `capture_screenshots.mjs` refactored so `main()` only runs as the entrypoint, making its internals importable/testable. See DOCS.md §11.
+
+## New tickets opened this session
+1. **P4 — GIF scenarios aren't pixel-deterministic across reruns** (lossy `.webm` encoding + timing jitter in transition frames), so `dark-mode-toggle` will report `updated` on every rerun even with zero real change — a known, documented limitation (DOCS.md §11/WISDOM.md), not attempted to fix this session since the natural fix (fuzzy/tolerance frame matching) wasn't asked for and would blur real-regression detection. Revisit if a second GIF scenario is ever added and the noisy-diff churn becomes annoying in practice.

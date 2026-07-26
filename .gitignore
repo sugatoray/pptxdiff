@@ -368,3 +368,8 @@ node_modules
 
 ## Ignore vscode extension artifacts
 *.vsix
+
+## capture_screenshots.mjs staging area (docs/.scrolls/DOCS.md sec 11) --
+## captures land here first, before being pixel-compared and promoted into
+## docs-site/docs/assets/img/
+src/pptxdiff/docs-site/docs/assets/img/.staging/
