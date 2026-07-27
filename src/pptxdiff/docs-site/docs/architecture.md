@@ -1,3 +1,22 @@
+---
+doc_coverage:
+  - id: offline-capability
+    quality: complete
+    anchor: runtime-dependencies-vendored-locally
+  - id: lite-mode
+    quality: partial
+    anchor: runtime-dependencies-vendored-locally
+  - id: npm-cli-packaging
+    quality: partial
+    anchor: packaging-layers
+  - id: self-tests
+    quality: partial
+    anchor: testing-philosophy
+  - id: vscode-extension
+    quality: partial
+    anchor: packaging-layers
+---
+
 # Architecture
 
 ## One file, on purpose
@@ -21,6 +40,8 @@ There is no server component beyond the CLI's static file server (see [CLI refer
 ## Runtime dependencies, vendored locally
 
 React, ReactDOM, Babel-standalone, [`@aiden0z/pptx-renderer`](https://www.npmjs.com/package/@aiden0z/pptx-renderer), JSZip, and the Spectral font are all vendored under `src/pptxdiff/vendor/` and loaded from disk — not from a CDN. `pptx-renderer` in particular ships as a single self-contained `esbuild` bundle (its own `jszip` runtime dependency inlined) rather than the dynamic `esm.sh` import it originally used. This means the app runs fully offline/air-gapped: no runtime dependency needs internet access, on top of your `.pptx` files already never leaving your machine. See `docs/.scrolls/SPEC.md` §24 in the repository for the full vendoring breakdown.
+
+This is the default, not a hard requirement — `PPTXDIFF_LITE_MODE` is a documented, opt-in escape hatch back to CDN sourcing for all five, if you ever want that. See the [CLI reference](cli.md#lite-mode-cdn-sourcing) and the [in-app toggle](features/ui-shortcuts.md#offline-mode).
 
 ## Packaging layers
 

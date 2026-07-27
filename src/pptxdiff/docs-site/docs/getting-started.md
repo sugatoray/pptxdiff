@@ -1,3 +1,15 @@
+---
+doc_coverage:
+  - id: npm-cli-packaging
+    quality: partial
+  - id: offline-capability
+    quality: partial
+    anchor: requirements
+  - id: static-sample-fixtures
+    quality: complete
+    anchor: try-it-with-the-bundled-sample-files
+---
+
 # Getting started
 
 PptxDiff ships three equivalent ways to run it — pick whichever fits your workflow. All three serve the exact same `src/pptxdiff/index.html` app; none of them upload your files anywhere.
@@ -32,6 +44,8 @@ Works even without Node — `index.html` is self-contained, and needs no interne
 ## What happens on first load
 
 The app ships a built-in **sample deck** — `sample-pptx.js` generates a Before/After pair on load — so you can try every feature immediately, with nothing to upload. Drop in your own `.pptx` pair whenever you're ready, or click **Reset to sample** to go back to the demo data.
+
+![PptxDiff on first load, showing the sample deck's single-pair view](assets/img/pptxdiff_single-pair-view.png)
 
 ## Requirements
 

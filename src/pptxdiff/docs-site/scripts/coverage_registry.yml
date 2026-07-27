@@ -1,0 +1,123 @@
+# Documentation coverage registry — the canonical checklist of features and
+# limitations the docs site is expected to document.
+#
+# This is NOT a page under docs/ (it's not built by mkdocs) — it's the input
+# to sync_doc_coverage.py, which cross-references every id here against the
+# `doc_coverage:` front matter declared on real pages under docs/, and writes
+# the result into documentation-coverage.md.
+#
+# Curated from docs/.scrolls/SPEC.md (features) and docs/.scrolls/GAP_ANALYSIS.md
+# (limitations) in the repository — those are this project's own authoritative
+# spec/gap tracking, so this registry deliberately doesn't invent a parallel
+# taxonomy. `source` points back to where each item comes from, for anyone
+# reconciling drift between the two later.
+#
+# id: stable, lowercase-kebab-case, referenced by pages' doc_coverage: entries.
+# title: the human-readable label shown in the coverage table (owned here —
+#        pages reference items by id only, so there is exactly one place
+#        that spells out what each row is called).
+# kind: feature | limitation
+# source: pointer into docs/.scrolls/{SPEC,GAP_ANALYSIS}.md for traceability.
+
+features:
+  - id: rendering-fidelity
+    title: Rendering fidelity (Rendered vs. Schematic)
+    source: SPEC.md §1
+  - id: diff-engine
+    title: Diff engine (per-slide-pair property diffing)
+    source: SPEC.md §2
+  - id: word-level-diff
+    title: Word-level (LCS) text diffing
+    source: SPEC.md §2
+  - id: deck-level-comparison
+    title: Deck-level comparison (alignment, added/removed/moved slides)
+    source: SPEC.md §3
+  - id: views
+    title: Single pair / All pairs / Batch views
+    source: SPEC.md §4
+  - id: reviewer-workflow
+    title: Reviewer workflow (reviewers, approvals, comments, history)
+    source: SPEC.md §5, §9-§20
+  - id: exports
+    title: Exports (PDF/HTML/JSON/CSV/Markdown/Notion/Confluence)
+    source: SPEC.md §6
+  - id: live-push
+    title: Live push to Slack/Notion/Confluence
+    source: SPEC.md §12-§13
+  - id: dark-mode
+    title: Dark / light mode
+    source: SPEC.md §7
+  - id: keyboard-shortcuts
+    title: Keyboard shortcuts
+    source: SPEC.md §10-§11
+  - id: accessibility
+    title: Accessibility (aria-labels, screen-reader-friendly toasts)
+    source: SPEC.md §9, §20
+  - id: duplicate-detection
+    title: Duplicate detection (same-deck and cross-deck)
+    source: SPEC.md §15, §20
+  - id: batch-mode
+    title: Batch mode (multi-pair upload, pairing, reordering)
+    source: SPEC.md §9, §11
+  - id: three-way-merge
+    title: Three-way merge (per-diff picks, beta .pptx export)
+    source: SPEC.md §5, §21
+  - id: self-tests
+    title: In-browser self-test suite
+    source: SPEC.md §9, §20
+  - id: npm-cli-packaging
+    title: npm CLI (bin/cli.js)
+    source: SPEC.md §21
+  - id: static-sample-fixtures
+    title: On-disk sample .pptx fixtures (gen-sample-pptx.mjs)
+    source: SPEC.md §22
+  - id: offline-capability
+    title: Offline capability (vendored React/ReactDOM/Babel/JSZip/pptx-renderer/fonts)
+    source: SPEC.md §24
+  - id: lite-mode
+    title: "PPTXDIFF_LITE_MODE: env var + ?lite=1 query param"
+    source: SPEC.md §25
+  - id: offline-mode-toggle
+    title: In-app "Offline Mode" corner toggle
+    source: SPEC.md §25
+  - id: vscode-extension
+    title: VS Code extension
+    source: SPEC.md (VS Code extension packaging)
+
+limitations:
+  - id: rendering-limitations
+    title: Rendering fidelity limitations (schematic fallback, non-pixel-perfect master/layout)
+    source: GAP_ANALYSIS.md "Rendering fidelity"
+  - id: diff-engine-limitations
+    title: Diff engine limitations (partial theme-color map, table-diff cap, no section/OLE/3D diff)
+    source: GAP_ANALYSIS.md "Diff engine"
+  - id: deck-comparison-limitations
+    title: Deck-level comparison limitations (fixed/untuned alignment thresholds)
+    source: GAP_ANALYSIS.md "Deck-level comparison"
+  - id: reviewer-workflow-limitations
+    title: Reviewer workflow limitations (merge is planning-scope, review state is local)
+    source: GAP_ANALYSIS.md "Reviewer workflow"
+  - id: batch-limitations
+    title: Batch mode limitations (untuned filename-similarity threshold)
+    source: GAP_ANALYSIS.md "Batch"
+  - id: exports-limitations
+    title: "Export limitations (shareable link is a data: URL, Notion/Confluence live push is CORS-limited)"
+    source: GAP_ANALYSIS.md "Exports"
+  - id: transitions-limitations
+    title: Transition preview is a simplified crossfade, not per-type accurate
+    source: GAP_ANALYSIS.md "Transitions"
+  - id: testing-fixtures-limitations
+    title: On-disk sample fixture gaps (no SmartArt/transitions/embedded-fonts/real-media)
+    source: GAP_ANALYSIS.md "Testing / fixtures"
+  - id: accessibility-limitations
+    title: Accessibility limitations (English-only UI, no full keyboard-nav audit)
+    source: GAP_ANALYSIS.md "Accessibility / i18n"
+  - id: packaging-limitations
+    title: Packaging limitations (opens a browser tab, not a native window)
+    source: GAP_ANALYSIS.md "Packaging"
+  - id: offline-capability-limitations
+    title: Offline-capability limitations (pdfjs-dist unvendored, latin-only font subset)
+    source: GAP_ANALYSIS.md "Offline capability"
+  - id: lite-mode-limitations
+    title: Lite mode is all 5 dependencies at once, no per-dependency mixing
+    source: GAP_ANALYSIS.md "PPTXDIFF_LITE_MODE"

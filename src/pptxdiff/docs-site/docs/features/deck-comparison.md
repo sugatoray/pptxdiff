@@ -1,3 +1,12 @@
+---
+doc_coverage:
+  - id: deck-level-comparison
+    quality: complete
+  - id: views
+    quality: complete
+    anchor: views
+---
+
 # Deck-level comparison
 
 Real decks rarely line up 1:1 — slides get inserted, deleted, and reordered between revisions. PptxDiff aligns two whole decks before it diffs anything, so a single inserted slide near the top doesn't make every slide after it look "changed."
@@ -18,6 +27,8 @@ Every matched or unmatched slide gets a primary tag, plus optional stackable sec
 - **ADDED** / **DELETED** — for slides that exist on only one side.
 - **MOVED** — an orthogonal tag shown alongside the primary tag when a slide's relative order changed (e.g. "CHANGED, MOVED").
 - **DUPLICATE** — see [Duplicate detection](duplicate-detection.md); a slide can be both MOVED and a DUPLICATE at once.
+
+![All-pairs view with status tags, filter chips, and reviewer selection](../assets/img/pptxdiff_all-pairs-view.png)
 
 ## Views
 

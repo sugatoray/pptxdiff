@@ -1,6 +1,17 @@
+---
+doc_coverage:
+  - id: reviewer-workflow
+    quality: complete
+  - id: reviewer-workflow-limitations
+    quality: partial
+    anchor: persistence
+---
+
 # Reviewer workflow
 
 PptxDiff isn't just a diff viewer — it's built for a team to actually sign off on a deck revision together, all client-side (state lives in `localStorage`, nothing is sent to a server).
+
+![A reviewer added and voting, with the comments box and per-slide differences visible](../assets/img/pptxdiff_reviewer-workflow.png)
 
 ## Reviewers
 

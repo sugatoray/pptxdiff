@@ -1,6 +1,14 @@
+---
+doc_coverage:
+  - id: batch-mode
+    quality: complete
+---
+
 # Batch mode
 
 Compare many deck pairs in one pass instead of loading Before/After one pair at a time.
+
+![Batch mode with two files uploaded and a completed comparison result row](../assets/img/pptxdiff_batch-results.png)
 
 ## Uploading
 
