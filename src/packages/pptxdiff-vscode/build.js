@@ -25,6 +25,10 @@ for (const file of APP_FILES) {
 for (const file of ASSET_FILES) {
   fs.copyFileSync(path.join(ASSETS, file), path.join(DEST, file));
 }
+// index.html loads React/ReactDOM/Babel/JSZip/pptx-renderer/fonts from
+// ./vendor/ by default (offline-first; ?lite=1 opts into CDN instead) — the
+// vsix must ship that directory or the packaged extension can't boot.
+fs.cpSync(path.join(SRC, "vendor"), path.join(DEST, "vendor"), { recursive: true });
 console.log(
-  `pptxdiff-vscode: copied ${APP_FILES.length + ASSET_FILES.length} files into ${path.relative(process.cwd(), DEST)}`,
+  `pptxdiff-vscode: copied ${APP_FILES.length + ASSET_FILES.length} files + vendor/ into ${path.relative(process.cwd(), DEST)}`,
 );
