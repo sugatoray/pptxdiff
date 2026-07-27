@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 No changes yet.
 
+## [0.4.0] - 2026-07-26
+
+### Changed
+
+- Vendored all dependencies along with optional escape hatch for using the Lite Mode (CDNs) via environment variable: `PPTXDIFF_LITE_MODE=1`.
+
 ## [0.3.1] - 2026-07-24
 
 ### Changed

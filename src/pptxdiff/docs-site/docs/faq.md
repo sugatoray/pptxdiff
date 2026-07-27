@@ -4,9 +4,9 @@
 
 No. Parsing, rendering, and diffing all happen in your browser's memory. There's no server component beyond a static file server that serves the app itself (see [Architecture](architecture.md)).
 
-## Why does it need internet access if everything runs locally?
+## Does it need internet access to run?
 
-The app's *runtime dependencies* — React, ReactDOM, Babel-standalone, `@aiden0z/pptx-renderer`, JSZip, and fonts — load from CDNs at runtime. Your `.pptx` files never leave your machine, but the page itself needs to fetch its own code and fonts on load. See [Getting Started](getting-started.md#requirements).
+No. React, ReactDOM, Babel-standalone, `@aiden0z/pptx-renderer`, JSZip, and fonts are all vendored locally under `src/pptxdiff/vendor/` and loaded from disk — no CDN fetch on load. The app works fully offline/air-gapped, and your `.pptx` files never leave your machine either. See [Getting Started](getting-started.md#requirements).
 
 ## A slide shows "Schematic" instead of "Rendered" — is that a bug?
 

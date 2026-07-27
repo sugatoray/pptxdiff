@@ -6,7 +6,7 @@ PptxDiff parses real `.pptx` files — full OOXML: slides, relationships, layout
 
 Each slide preview carries a badge showing how it was drawn:
 
-- **Rendered** — the slide was handed to [`@aiden0z/pptx-renderer`](https://www.npmjs.com/package/@aiden0z/pptx-renderer) (loaded from a CDN via `esm.sh`), which parses the zip, builds an internal presentation model, and paints a pixel-accurate thumbnail into the DOM: `parseZip → buildPresentation → PptxViewer.renderThumbnailToContainer`.
+- **Rendered** — the slide was handed to [`@aiden0z/pptx-renderer`](https://www.npmjs.com/package/@aiden0z/pptx-renderer) (vendored locally as a self-contained bundle, not loaded from a CDN), which parses the zip, builds an internal presentation model, and paints a pixel-accurate thumbnail into the DOM: `parseZip → buildPresentation → PptxViewer.renderThumbnailToContainer`.
 - **Schematic** — a graceful fallback. If a part can't be parsed by the renderer, PptxDiff draws a simplified box-and-text representation instead of failing outright.
 
 This fallback is what lets the app stay usable even against decks with unusual or partially-invalid parts, rather than refusing to diff them.

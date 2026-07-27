@@ -8,10 +8,29 @@
 <body>
 <x-dc>
 <helmet>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+(function(){
+  // PPTXDIFF_LITE_MODE (see bin/cli.js + support.js): window.__PPTXDIFF_LITE_MODE__
+  // is set synchronously by support.js, the first script this page loads,
+  // so it's already available by the time this helmet script runs. These
+  // two tags can't use a plain declarative src/href, since which URL to use
+  // is a runtime decision — hence createElement+appendChild here instead of
+  // static markup (this also executes correctly under the DC helmet
+  // manager, unlike an innerHTML-inserted <script>, which browsers never run).
+  var LITE = !!window.__PPTXDIFF_LITE_MODE__;
+  var font = document.createElement('link');
+  font.rel = 'stylesheet';
+  font.href = LITE
+    ? 'https://fonts.googleapis.com/css2?family=Spectral:ital,wght@0,400;0,500;0,600;1,400&display=swap'
+    : './vendor/fonts/spectral.css';
+  document.head.appendChild(font);
+  var jszip = document.createElement('script');
+  jszip.src = LITE
+    ? 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'
+    : './vendor/jszip.min.js';
+  document.head.appendChild(jszip);
+})();
+</script>
 <style>
   *{box-sizing:border-box}
   body{margin:0}
@@ -895,7 +914,9 @@ class Component extends DCLogic {
 
   /* ---------- constants ---------- */
   EMU = 914400;
-  LIB_URL = 'https://esm.sh/@aiden0z/pptx-renderer@1.1.0';
+  LIB_URL = (typeof window !== 'undefined' && window.__PPTXDIFF_LITE_MODE__)
+    ? 'https://esm.sh/@aiden0z/pptx-renderer@1.1.0'
+    : './vendor/pptx-renderer.bundle.js';
   LS_KEY = 'slideDiffReviewerState_v1';
   LS_CREDS_KEY = 'slideDiffLivePushCreds_v1';
   COL = { change: '#C9684A', add: '#3E7C5A', remove: '#B23A2E' };

@@ -7,9 +7,15 @@ const path = require("node:path");
 const { exec } = require("node:child_process");
 
 const ROOT = path.join(__dirname, "..", "src", "pptxdiff");
+const LITE_MODE = ["1", "y", "yes", "true"].includes(
+  String(process.env.PPTXDIFF_LITE_MODE || "").trim().toLowerCase()
+);
 const MIME = {
   ".html": "text/html; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
+  ".mjs": "text/javascript; charset=utf-8",
+  ".css": "text/css; charset=utf-8",
+  ".woff2": "font/woff2",
 };
 
 const server = http.createServer((req, res) => {
@@ -35,8 +41,11 @@ const server = http.createServer((req, res) => {
 
 server.listen(0, () => {
   const { port } = server.address();
-  const url = `http://localhost:${port}`;
+  const url = `http://localhost:${port}${LITE_MODE ? "/?lite=1" : ""}`;
   console.log(`pptxdiff running at ${url}`);
+  if (LITE_MODE) {
+    console.log("PPTXDIFF_LITE_MODE is set — loading React/ReactDOM/Babel/JSZip/pptx-renderer/fonts from their original CDNs instead of the vendored local copies.");
+  }
 
   const openCmd =
     process.platform === "darwin" ? "open" :

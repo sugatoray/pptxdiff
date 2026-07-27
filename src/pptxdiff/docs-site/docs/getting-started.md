@@ -27,7 +27,7 @@ cd pptxdiff
 open src/pptxdiff/index.html   # or double-click it, or serve the folder statically
 ```
 
-Works even without Node — `index.html` is self-contained. You do still need an internet connection at runtime (see below).
+Works even without Node — `index.html` is self-contained, and needs no internet connection to run (see below).
 
 ## What happens on first load
 
@@ -36,7 +36,7 @@ The app ships a built-in **sample deck** — `sample-pptx.js` generates a Before
 ## Requirements
 
 - **Node.js ≥ 18** if you're using the `npx`/`npm` install paths (see `engines` in `package.json`).
-- **An internet connection at runtime**, for every install option — the app loads React, ReactDOM, Babel-standalone, `@aiden0z/pptx-renderer`, JSZip, and fonts from CDNs (unpkg / esm.sh / cdnjs / Google Fonts). Only the app's *own logic* runs offline-safe against your files; the runtime libraries it depends on are not vendored.
+- **No internet connection required, for any install option.** React, ReactDOM, Babel-standalone, `@aiden0z/pptx-renderer`, JSZip, and fonts are all vendored locally under `src/pptxdiff/vendor/` and loaded from disk, not from a CDN. The app works fully offline/air-gapped by default — an opt-in `PPTXDIFF_LITE_MODE` switches back to CDN sourcing if you ever want that; see the [CLI reference](cli.md#lite-mode-cdn-sourcing).
 - **Your `.pptx` files never leave your machine.** Parsing, rendering, and diffing all happen client-side, in your browser's memory.
 
 ## Try it with the bundled sample files
@@ -69,6 +69,7 @@ package.json                  # npm package manifest (bin, files, no runtime dep
 src/pptxdiff/index.html       # the whole application (template + logic, self-contained)
 src/pptxdiff/support.js       # runtime the app is authored against (pinned; don't casually upgrade)
 src/pptxdiff/sample-pptx.js   # builds the in-browser sample/test-fixture .pptx files
+src/pptxdiff/vendor/          # vendored React/ReactDOM/Babel/JSZip/pptx-renderer/fonts (offline-capable, no CDN)
 src/pptxdiff/docs-site/       # this documentation site (MkDocs + Material)
 ```
 

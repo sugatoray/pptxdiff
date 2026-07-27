@@ -1,6 +1,6 @@
 {
   "name": "pptxdiff",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "A diff tool to compare two PowerPoint decks. Completely local, no cloud upload.",
   "license": "Apache-2.0",
   "private": false,
@@ -21,6 +21,7 @@
     "src/pptxdiff/index.html",
     "src/pptxdiff/support.js",
     "src/pptxdiff/sample-pptx.js",
+    "src/pptxdiff/vendor",
     "docs/assets/pptxdiff_banner.png",
     "docs/assets/pptxdiff_logo.png",
     "docs/assets/icon.png",
