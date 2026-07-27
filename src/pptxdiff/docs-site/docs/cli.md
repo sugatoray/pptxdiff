@@ -35,6 +35,8 @@ PPTXDIFF_LITE_MODE=1 npx pptxdiff
 
 Accepted values: `1`, `y`, `yes`, `true` (case-insensitive). The CLI opens your browser at `<url>/?lite=1` — that query param is the actual mechanism (env vars aren't visible to the browser), so you can also just append `?lite=1` to the URL yourself, including for the "just open `index.html`" install path, which has no Node process to read an env var from. Off by default; this is an opt-in escape hatch (e.g. for comparing against unmodified upstream CDN builds), not something most users need.
 
+A third way to toggle it: the app itself has an **"Offline Mode" switch** in the top-right corner of the page. It shows the current state and reloads the page at the flipped URL when clicked — no need to touch the env var or the URL bar at all.
+
 ## Requirements
 
 - **Node.js ≥ 18** (see `engines` in `package.json`).
