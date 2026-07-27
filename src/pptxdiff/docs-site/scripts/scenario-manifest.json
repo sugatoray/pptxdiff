@@ -1,0 +1,101 @@
+[
+  {
+    "id": "single-pair-view",
+    "file": "pptxdiff_single-pair-view.png",
+    "kind": "png",
+    "viewport": {
+      "width": 1280,
+      "height": 900
+    },
+    "fullPage": false,
+    "hasCropTarget": false
+  },
+  {
+    "id": "diff-list",
+    "file": "pptxdiff_diff-list.png",
+    "kind": "png",
+    "viewport": {
+      "width": 1280,
+      "height": 900
+    },
+    "fullPage": true,
+    "hasCropTarget": false
+  },
+  {
+    "id": "all-pairs-view",
+    "file": "pptxdiff_all-pairs-view.png",
+    "kind": "png",
+    "viewport": {
+      "width": 1280,
+      "height": 900
+    },
+    "fullPage": false,
+    "hasCropTarget": false
+  },
+  {
+    "id": "reviewer-workflow",
+    "file": "pptxdiff_reviewer-workflow.png",
+    "kind": "png",
+    "viewport": {
+      "width": 1280,
+      "height": 900
+    },
+    "fullPage": true,
+    "hasCropTarget": false
+  },
+  {
+    "id": "export-menu",
+    "file": "pptxdiff_export-menu.png",
+    "kind": "png",
+    "viewport": {
+      "width": 1280,
+      "height": 900
+    },
+    "fullPage": false,
+    "hasCropTarget": false
+  },
+  {
+    "id": "merge-preview",
+    "file": "pptxdiff_merge-preview.png",
+    "kind": "png",
+    "viewport": {
+      "width": 1280,
+      "height": 900
+    },
+    "fullPage": true,
+    "hasCropTarget": false
+  },
+  {
+    "id": "self-tests",
+    "file": "pptxdiff_self-tests.png",
+    "kind": "png",
+    "viewport": {
+      "width": 1280,
+      "height": 900
+    },
+    "fullPage": false,
+    "hasCropTarget": true
+  },
+  {
+    "id": "batch-results",
+    "file": "pptxdiff_batch-results.png",
+    "kind": "png",
+    "viewport": {
+      "width": 1280,
+      "height": 900
+    },
+    "fullPage": false,
+    "hasCropTarget": false
+  },
+  {
+    "id": "dark-mode-toggle",
+    "file": "pptxdiff_dark-mode-toggle.gif",
+    "kind": "gif",
+    "viewport": {
+      "width": 900,
+      "height": 240
+    },
+    "fps": 8,
+    "hasCropTarget": false
+  }
+]
