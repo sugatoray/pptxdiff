@@ -2,6 +2,13 @@
 
 **Read `.scrolls/SPEC.md` first for the full feature list.** This file is the "what's the state of things right now" note — update it at the end of every session, keep it short and current (prune stale entries).
 
+## Update (2026-07-28 — GitHub Actions pipeline: docs site → GitHub Pages)
+- Closed the "no CI/deploy wiring" gap flagged at the end of the 2026-07-26 docs-site session (see entry below): added `.github/workflows/docs.yml`, a two-job (`build` → `deploy`) pipeline using `actions/upload-pages-artifact` + `actions/deploy-pages` (the GitHub-recommended Pages deployment path, not `mkdocs gh-deploy`'s branch-push approach). Triggers on push to `master` (path-scoped to `src/pptxdiff/docs-site/**`, `pyproject.toml`, `uv.lock`) plus manual `workflow_dispatch`.
+- Build step uses `uv run --only-group docs mkdocs build -f src/pptxdiff/docs-site/mkdocs.yml --strict` — `--only-group`, not `--group`, per DOCS.md §5's existing note that `--group` also resolves the root `[project]` deps (`headroom-ai[all]`'s torch/CUDA), irrelevant here. Ran the exact command locally first (exit 0, clean `--strict`) before committing the workflow.
+- Action versions checked live (not from memory/training data) as of today: `actions/checkout@v7`, `astral-sh/setup-uv@v9.0.0` (pinned to an exact version — the project stopped publishing floating major tags at v8), `actions/upload-pages-artifact@v5`, `actions/deploy-pages@v5`.
+- **Not done, needs a human**: enabling "GitHub Actions" as the Pages source in the repo's Settings → Pages UI is a one-time manual step this workflow file can't do on its own — required before the first deploy will actually publish anything. `mkdocs.yml`'s `site_url` was already correctly set to `https://sugatoray.github.io/pptxdiff/` from the earlier session, so nothing to change there.
+- See `docs/.scrolls/DOCS.md` §13 and `src/pptxdiff/docs-site/CHANGELOG.md` for the full write-up.
+
 ## Update (2026-07-26 — staging + pixel-level compare-and-promote for `capture_screenshots.mjs`, with a real test suite)
 - User asked directly for a workflow change plus tests: captures should land in a staging area (not the git-tracked target folder), get pixel-compared against the current target, and only overwrite the target file when they genuinely differ — with Red/Green TDD verifying the existing capture functions first, then new tests for the promote-only-on-mismatch logic.
 - **New `compare_images.py`** (Pillow, PEP 723): `images_match()` compares decoded pixels frame-by-frame (handles GIFs), not file bytes — needed because two PNG encodes of identical pixels can differ byte-for-byte.
