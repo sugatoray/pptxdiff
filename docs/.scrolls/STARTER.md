@@ -26,6 +26,7 @@ You're picking up work on **Slide Diff**, a PowerPoint slide-comparison Design C
 - **SECURITY_HARDENING_PLAN.md**: whenever a hardening ticket ships (flip `[ ]`→`[x]`) or a new security concern is identified (add a new ticket, prioritized like PLAN.md).
 
 ## Quick orientation
-- The whole tool is ONE Design Component: `Slide Diff.dc.html` (template + logic class). Edit it with `dc_html_str_replace`/`dc_js_str_replace`, not `write_file`.
+- The whole tool is ONE file: `src/pptxdiff/index.html` — a Design Component packaged for npm distribution, not a separate `.dc.html` file (`Slide Diff.dc.html` doesn't exist in this repo; that name/tooling belonged to an earlier authoring environment). It still has the DC shape: template markup wrapped in `<x-dc>...</x-dc>` (`index.html:9-880`) followed by the logic class (`class Component extends DCLogic`, inside `<script type="text/x-dc" data-dc-script>`, `index.html:882` onward). Edit it directly with the normal Read/Edit tools — there's no `dc_html_str_replace`/`dc_js_str_replace` tooling here.
+- `src/pptxdiff/support.js` is the DC runtime that interprets `index.html` (loaded via `<script src="./support.js">` in `<head>`) — per WISDOM.md's Constraints, it's intentionally pinned/vendored and not meant to be edited.
 - `sample-pptx.js` is a plain ES module that generates the built-in sample/test-fixture `.pptx` files — read SPEC.md §8 and WISDOM.md's Red/Green TDD note before touching it.
 - Full feature list: SPEC.md. Known gaps + reasoning: GAP_ANALYSIS.md + GAP_CONTEXT.md. Next priorities: PLAN.md. Hard-won lessons: WISDOM.md.
