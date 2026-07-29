@@ -2,6 +2,14 @@
 
 All notable changes to the pptxdiff VS Code extension will be documented in this file.
 
+## [0.1.8] - 2026-07-29
+
+### Changed
+
+- Added link to the documentation site in README as a badge: [![Docs - GitHub.io](https://img.shields.io/static/v1?logo=github&style=flat&color=pink&label=docs&message=pptxdiff)][#docs-package]
+
+[#docs-package]: https://sugatoray.github.io/pptxdiff/
+
 ## [0.1.7] - 2026-07-27
 
 ### Fixed

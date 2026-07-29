@@ -2,7 +2,7 @@
   "name": "pptxdiff-vscode",
   "displayName": "PptxDiff",
   "description": "Compare two PowerPoint decks with real fidelity rendering, deep diffing, and a full reviewer workflow — right from VS Code.",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "license": "Apache-2.0",
   "publisher": "sugatoray",
   "private": true,
