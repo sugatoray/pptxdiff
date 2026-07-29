@@ -24,6 +24,16 @@ summary, that one is the record of *why*.
 
 No changes yet.
 
+## 2026-07-29 — GitHub Pages Documentaion update `pptxdiff::v0.4.2` abd `pptxdiff-vscode::v0.1.8`
+
+### Added
+
+- Link and badge(s) to the documentation page.
+
+### Changed
+
+- Updated docs home page (`docs/index.md`) messaging for PptxDiff's client-side deck comparison workflow, including install, rendering, diffing, reviewer workflow, and feature-highlight sections.
+
 ## 2026-07-28 — GitHub Actions pipeline to publish Documentaion to GitHub Pages
 
 ### Added
