@@ -1,8 +1,8 @@
 # **`PptxDiff`** — _A Diff Tool for Slides_
 
 <!-- markdownlint-disable MD041 -->
-![NPM Version](https://img.shields.io/npm/v/pptxdiff)
-[![vscode-badge][#vsce-svg-url-version]][#vsce-marketplace-url]
+[![NPM Version](https://img.shields.io/npm/v/pptxdiff)][#npm-package-url]
+[![vscode-badge][#vsce-svg-url-version]][#vsce-marketplace-url] [![Docs - GitHub.io](https://img.shields.io/static/v1?logo=github&style=flat&color=pink&label=docs&message=pptxdiff)][#docs-package]
 <!---
 [![Installs][#vsce-svg-url-installs]][#vsce-marketplace-url]
 [![Downloads][#vsce-svg-url-downloads]][#vsce-marketplace-url]
@@ -13,6 +13,10 @@
 [#vsce-svg-url-downloads]: https://vsmarketplacebadges.dev/downloads/sugatoray.pptxdiff-vscode.svg
 --->
 [#vsce-marketplace-url]: https://marketplace.visualstudio.com/items?itemName=sugatoray.pptxdiff-vscode
+
+[#npm-package-url]: https://www.npmjs.com/package/pptxdiff
+
+[#docs-package]: https://sugatoray.github.io/pptxdiff/
 <!-- markdownlint-enable MD041 -->
 
 ![banner](docs/assets/pptxdiff_banner.png)
@@ -74,6 +78,10 @@ open src/pptxdiff/index.html   # or just double-click it / serve the folder stat
 The app ships with a built-in sample deck (`sample-pptx.js` generates it on load) so you can try every feature immediately — no files to upload. Drop in your own `.pptx` pair, or click **Reset to sample**.
 
 Note: the app is fully offline-capable — React, ReactDOM, Babel, JSZip, `@aiden0z/pptx-renderer`, and the Spectral font are all vendored locally under `src/pptxdiff/vendor/` and loaded from disk, not from a CDN. No internet connection is required to run it, for any of the options above. Set `PPTXDIFF_LITE_MODE=1` (or append `?lite=1` to the URL) to opt back into CDN sourcing instead — see `bin/cli.js`.
+
+## Documentation
+
+Project documentation is maintained at: [`pptxdiff` Docs](https://sugatoray.github.io/pptxdiff/).
 
 ## Development
 

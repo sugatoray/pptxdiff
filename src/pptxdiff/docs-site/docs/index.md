@@ -17,6 +17,19 @@ doc_coverage:
 
 # PptxDiff — a diff tool for slides
 
+<!-- markdownlint-disable MD041 -->
+[![NPM Version](https://img.shields.io/npm/v/pptxdiff)][#npm-package-url]
+[![vscode-badge][#vsce-svg-url-version]][#vsce-marketplace-url] [![Docs - GitHub.io](https://img.shields.io/static/v1?logo=github&style=flat&color=pink&label=docs&message=pptxdiff)][#docs-package]
+
+[#vsce-svg-url-version]: https://vsmarketplacebadges.dev/version/sugatoray.pptxdiff-vscode.svg
+
+[#vsce-marketplace-url]: https://marketplace.visualstudio.com/items?itemName=sugatoray.pptxdiff-vscode
+
+[#npm-package-url]: https://www.npmjs.com/package/pptxdiff
+
+[#docs-package]: https://sugatoray.github.io/pptxdiff/
+<!-- markdownlint-enable MD041 -->
+
 ![PptxDiff banner](assets/img/pptxdiff_banner.png)
 
 !!! warning "Early stage"

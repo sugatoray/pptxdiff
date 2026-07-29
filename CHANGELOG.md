@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 No changes yet.
 
+## [0.4.2] - 2026-07-29
+
+### Changed
+
+- Added a link to the documentation site in README.
+- Added a badge: [![Docs - GitHub.io](https://img.shields.io/static/v1?logo=github&style=flat&color=pink&label=docs&message=pptxdiff)][#docs-package]
+
+[#docs-package]: https://sugatoray.github.io/pptxdiff/
+
 ## [0.4.1] - 2026-07-26
 
 ### Changed
