@@ -24,6 +24,14 @@ summary, that one is the record of *why*.
 
 No changes yet.
 
+## 2026-07-28 — GitHub Actions pipeline to publish Documentaion to GitHub Pages
+
+### Added
+
+- `.github/workflows/docs.yml` — builds the site (`uv run --only-group docs mkdocs build ... --strict`) and deploys it to GitHub Pages via `actions/upload-pages-artifact` + `actions/deploy-pages`, on push to `master` (path-scoped to `src/pptxdiff/docs-site/**`, `pyproject.toml`, `uv.lock`) or manual `workflow_dispatch`.
+
+Closes the "no CI/deploy wiring" gap noted in the previous entry's session. See [DOCS.md §13](../../../docs/.scrolls/DOCS.md#13-cideploy-wiring-github-pages-via-githubworkflowsdocsyml-added-later-this-session).
+
 ## 2026-07-26 — Staging + pixel-level compare-and-promote for generated screenshots
 
 ### Added
