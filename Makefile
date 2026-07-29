@@ -165,9 +165,15 @@ pkg.npm.build:
 	@echo -e "\n✨ Building NPM package... ⏳\n"
 	@cd $(NPM_PKG_DIR) && npm run build:npm
 
+.PHONY: pkg.npm.pkglockjson
+pkg.npm.pkglockjson:
+	@## npm run pkglockjson:npm
+	@echo -e "\n✨ Updating NPM package-lock.json... ⏳\n"
+	@cd $(NPM_PKG_DIR) && npm install --package-lock-only
+
 ## NOTE: pkg.npm.publish does not work yet. Use: "npm publish" instead.
 .PHONY: pkg.npm.publish
-pkg.npm.publish: pkg.npm.build
+pkg.npm.publish: pkg.npm.build pkg.npm.pkglockjson
 	@## npm publish
 	@echo -e "\n✨ Publishing NPM package... ⏳\n"
 	@cd $(NPM_PKG_DIR) && npm publish $(NPM_PKG_PATH_LOCAL)

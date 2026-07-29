@@ -79,6 +79,10 @@ The app ships with a built-in sample deck (`sample-pptx.js` generates it on load
 
 Note: the app is fully offline-capable — React, ReactDOM, Babel, JSZip, `@aiden0z/pptx-renderer`, and the Spectral font are all vendored locally under `src/pptxdiff/vendor/` and loaded from disk, not from a CDN. No internet connection is required to run it, for any of the options above. Set `PPTXDIFF_LITE_MODE=1` (or append `?lite=1` to the URL) to opt back into CDN sourcing instead — see `bin/cli.js`.
 
+## Documentation
+
+Project documentation is maintained at: [`pptxdiff` Docs](https://sugatoray.github.io/pptxdiff/).
+
 ## Development
 
 ```bash
