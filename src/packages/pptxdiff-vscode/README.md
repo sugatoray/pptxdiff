@@ -1,6 +1,6 @@
 <!-- markdownlint-disable MD041 -->
 
-[![vscode-badge][#vsce-png-url-version]][#vsce-marketplace-url]
+[![vscode-badge][#vsce-png-url-version]][#vsce-marketplace-url] [![Docs - GitHub.io](https://img.shields.io/static/v1?logo=github&style=flat&color=pink&label=docs&message=pptxdiff)][#docs-package]
 <!---
 [![Installs][#vsce-png-url-installs]][#vsce-marketplace-url]
 [![Downloads][#vsce-png-url-downloads]][#vsce-marketplace-url]
@@ -11,6 +11,8 @@
 [#vsce-png-url-downloads]: https://vsmarketplacebadges.dev/downloads/sugatoray.pptxdiff-vscode.png
 --->
 [#vsce-marketplace-url]: https://marketplace.visualstudio.com/items?itemName=sugatoray.pptxdiff-vscode
+
+[#docs-package]: https://sugatoray.github.io/pptxdiff/
 <!-- markdownlint-enable MD041 -->
 
 

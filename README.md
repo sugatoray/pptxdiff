@@ -1,8 +1,8 @@
 # **`PptxDiff`** — _A Diff Tool for Slides_
 
 <!-- markdownlint-disable MD041 -->
-![NPM Version](https://img.shields.io/npm/v/pptxdiff)
-[![vscode-badge][#vsce-svg-url-version]][#vsce-marketplace-url]
+[![NPM Version](https://img.shields.io/npm/v/pptxdiff)][#npm-package-url]
+[![vscode-badge][#vsce-svg-url-version]][#vsce-marketplace-url] [![Docs - GitHub.io](https://img.shields.io/static/v1?logo=github&style=flat&color=pink&label=docs&message=pptxdiff)][#docs-package]
 <!---
 [![Installs][#vsce-svg-url-installs]][#vsce-marketplace-url]
 [![Downloads][#vsce-svg-url-downloads]][#vsce-marketplace-url]
@@ -13,6 +13,10 @@
 [#vsce-svg-url-downloads]: https://vsmarketplacebadges.dev/downloads/sugatoray.pptxdiff-vscode.svg
 --->
 [#vsce-marketplace-url]: https://marketplace.visualstudio.com/items?itemName=sugatoray.pptxdiff-vscode
+
+[#npm-package-url]: https://www.npmjs.com/package/pptxdiff
+
+[#docs-package]: https://sugatoray.github.io/pptxdiff/
 <!-- markdownlint-enable MD041 -->
 
 ![banner](docs/assets/pptxdiff_banner.png)
