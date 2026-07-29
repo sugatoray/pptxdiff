@@ -2,6 +2,13 @@
 
 All notable changes to the pptxdiff VS Code extension will be documented in this file.
 
+## [0.1.7] - 2026-07-27
+
+### Fixed
+
+- `build.js` now also vendors `src/pptxdiff/vendor/` (React, ReactDOM, Babel, JSZip, pptx-renderer, and the Spectral font) into `media/vendor/`. The app now loads these locally by default (`?lite=1` opts into CDN sourcing instead — see the "Offline Mode" toggle added upstream); without this, the packaged extension 404'd on React itself and never booted.
+- The extension's static file server now serves `.css` and `.woff2` with correct MIME types, so the vendored stylesheet and font actually apply in strict browsers.
+
 ## [0.1.4] - 2026-07-24
 
 ### Changed
