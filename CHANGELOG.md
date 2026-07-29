@@ -13,11 +13,10 @@ No changes yet.
 
 ### Changed
 
-- Add link to documentation site in README.
-- Add badge: [![Docs - GitHub.io](https://img.shields.io/static/v1?logo=github&style=flat&color=pink&label=docs&message=pptxdiff)][#docs-package]
+- Added a link to the documentation site in README.
+- Added a badge: [![Docs - GitHub.io](https://img.shields.io/static/v1?logo=github&style=flat&color=pink&label=docs&message=pptxdiff)][#docs-package]
 
 [#docs-package]: https://sugatoray.github.io/pptxdiff/
-
 
 ## [0.4.1] - 2026-07-26
 
