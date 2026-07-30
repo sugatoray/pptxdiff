@@ -2,6 +2,14 @@
 
 **Read `.scrolls/SPEC.md` first for the full feature list.** This file is the "what's the state of things right now" note — update it at the end of every session, keep it short and current (prune stale entries).
 
+## Update (2026-07-30 — CHANGELOG/docs-site/vscode-extension sync for v0.5.0 security hardening)
+- Follow-up housekeeping session after the four security-hardening commits below (P0 tickets 1-3, P1 tickets 4-6) landed without a root `CHANGELOG.md` entry, even though `package.json` had already been bumped to `0.5.0`.
+- **Root `CHANGELOG.md`**: added a `[0.5.0] - 2026-07-30` entry summarizing all four commits (loopback binding, `execFile()`, `path.relative()` containment, response headers, `SECURITY.md`, vendor provenance).
+- **`src/pptxdiff/docs-site/`**: `cli.md`'s "Security note" was stale — described the pre-hardening `startsWith(ROOT)` check only. Rewrote it to match current `bin/cli.js` behavior and linked to the new root `SECURITY.md`. `architecture.md`'s vendoring section now points to `vendor/manifest.json`/`PROVENANCE.md`. Added a dated entry to `docs-site/CHANGELOG.md` for both.
+- **Real gap found and closed**: `src/packages/pptxdiff-vscode/extension.js` runs its own independent copy of the same static file server `bin/cli.js` just hardened — it still had the unbound `server.listen(0, ...)` and the raw `filePath.startsWith(ROOT)` check. Ported all three applicable fixes (loopback binding, `path.relative()`-based `isPathContained`, `SECURITY_HEADERS` on every response — the `execFile` fix doesn't apply here since the extension launches the browser via `vscode.env.openExternal`, not a child process). Verified with the existing `test_extension.js` (all checks pass, after running `node build.js` to populate the gitignored `media/` dir the test needs) plus a standalone `isPathContained` sibling-directory check. Bumped `pptxdiff-vscode` to `0.1.9` and added a `CHANGELOG.md` entry.
+- **New trap recorded in `WISDOM.md`**: the CLI and VS Code extension's static servers are duplicated, not shared — a future change to one must be checked against the other by hand, since nothing currently enforces the two stay in sync. Added a matching gap in `GAP_ANALYSIS.md` for the missing drift-check tooling.
+- No app-level (`index.html`/`support.js`) or diff-engine changes this session — purely CHANGELOG/docs-site/vscode-extension/`.scrolls` housekeeping.
+
 ## Update (2026-07-30 — security hardening P1: response headers, SECURITY.md, vendor provenance)
 - Picked up all three `docs/.scrolls/SECURITY_HARDENING_PLAN.md` P1 tickets in one session (P0 was already fully closed).
 - **Ticket 4 (response headers)**: `bin/cli.js` gained a `SECURITY_HEADERS` constant (`X-Content-Type-Options: nosniff`, `Cache-Control: no-store`) applied to all three `writeHead` call sites (200/403/404). Red/Green: `src/pptxdiff/test_security_headers_cli.mjs` — RED (3/11) before, GREEN (11/11) after.

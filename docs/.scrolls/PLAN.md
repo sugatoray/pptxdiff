@@ -241,3 +241,11 @@ When picking up a new ticket: update this file's status, and add a short note to
 
 ## New tickets opened this session
 1. **P4 — GIF scenarios aren't pixel-deterministic across reruns** (lossy `.webm` encoding + timing jitter in transition frames), so `dark-mode-toggle` will report `updated` on every rerun even with zero real change — a known, documented limitation (DOCS.md §11/WISDOM.md), not attempted to fix this session since the natural fix (fuzzy/tolerance frame matching) wasn't asked for and would blur real-regression detection. Revisit if a second GIF scenario is ever added and the noisy-diff churn becomes annoying in practice.
+
+## Done this session (v0.5.0 security-hardening housekeeping)
+- [x] **P1 — Root `CHANGELOG.md` entry for the four security-hardening commits** (loopback binding, `execFile()`, `path.relative()` containment, response headers/`SECURITY.md`/vendor provenance) that had landed without one despite the `package.json` version bump to `0.5.0`.
+- [x] **P1 — Docs-site content sync**: `cli.md`'s stale security note and `architecture.md`'s vendoring section updated to match the hardened `bin/cli.js` and new provenance docs; `docs-site/CHANGELOG.md` entry added.
+- [x] **P1 — Ported the CLI's security hardening to the VS Code extension's own static server** (`extension.js` had the same unbound-`listen(0)` and raw-`startsWith(ROOT)` weaknesses, independently discovered this session). Bumped `pptxdiff-vscode` to `0.1.9`.
+
+## New tickets opened this session
+1. **P2 — Drift-check or shared module for `bin/cli.js` / `pptxdiff-vscode/extension.js`'s duplicated static-server code.** No automated check keeps the two in sync; see WISDOM.md's new trap and GAP_ANALYSIS.md's new "Security hardening" section.
