@@ -41,6 +41,8 @@ There is no server component beyond the CLI's static file server (see [CLI refer
 
 React, ReactDOM, Babel-standalone, [`@aiden0z/pptx-renderer`](https://www.npmjs.com/package/@aiden0z/pptx-renderer), JSZip, and the Spectral font are all vendored under `src/pptxdiff/vendor/` and loaded from disk — not from a CDN. `pptx-renderer` in particular ships as a single self-contained `esbuild` bundle (its own `jszip` runtime dependency inlined) rather than the dynamic `esm.sh` import it originally used. This means the app runs fully offline/air-gapped: no runtime dependency needs internet access, on top of your `.pptx` files already never leaving your machine. See `docs/.scrolls/SPEC.md` §24 in the repository for the full vendoring breakdown.
 
+Each vendored file's upstream package/version/source URL/hash/license is tracked in a machine-checkable `src/pptxdiff/vendor/manifest.json` and its human-readable counterpart `PROVENANCE.md`, both re-verifiable via `scripts/verify_vendor.mjs`. See the repo-root `SECURITY.md` for the security rationale.
+
 This is the default, not a hard requirement — `PPTXDIFF_LITE_MODE` is a documented, opt-in escape hatch back to CDN sourcing for all five, if you ever want that. See the [CLI reference](cli.md#lite-mode-cdn-sourcing) and the [in-app toggle](features/ui-shortcuts.md#offline-mode).
 
 ## Packaging layers

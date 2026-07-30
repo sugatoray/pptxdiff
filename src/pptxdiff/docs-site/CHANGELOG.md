@@ -24,6 +24,16 @@ summary, that one is the record of *why*.
 
 No changes yet.
 
+## 2026-07-30 — Content corrections for `pptxdiff::v0.5.0` security hardening
+
+### Fixed
+
+- `cli.md`'s "Security note" section was stale — described the old raw `startsWith(ROOT)` path check and didn't mention loopback binding, `execFile()`, or response headers. Rewritten to match the current `bin/cli.js` behavior and linked to the repo-root `SECURITY.md`.
+
+### Changed
+
+- `architecture.md`'s vendoring section now points to the new `src/pptxdiff/vendor/manifest.json` / `PROVENANCE.md` provenance records and `scripts/verify_vendor.mjs`.
+
 ## 2026-07-29 — GitHub Pages Documentaion update `pptxdiff::v0.4.2` abd `pptxdiff-vscode::v0.1.8`
 
 ### Added

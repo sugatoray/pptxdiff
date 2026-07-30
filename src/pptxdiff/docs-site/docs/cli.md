@@ -35,7 +35,7 @@ There are no command-line flags. One optional environment variable is supported 
 
 ## Security note
 
-The server resolves request paths against its serving root and rejects anything that would traverse outside it (`filePath.startsWith(ROOT)`), so `../`-style path traversal requests are blocked with a `403`.
+The server binds explicitly to loopback (`127.0.0.1`) — not reachable from other machines on your network. Request paths are resolved and checked against the serving root with a `path.relative()`-based containment check (not a raw string-prefix check), so `../`-style traversal and sibling-directory escapes are rejected with a `403`. The browser-launch step uses `execFile()` with an argv array, never a shell-interpolated command. Every response sets `X-Content-Type-Options: nosniff` and `Cache-Control: no-store`. See the repo-root [`SECURITY.md`](https://github.com/sugatoray/pptxdiff/blob/master/SECURITY.md) for the full security model and vulnerability-reporting process.
 
 ## Lite mode (CDN sourcing)
 
