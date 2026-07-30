@@ -27,7 +27,7 @@ incident response. Nothing here is urgent in the sense of an active vulnerabilit
    (LISTEN)` (Linux, this sandbox) — not `0.0.0.0`/`*`. Not verified on macOS/Windows in
    this sandbox.
 
-2. **[ ] Replace `exec()` browser launch with `execFile()`.**
+2. **[x] Replace `exec()` browser launch with `execFile()`.**
    `exec(\`${openCmd} "${url}"\`, ...)` (`bin/cli.js:54`) runs through a shell. The `url`
    is internally generated (`http://localhost:${port}...`) and not user input today, so
    this isn't exploitable *now*, but `exec` + string interpolation is exactly the shape
@@ -38,6 +38,25 @@ incident response. Nothing here is urgent in the sense of an active vulnerabilit
    `"start"` on Windows needs its `""` empty-title-argument quirk preserved — confirm the
    `execFile` form still opens the browser correctly on Windows (or document that this
    wasn't verified on Windows in this sandbox, per this project's honesty convention).
+   **Done** (2026-07-30): `bin/cli.js` now imports `execFile` (not `exec`) and adds a
+   pure `buildBrowserOpenCommand(platform, url)` helper: `darwin` → `open [url]`,
+   `win32` → `cmd.exe /c start "" [url]` (routes through `cmd.exe` since `start` is a
+   shell built-in, not a standalone executable — `""` empty-title quirk preserved as its
+   own argv element), everything else → `xdg-open [url]`. `url` is always passed as its
+   own argv array element, never interpolated into a command string, so no shell is
+   invoked at all. The whole server-start/browser-open block is now guarded behind
+   `if (require.main === module)` so `buildBrowserOpenCommand` can be imported and unit
+   tested without the side effect of starting a real server. Red/Green regression test:
+   `src/pptxdiff/test_execfile_browser_open_cli.mjs` — RED (1/5) against the pre-fix
+   code (no `execFile`, no exported builder, still shell-interpolated `exec(`); GREEN
+   (11/11) after, including a shell-metacharacter-laden URL
+   (`"; touch /tmp/pwned #`) asserted to survive as a single, untouched argv element on
+   every platform branch. No regressions: `test_loopback_bind_cli.mjs` (2/2),
+   `test_lite_mode_cli.mjs` (10/10), `test_offline_capable.mjs` (22/22) all still pass;
+   manually re-verified the CLI still serves `/` and `/support.js` with `200` after the
+   refactor. Only verified on Linux (this sandbox) — the Windows `cmd.exe /c start`
+   branch is exercised by the unit test's pure-function assertions only, not against a
+   real Windows browser launch, per this project's honesty convention.
 
 3. **[ ] Replace `startsWith(ROOT)` path containment with `path.relative()`-based
    containment.**
