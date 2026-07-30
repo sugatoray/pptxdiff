@@ -109,12 +109,19 @@ incident response. Nothing here is urgent in the sense of an active vulnerabilit
 
 ## P1 — Response hygiene and provenance
 
-4. **[ ] Add `X-Content-Type-Options: nosniff` and a conservative `Cache-Control` header**
+4. **[x] Add `X-Content-Type-Options: nosniff` and a conservative `Cache-Control` header**
    to every response in `bin/cli.js`'s `server.writeHead(...)` call (`bin/cli.js:37`).
    Low-risk, mechanical change — bundle it with ticket 3 above since both touch the same
    `fs.readFile` callback.
+   **Done** (2026-07-30): added a `SECURITY_HEADERS` constant
+   (`X-Content-Type-Options: nosniff`, `Cache-Control: no-store`) applied to all three
+   `writeHead` call sites (200 file serve, 403 blocked-path, 404 not-found). Red/Green
+   regression test: `src/pptxdiff/test_security_headers_cli.mjs` — RED (3/11) against
+   the pre-fix code, GREEN (11/11) after, spawning the real CLI and checking headers on
+   a 200, a 403 (blocked traversal), and a 404 response. No regressions across the other
+   4 `bin/cli.js` test files.
 
-5. **[ ] Add a `SECURITY.md`** (repo root, the conventional location GitHub surfaces in
+5. **[x] Add a `SECURITY.md`** (repo root, the conventional location GitHub surfaces in
    the "Security" tab) covering: the local-first/no-cloud-upload model, no npm lifecycle
    scripts, zero production dependencies, the optional `PPTXDIFF_LITE_MODE` CDN escape
    hatch and why it's opt-in, the `exec`/shell-opener behavior (post-hardening, note it's
@@ -124,8 +131,12 @@ incident response. Nothing here is urgent in the sense of an active vulnerabilit
    `SECURITY_ANALYSIS.md`'s reasoning, don't restate it in full). Include a
    vulnerability-reporting contact/process (even if just "open a GitHub issue" or an
    email).
+   **Done** (2026-07-30): added `SECURITY.md` at the repo root covering every point
+   above, plus the P0 hardening already shipped (loopback binding, `execFile`,
+   `path.relative()` containment, response headers) and a pointer to the new vendor
+   provenance docs (ticket 6, below). Documentation-only — no TDD applicable.
 
-6. **[ ] Document and automate vendored-dependency provenance.**
+6. **[x] Document and automate vendored-dependency provenance.**
    `src/pptxdiff/vendor/` (React, ReactDOM, Babel standalone, JSZip,
    `@aiden0z/pptx-renderer`, Spectral font) currently has its provenance scattered across
    `HANDOFF.md`/`WISDOM.md` history rather than a single checked-in, machine-checkable
@@ -138,6 +149,20 @@ incident response. Nothing here is urgent in the sense of an active vulnerabilit
    per `WISDOM.md`'s vendoring addendum) into a repeatable, CI-runnable check covering
    *all* vendored files, not just the two that already had SRI hashes for an unrelated
    reason.
+   **Done** (2026-07-30): added both, per the ticket's "either" option — `manifest.json`
+   (machine-checkable source of truth: file, upstream package, version, source URL,
+   sha256, license, per vendored file) and `PROVENANCE.md` (human-readable, same data
+   plus rebuild recipes/context, in `src/pptxdiff/vendor/`). New
+   `scripts/verify_vendor.mjs`: re-derives each file's sha256 and checks it against
+   `manifest.json`; asserts `manifest.json`'s hash strings also appear in
+   `PROVENANCE.md` (catches doc/manifest drift); and automates the exact manual
+   React/ReactDOM sha384-vs-`support.js`-SRI cross-check `WISDOM.md`'s vendoring
+   addendum previously did by hand. Genuine Red/Green demonstrated twice: (1) corrupted
+   one hash in `manifest.json` — caught (both the hash-mismatch and the doc-drift
+   checks fired), restored, clean again; (2) flipped one byte in the real
+   `vendor/react.production.min.js` on disk — caught by both the sha256-vs-manifest
+   check AND the sha384-vs-support.js cross-check, restored (`git status` confirmed
+   byte-identical to the tracked copy afterward), clean again. Clean run: 35/35.
 
 ## P2 — CI / static analysis
 
