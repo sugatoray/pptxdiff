@@ -18,6 +18,15 @@ const MIME = {
   ".woff2": "font/woff2",
 };
 
+// Applied to every response: nosniff blocks MIME-sniffing-based attacks on
+// served content, and no-store keeps a local dev server from letting a
+// browser cache a copy of a file that may have been edited on disk since
+// the last request.
+const SECURITY_HEADERS = {
+  "X-Content-Type-Options": "nosniff",
+  "Cache-Control": "no-store",
+};
+
 // Pure: decides how to launch a browser for `url` on `platform`, with the
 // url passed as its own argv element rather than shell-interpolated into a
 // command string. `start` is a cmd.exe built-in, not a standalone
@@ -51,18 +60,21 @@ if (require.main === module) {
     const filePath = path.join(ROOT, path.normalize(reqPath === "/" ? "/index.html" : reqPath));
 
     if (!isPathContained(ROOT, filePath)) {
-      res.writeHead(403);
+      res.writeHead(403, SECURITY_HEADERS);
       res.end("Forbidden");
       return;
     }
 
     fs.readFile(filePath, (err, data) => {
       if (err) {
-        res.writeHead(404);
+        res.writeHead(404, SECURITY_HEADERS);
         res.end("Not found");
         return;
       }
-      res.writeHead(200, { "Content-Type": MIME[path.extname(filePath)] || "application/octet-stream" });
+      res.writeHead(200, {
+        ...SECURITY_HEADERS,
+        "Content-Type": MIME[path.extname(filePath)] || "application/octet-stream",
+      });
       res.end(data);
     });
   });
