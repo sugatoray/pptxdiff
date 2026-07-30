@@ -58,7 +58,7 @@ incident response. Nothing here is urgent in the sense of an active vulnerabilit
    branch is exercised by the unit test's pure-function assertions only, not against a
    real Windows browser launch, per this project's honesty convention.
 
-3. **[ ] Replace `startsWith(ROOT)` path containment with `path.relative()`-based
+3. **[x] Replace `startsWith(ROOT)` path containment with `path.relative()`-based
    containment.**
    `filePath.startsWith(ROOT)` (`bin/cli.js:25`) has two known weaknesses: (a) it's a
    raw string prefix check, so a sibling directory sharing `ROOT`'s prefix (e.g. `ROOT`
@@ -76,6 +76,36 @@ incident response. Nothing here is urgent in the sense of an active vulnerabilit
    (existing behavior, must still block), URL-encoded traversal (`%2e%2e%2f`), a
    sibling-prefix path, and (documented-only, not necessarily testable cross-platform) a
    symlink escaping `ROOT`.
+   **Done** (2026-07-30): `bin/cli.js` now has a pure, exported `isPathContained(root,
+   candidate)` helper implementing exactly the `path.relative()`-based check above,
+   replacing the `filePath.startsWith(ROOT)` call site. Red/Green regression test:
+   `src/pptxdiff/test_path_containment_cli.mjs` — RED (8/9, missing export) against the
+   pre-fix code; GREEN (17/17) after. Covers: `isPathContained` unit assertions (root
+   itself, ordinary subpath, nested subpath, internal `..` normalizing back into root —
+   all contained; a sibling directory sharing `ROOT`'s prefix with and without a
+   separator, the parent directory, an unrelated absolute path — all correctly rejected,
+   which is the exact case a raw `startsWith()` check gets wrong) plus spawned-real-CLI
+   HTTP checks (`/`, `/support.js`, `/sample-pptx.js` still 200; ordinary `../`
+   traversal, URL-encoded `%2e%2e%2f` traversal, and a sibling-prefix escape attempt
+   never return 200).
+   **Investigation note worth keeping**: traced through `path.normalize()` +
+   `path.join()`'s actual behavior before writing the HTTP-level assertions and found
+   the pre-fix code already returned `404` (never `403`, never `200`) for every `../`
+   traversal payload tried here — `path.normalize()` clamps `..` at the leading `/` of
+   an already-absolute request path, and `path.join(ROOT, alreadyNormalizedAbsoluteish
+   String)` does not treat a leading `/` as an absolute-path reset (unlike
+   `path.resolve()`), so this specific call site's construction already prevented
+   `../`-style escape by construction, independent of which containment check gated it.
+   The HTTP-level traversal tests therefore assert "never leaks a 200," not "returns
+   403" — the real, meaningful startsWith()-vs-path.relative() divergence this ticket
+   closes is the sibling-prefix case, which is only reachable/testable by calling
+   `isPathContained()` directly with a crafted sibling path (the HTTP layer can't
+   produce one through `path.join(ROOT, ...)`'s construction). Symlink escape remains
+   documented-only, not tested, per the ticket's own carve-out — `path.resolve()` does
+   not canonicalize symlinks.
+   No regressions: `test_execfile_browser_open_cli.mjs` (11/11), `test_loopback_bind_cli.mjs`
+   (2/2), `test_lite_mode_cli.mjs` (10/10), `test_offline_capable.mjs` (22/22) all still
+   pass.
 
 ## P1 — Response hygiene and provenance
 
