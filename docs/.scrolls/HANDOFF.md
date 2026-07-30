@@ -2,6 +2,13 @@
 
 **Read `.scrolls/SPEC.md` first for the full feature list.** This file is the "what's the state of things right now" note — update it at the end of every session, keep it short and current (prune stale entries).
 
+## Update (2026-07-29 — security hardening P0 ticket 1: bind CLI server to loopback)
+- Picked up `docs/.scrolls/SECURITY_HARDENING_PLAN.md`'s first P0 ticket: `bin/cli.js:42`'s `server.listen(0, ...)` omitted the host, which is not guaranteed to bind loopback-only on every Node/platform combination. Confirmed the risk was real in this sandbox before fixing: a plain TCP connect to the server's port on the container's non-loopback interface (`192.0.2.2`, via `os.networkInterfaces()`) succeeded pre-fix.
+- **Red/Green TDD**: new `src/pptxdiff/test_loopback_bind_cli.mjs` spawns the real CLI (same pattern as `test_lite_mode_cli.mjs`), then asserts a TCP connect to `127.0.0.1:<port>` succeeds while a connect to every non-loopback IPv4 address on the machine is refused. RED (1/2) against the original code, GREEN (2/2) after adding `"127.0.0.1"` as `server.listen`'s host argument. Independently verified with `lsof -p <pid> -a -iTCP`, which now shows `TCP 127.0.0.1:<port> (LISTEN)`.
+- No regressions: `test_lite_mode_cli.mjs` (10/10) and `test_offline_capable.mjs` (22/22) still pass.
+- Only verified on Linux (this sandbox) — macOS/Windows binding behavior not independently confirmed, per this project's honesty convention.
+- Flipped ticket 1 to `[x]` in `SECURITY_HARDENING_PLAN.md`. Ticket 2 (`exec()` → `execFile()` for the browser launch) and ticket 3 (`path.relative()`-based containment) are next in P0.
+
 ## Update (2026-07-28 — GitHub Actions pipeline: docs site → GitHub Pages)
 - Closed the "no CI/deploy wiring" gap flagged at the end of the 2026-07-26 docs-site session (see entry below): added `.github/workflows/docs.yml`, a two-job (`build` → `deploy`) pipeline using `actions/upload-pages-artifact` + `actions/deploy-pages` (the GitHub-recommended Pages deployment path, not `mkdocs gh-deploy`'s branch-push approach). Triggers on push to `master` (path-scoped to `src/pptxdiff/docs-site/**`, `pyproject.toml`, `uv.lock`) plus manual `workflow_dispatch`.
 - Build step uses `uv run --only-group docs mkdocs build -f src/pptxdiff/docs-site/mkdocs.yml --strict` — `--only-group`, not `--group`, per DOCS.md §5's existing note that `--group` also resolves the root `[project]` deps (`headroom-ai[all]`'s torch/CUDA), irrelevant here. Ran the exact command locally first (exit 0, clean `--strict`) before committing the workflow.

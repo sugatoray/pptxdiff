@@ -39,7 +39,7 @@ const server = http.createServer((req, res) => {
   });
 });
 
-server.listen(0, () => {
+server.listen(0, "127.0.0.1", () => {
   const { port } = server.address();
   const url = `http://localhost:${port}${LITE_MODE ? "/?lite=1" : ""}`;
   console.log(`pptxdiff running at ${url}`);

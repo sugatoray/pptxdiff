@@ -12,12 +12,20 @@ incident response. Nothing here is urgent in the sense of an active vulnerabilit
 
 ## P0 — CLI server hardening (`bin/cli.js`)
 
-1. **[ ] Bind the static server explicitly to loopback.**
+1. **[x] Bind the static server explicitly to loopback.**
    `server.listen(0, ...)` (`bin/cli.js:42`) omits the host, which on some Node/platform
    combinations can bind more broadly than `127.0.0.1`. Change to
    `server.listen(0, "127.0.0.1", () => { ... })`. This is a one-line change; verify with
    `netstat`/`lsof` (or `server.address()`) that the bound address is `127.0.0.1`, not
    `0.0.0.0` or `::`, on at least Linux and macOS.
+   **Done** (2026-07-29): fixed in `bin/cli.js:42`. Red/Green regression test added:
+   `src/pptxdiff/test_loopback_bind_cli.mjs` — spawns the real CLI and asserts a TCP
+   connection to `127.0.0.1:<port>` succeeds while a connection to any other
+   non-loopback IPv4 address on this machine is refused. Confirmed RED (1/2, external
+   connection unexpectedly succeeded) against the pre-fix code, GREEN (2/2) after.
+   Verified independently via `lsof -p <pid> -a -iTCP`, showing `TCP 127.0.0.1:<port>
+   (LISTEN)` (Linux, this sandbox) — not `0.0.0.0`/`*`. Not verified on macOS/Windows in
+   this sandbox.
 
 2. **[ ] Replace `exec()` browser launch with `execFile()`.**
    `exec(\`${openCmd} "${url}"\`, ...)` (`bin/cli.js:54`) runs through a shell. The `url`
