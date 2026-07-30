@@ -30,12 +30,27 @@ function buildBrowserOpenCommand(platform, url) {
   return { command: "xdg-open", args: [url] };
 }
 
+// Pure: true if `candidate` resolves to `root` itself, or somewhere
+// strictly inside it. path.relative()-based rather than a raw string-prefix
+// check (`candidate.startsWith(root)`), which has two known weaknesses: (a)
+// it's fooled by a sibling directory that merely shares root's prefix
+// (e.g. root=/app/pptxdiff vs. candidate=/app/pptxdiff-evil/secret — a
+// prefix check wrongly calls this contained), and (b) it says nothing about
+// symlinks. path.relative()/path.resolve() fix (a); neither fixes (b) —
+// path.resolve() does not canonicalize symlinks, so a symlink inside root
+// that points outside it can still escape. That residual gap is
+// documented, not something this function (or a test) can close.
+function isPathContained(root, candidate) {
+  const relative = path.relative(root, path.resolve(candidate));
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
 if (require.main === module) {
   const server = http.createServer((req, res) => {
     const reqPath = decodeURIComponent(req.url.split("?")[0]);
     const filePath = path.join(ROOT, path.normalize(reqPath === "/" ? "/index.html" : reqPath));
 
-    if (!filePath.startsWith(ROOT)) {
+    if (!isPathContained(ROOT, filePath)) {
       res.writeHead(403);
       res.end("Forbidden");
       return;
@@ -65,4 +80,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { buildBrowserOpenCommand };
+module.exports = { buildBrowserOpenCommand, isPathContained };
