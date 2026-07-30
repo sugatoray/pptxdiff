@@ -2,6 +2,12 @@
 
 All notable changes to the pptxdiff VS Code extension will be documented in this file.
 
+## [0.1.9] - 2026-07-30
+
+### Changed
+
+- Ported the upstream `pptxdiff` CLI's security hardening into the extension's own local static file server (`extension.js`): binds explicitly to loopback (`127.0.0.1`), path containment now uses a `path.relative()`-based check instead of a raw `startsWith(ROOT)` prefix check, and every response sets `X-Content-Type-Options: nosniff` and `Cache-Control: no-store`.
+
 ## [0.1.8] - 2026-07-29
 
 ### Changed
