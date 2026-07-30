@@ -140,6 +140,7 @@
             <button onClick="{{ exportShareLink }}" style="font:inherit;font-size:13px;text-align:left;background:none;border:none;padding:8px 10px;border-radius:6px;cursor:pointer;color:{{ theme.text }}">Copy shareable link</button>
             <div style="height:1px;background:{{ theme.border }};margin:4px 2px"></div>
             <button onClick="{{ exportScreenshotsZip }}" disabled="{{ screenshotsBusy }}" style="font:inherit;font-size:13px;text-align:left;background:none;border:none;padding:8px 10px;border-radius:6px;cursor:{{ screenshotsBusyCursor }};color:{{ theme.text }};opacity:{{ screenshotsBusyOpacity }}">{{ screenshotsZipLabel }}</button>
+            <button onClick="{{ exportScreenshotsHtml }}" disabled="{{ screenshotsBusy }}" style="font:inherit;font-size:13px;text-align:left;background:none;border:none;padding:8px 10px;border-radius:6px;cursor:{{ screenshotsBusyCursor }};color:{{ theme.text }};opacity:{{ screenshotsBusyOpacity }}">{{ screenshotsHtmlLabel }}</button>
           </div>
         </details>
       </div>
@@ -1905,8 +1906,9 @@ class Component extends DCLogic {
     this.setState({ decisions: savedDecisions2, pendingConfirm: null, clearDecisionsScope: 'all' });
 
     // RED/GREEN for the screenshot-export pure helpers (the impure DOM-capture/zip/download shell
-    // around them — captureElementSvg/captureAllScreenshots/exportScreenshotsZip — isn't safe to
-    // invoke from a self-test since it mutates real view state and triggers a real file download).
+    // around them — captureElementSvg/captureAllScreenshots/exportScreenshotsZip/
+    // exportScreenshotsHtml — isn't safe to invoke from a self-test since it mutates real view
+    // state and triggers a real file download).
     assert('sanitizeFilename lowercases and hyphenates', this.sanitizeFilename('Slide 2 → 3 (Added)') === 'slide-2-3-added');
     assert('sanitizeFilename trims leading/trailing hyphens', this.sanitizeFilename('  --Hello--  ') === 'hello');
     assert('sanitizeFilename falls back to "untitled" for empty input', this.sanitizeFilename('') === 'untitled' && this.sanitizeFilename(null) === 'untitled');
@@ -1918,6 +1920,11 @@ class Component extends DCLogic {
     assert('buildCollapsedMap sets every pairKey to the given value', collapsedTrue['a0:b0'] === true && collapsedTrue['a1:bx'] === true && collapsedTrue['ax:b1'] === true);
     const collapsedFalse = this.buildCollapsedMap(ssAlignment, false);
     assert('buildCollapsedMap(false) flips every pairKey back', Object.values(collapsedFalse).every(v => v === false));
+    const shotsFixture = [{ name: '00-all-pairs-collapsed.svg', svg: '<svg data-marker="AAA"></svg>' }, { name: '02-pair-slide-1-2.svg', svg: '<svg data-marker="BBB"></svg>' }];
+    const shotsHtml = this.buildScreenshotsHtmlDoc(shotsFixture);
+    assert('buildScreenshotsHtmlDoc embeds every screenshot\'s SVG inline', shotsHtml.includes('data-marker="AAA"') && shotsHtml.includes('data-marker="BBB"'));
+    assert('buildScreenshotsHtmlDoc renders one nav tab per screenshot', (shotsHtml.match(/class="sd-shot-tab/g) || []).length === shotsFixture.length);
+    assert('buildScreenshotsHtmlDoc wires up the tab-switching script', shotsHtml.includes('function sdShowShot'));
 
     return tests;
   }
@@ -2469,8 +2476,8 @@ class Component extends DCLogic {
       + '<rect width="100%" height="100%" fill="' + fill + '"/>'
       + '<foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml">' + xml + '</div></foreignObject></svg>';
   }
-  /* Impure orchestrator used by exportScreenshotsZip() below: drives the app through
-     All-pairs-collapsed, All-pairs-expanded, then every aligned pair's single view,
+  /* Impure orchestrator shared by exportScreenshotsZip()/exportScreenshotsHtml(): drives the app
+     through All-pairs-collapsed, All-pairs-expanded, then every aligned pair's single view,
      capturing a full-page screenshot at each step, then restores whatever view the user was
      actually on before this ran. Returns [] (and toasts) if there's nothing loaded to shoot. */
   async captureAllScreenshots() {
@@ -2519,6 +2526,39 @@ class Component extends DCLogic {
     const blob = await zip.generateAsync({ type: 'blob' });
     this.downloadBlob('pptxdiff-screenshots.zip', blob, 'application/zip');
     this.showToast('Downloaded ' + shots.length + ' screenshots (.svg) as pptxdiff-screenshots.zip');
+  }
+  /* Pure: builds the self-contained viewer HTML string from a shots array (same shape
+     captureAllScreenshots() returns) — kept separate from exportScreenshotsHtml() so it's
+     directly unit-testable without a real DOM capture. Each screenshot's SVG is embedded
+     INLINE (a plain <div> wrapper, not an <img src="data:...">) — simpler, no base64 bloat, and
+     an inline <svg> renders identically to opening the .svg file directly. */
+  buildScreenshotsHtmlDoc(shots) {
+    const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const prettyName = (name) => name.replace(/\.svg$/, '').replace(/^\d+-/, '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    const navItems = shots.map((s, i) => '<button class="sd-shot-tab' + (i === 0 ? ' active' : '') + '" data-idx="' + i + '" onclick="sdShowShot(' + i + ')">' + esc(prettyName(s.name)) + '</button>').join('\n');
+    const panels = shots.map((s, i) => '<div class="sd-shot-wrap" data-idx="' + i + '" style="display:' + (i === 0 ? 'block' : 'none') + '">' + s.svg + '</div>').join('\n');
+    return '<!DOCTYPE html>\n<html><head><meta charset="utf-8"><title>PptxDiff Screenshots</title>\n<style>\n'
+      + '  *{box-sizing:border-box}\n'
+      + '  body{margin:0;font-family:-apple-system,\'Helvetica Neue\',Helvetica,Arial,sans-serif;display:flex;height:100vh;background:#F7F4EC;color:#1F1E1B}\n'
+      + '  nav{width:260px;flex:none;overflow:auto;border-right:1px solid #E4DFD1;padding:14px;box-sizing:border-box;background:#FBF9F3}\n'
+      + '  nav h1{font-size:14px;margin:0 0 12px;padding:0 6px}\n'
+      + '  nav button{display:block;width:100%;text-align:left;font:inherit;font-size:13px;padding:8px 10px;margin-bottom:4px;border:1px solid transparent;border-radius:6px;background:none;cursor:pointer;color:#1F1E1B}\n'
+      + '  nav button:hover{background:#EFE9D9}\n'
+      + '  nav button.active{background:#C9684A;color:#fff;border-color:#C9684A}\n'
+      + '  main{flex:1;overflow:auto;padding:20px;text-align:center}\n'
+      + '  .sd-shot-wrap{display:inline-block;max-width:100%;border:1px solid #ddd;border-radius:8px;background:#fff;overflow:hidden}\n'
+      + '  .sd-shot-wrap svg{display:block;max-width:100%;height:auto}\n'
+      + '</style></head>\n<body>\n<nav><h1>PptxDiff Screenshots (' + shots.length + ')</h1>\n' + navItems + '</nav>\n<main>\n' + panels + '\n</main>\n'
+      + '<script>\nfunction sdShowShot(i){\n'
+      + '  document.querySelectorAll(".sd-shot-wrap").forEach(function(w){ w.style.display = (+w.dataset.idx===i) ? "block" : "none"; });\n'
+      + '  document.querySelectorAll(".sd-shot-tab").forEach(function(b){ b.classList.toggle("active", +b.dataset.idx===i); });\n'
+      + '}\n<\/script>\n</body></html>';
+  }
+  async exportScreenshotsHtml() {
+    const shots = await this.captureAllScreenshots();
+    if (!shots.length) return;
+    this.downloadBlob('pptxdiff-screenshots.html', this.buildScreenshotsHtmlDoc(shots), 'text/html');
+    this.showToast('Downloaded ' + shots.length + ' screenshots as a self-contained HTML file');
   }
 
   /* Pure: the one canonical "Slide N -> M" / "(removed/added in After)" label for an alignment
@@ -4004,9 +4044,10 @@ class Component extends DCLogic {
       credRememberConfluencePageId: !!st.persistedCredFields.confluencePageId, onRememberConfluencePageId: (e) => this.toggleFieldPersistence('confluencePageId', e),
       selectAllCredFields: () => this.selectAllCredFields(), selectNoneCredFields: () => this.selectNoneCredFields(),
       exportPdf: () => window.print(),
-      exportScreenshotsZip: () => this.exportScreenshotsZip(),
+      exportScreenshotsZip: () => this.exportScreenshotsZip(), exportScreenshotsHtml: () => this.exportScreenshotsHtml(),
       screenshotsBusy: st.screenshotsBusy, screenshotsBusyCursor: st.screenshotsBusy ? 'wait' : 'pointer', screenshotsBusyOpacity: st.screenshotsBusy ? .5 : 1,
       screenshotsZipLabel: st.screenshotsBusy ? 'Capturing screenshots…' : 'Screenshots → ZIP',
+      screenshotsHtmlLabel: st.screenshotsBusy ? 'Capturing screenshots…' : 'Screenshots → HTML viewer',
       hasDeckDiffs: deckDiffs.length > 0,
       deckDiffs: deckDiffs.map(d => ({ type: d.type, label: d.label, oldText: d.oldText, newText: d.newText })),
       duplicateNotes: duplicateNotes.concat(sectionMoveNotes), hasDuplicates: duplicateNotes.length > 0 || sectionMoveNotes.length > 0,
