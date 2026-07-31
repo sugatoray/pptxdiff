@@ -277,3 +277,31 @@ When picking up a new ticket: update this file's status, and add a short note to
 ## New tickets opened this session
 5. **P4 — Content checksum shows "unavailable" under the `file://` open path** (no secure context for `crypto.subtle`) — handled honestly, not worked around; see GAP_ANALYSIS.md.
 6. **P4 — Excluded-parts list for the content checksum is a fixed, hardcoded set** — would need a code change, not a setting, if a new non-content save-time-varying part type is ever observed in the wild.
+
+## Design proposal added this session (headless CLI + Web API) — not yet started
+Full reasoning, architecture, and open decisions: `docs/.scrolls/CLI_API_DESIGN.md`. Do not start
+any of these without re-reading that doc first — the phasing and package-split calls below depend
+on its §3/§6 reasoning (the engine's methods are already written in a Node-portable pure-core
+style, so extraction is a scoped refactor, not a rewrite).
+1. **P1 (proposed) — `@pptxdiff/core`: extract the parse/align/diff/checksum/report-building engine
+   out of `index.html`'s Component class into a standalone Node+browser dual-target module.**
+   Blocks the fast (non-Playwright) path for every other ticket below. See design doc §3/§4.
+2. **P1 (proposed) — `pptxdiff-cli`: headless `diff`/`checksum`/`batch`/`report`/`merge`
+   subcommands** with `--json` + `diff`-style exit codes (0/1/2). Phase 1 (Playwright-driven) can
+   ship before ticket 1 lands; Phase 2 moves everything but `pdf`/`screenshot` formats onto
+   `@pptxdiff/core`. See design doc §5/§6.
+3. **P2 (proposed) — git integration: `pptxdiff textconv`/`pptxdiff difftool` + `pptxdiff
+   install-git-integration`.** Needs ticket 2's `diff` command first. Must default to repo-local
+   `.gitattributes`/`.git/config`, never write `~/.gitconfig` without an explicit `--global` flag
+   and confirmation. See design doc §7.
+4. **P2 (proposed) — `@pptxdiff/server`: stateless diff/checksum/batch/report/merge endpoints +
+   stateful review sessions** (server-side reviewer-workflow state, mirrors the GUI's
+   `slideDiffReviewerState_v1` shape so JSON report import/export stays compatible both ways).
+   Loopback-bind-by-default + API-key-for-non-loopback, matching the existing CLI security
+   hardening's precedent — do not relitigate that posture, extend it. See design doc §8.
+5. **P3 (proposed) — `pptxdiff mcp`: MCP server** wrapping the same `@pptxdiff/core` operations as
+   typed tools, for direct AI-agent tool-calling (no shell/HTTP boilerplate). See design doc §9.
+6. **Open decision, needs a user call before any of the above starts**: four-package split
+   (`pptxdiff` / `@pptxdiff/core` / `pptxdiff-cli` / `@pptxdiff/server`) vs. folding the new
+   surfaces into the existing `pptxdiff` package (simpler publish, but ends its current
+   zero-runtime-dependency claim for GUI-only users). See design doc §10.

@@ -2,6 +2,42 @@
 
 **Read `.scrolls/SPEC.md` first for the full feature list.** This file is the "what's the state of things right now" note — update it at the end of every session, keep it short and current (prune stale entries).
 
+## Update (2026-07-31 — headless CLI + Web API design proposal, no code changes)
+- User asked for a design (not implementation) of two new surfaces: a headless CLI exposing every
+  pptxdiff feature scriptably, and a Web API exposing the same over HTTP — motivated by wanting
+  pptxdiff usable as a git `difftool`/`textconv` driver for `*.pptx` and as something an AI agent
+  can call directly, not just a human-operated browser app.
+- Read WISDOM.md's Constraints first (`No backend` — client-side only) and confirmed what it does
+  and doesn't rule out: the shipped `index.html` must keep working with zero server dependency, but
+  that doesn't forbid a separate, opt-in Node-side surface that runs the same logic headlessly.
+- **Key finding, checked directly against `index.html`'s source, not assumed**: the parse/align/
+  diff/checksum/report-building engine (`parseBuffer`, `alignSlides`, `refineMoves`,
+  `computeContentChecksum`, `buildJsonReport`, etc.) is already written in this project's own
+  documented "pure-core" style — argument-in/value-out, no `this.state`/DOM coupling — with a
+  direct existing precedent (`sample-pptx.js` running under Node via a two-global shim, per
+  WISDOM.md) that the same shimming approach scales to the rest of the engine. This means
+  extracting a Node+browser dual-target `@pptxdiff/core` module is a scoped refactor, not a
+  rewrite — changed the recommended architecture from "wrap a headless browser for everything" to
+  "extract the engine, keep a real browser only for the 3 genuinely browser-only export/render
+  features (fidelity render, PDF via `window.print()`, SVG screenshot capture)."
+- **Deliverable**: `docs/.scrolls/CLI_API_DESIGN.md` (new) — layered architecture
+  (`pptxdiff`/`@pptxdiff/core`/`pptxdiff-cli`/`@pptxdiff/server`, four packages so the GUI
+  launcher's zero-runtime-deps claim survives), a phased execution strategy (Phase 1:
+  Playwright-driven, ships the full command/endpoint surface fast and de-risks the design; Phase 2:
+  move everything except `pdf`/`screenshot` onto the native `@pptxdiff/core` path — the shape that
+  actually works for a git-driver invoked on every `git log -p`), full CLI command table with a
+  `diff`-style exit-code contract (0/1/2) and `--json` on every subcommand, git `textconv`/
+  `difftool` integration mechanics, a Web API endpoint table (stateless diff/checksum/batch/report/
+  merge + stateful review sessions mirroring the GUI's reviewer-workflow state), a security-posture
+  section explicitly carrying forward (not relitigating) the existing loopback-bind/path-containment
+  hardening precedent, and an MCP-server angle for direct AI-agent tool-calling.
+- **PLAN.md**: added 6 new "proposed, not started" tickets under a new "Design proposal added this
+  session" section, cross-referencing the design doc's sections; flagged the package-split and
+  phasing choices as open decisions needing an explicit user call before implementation starts.
+- **No code changed this session** — design/planning only, per the explicit ask. Next session
+  should get the user's call on PLAN.md ticket 6 (package split) and the Phase 1-vs-2/CLI-vs-API
+  ordering question before writing any of `@pptxdiff/core`/`pptxdiff-cli`/`@pptxdiff/server`.
+
 ## Update (2026-07-31 — parser-independent SHA-256 content checksum in every diff export)
 - User asked for the diff exports (all formats) to include a checksum of the .pptx CONTENT, explicitly not a raw file hash (flagged timestamp info as the reason). Agreed and recommended hashing this app's own parsed slide structure instead — a genuinely nice property (same hash ⟺ diff engine finds zero differences) for zero new zip-reading code. User read it over and explicitly redirected: "I would prefer the parser independent path. Can you use something like OpenSSL?"
 - **Answered the OpenSSL question directly before implementing**: this app has no backend/shell access by design (WISDOM.md Constraints), so literally invoking the `openssl` binary isn't possible from the client-side code path — but SHA-256 is a standardized algorithm, so `crypto.subtle.digest('SHA-256', ...)` and `openssl dgst -sha256` produce byte-identical output for the same bytes, preserving the actual property wanted (standard, tool-independent, externally verifiable).
