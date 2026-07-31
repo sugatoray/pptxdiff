@@ -1580,6 +1580,17 @@ class Component extends DCLogic {
     const staleRefs = this.checkStaleMethodRefs();
     assert('renderVals() output has no stale this.xxx() references to renamed/removed methods', staleRefs.length === 0, staleRefs.join(', '));
 
+    // RED/GREEN regression guard for the opposite failure mode from the one above: a menu item's
+    // BINDING silently missing from renderVals() entirely (button present in the template but its
+    // {{ handler }}/{{ label }} hole resolves to undefined, or the whole binding line was deleted)
+    // rather than pointing at a renamed/removed method. Covers the Export -> Screenshots items
+    // specifically since they're the newest, least-exercised-by-habit entries in that menu.
+    const rv = this.renderVals();
+    assert('renderVals() wires exportScreenshotsZip to a real function', typeof rv.exportScreenshotsZip === 'function');
+    assert('renderVals() wires exportScreenshotsHtml to a real function', typeof rv.exportScreenshotsHtml === 'function');
+    assert('renderVals() gives Screenshots -> ZIP a non-empty label', typeof rv.screenshotsZipLabel === 'string' && rv.screenshotsZipLabel.length > 0);
+    assert('renderVals() gives Screenshots -> HTML viewer a non-empty label', typeof rv.screenshotsHtmlLabel === 'string' && rv.screenshotsHtmlLabel.length > 0);
+
     // RED/GREEN regression guard for a second bug class found in the same audit: a method
     // defined but never actually invoked from anywhere (e.g. componentDidMount silently dropped
     // its call to restorePersisted() during an earlier refactor, so saved reviewer state/decisions
