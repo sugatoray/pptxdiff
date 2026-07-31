@@ -371,6 +371,10 @@ node_modules
 ## Ignore .npm-cache folder
 .npm-cache
 
+## Built mkdocs output — DOCS.md documents this as git-ignored, but no rule
+## actually covered it (found running a real `mkdocs build` this session).
+src/pptxdiff/docs-site/site/
+
 ## Every src/packages/*/lib/ is a real, tracked Node source directory (each
 ## package's package.json "main"/"bin" points into it) — un-ignore them from
 ## the py.gitignore template's generic `lib/` rule (meant for Python

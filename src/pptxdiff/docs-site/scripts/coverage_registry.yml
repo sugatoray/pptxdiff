@@ -83,6 +83,9 @@ features:
   - id: vscode-extension
     title: VS Code extension
     source: SPEC.md (VS Code extension packaging)
+  - id: headless-cli-api
+    title: "Headless CLI (pptxdiff-cli) & Web API (@pptxdiff/server)"
+    source: SPEC.md §30
 
 limitations:
   - id: rendering-limitations
@@ -121,3 +124,6 @@ limitations:
   - id: lite-mode-limitations
     title: Lite mode is all 5 dependencies at once, no per-dependency mixing
     source: GAP_ANALYSIS.md "PPTXDIFF_LITE_MODE"
+  - id: headless-cli-api-limitations
+    title: "Headless CLI/API: not published, Phase 1 only (diff/checksum), no server auth"
+    source: GAP_ANALYSIS.md "Headless CLI / Web API — Phase 1"
