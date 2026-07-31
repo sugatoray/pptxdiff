@@ -54,34 +54,53 @@ function isPathContained(root, candidate) {
   return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
-if (require.main === module) {
-  const server = http.createServer((req, res) => {
-    const reqPath = decodeURIComponent(req.url.split("?")[0]);
-    const filePath = path.join(ROOT, path.normalize(reqPath === "/" ? "/index.html" : reqPath));
+// Starts the static file server on an OS-assigned loopback port. Extracted
+// from the require.main block below so other packages in this repo
+// (currently `pptxdiff-cli`, via a `pptxdiff` dependency) can reuse this
+// exact server — same path containment, same security headers, same
+// binding — instead of growing a second, drift-prone copy. See WISDOM.md's
+// existing trap about `pptxdiff-vscode/extension.js` carrying its own
+// independent (and once out-of-sync) copy of this same server; new
+// consumers should import this function rather than repeat that mistake.
+// Resolves to { server, port, url } once listening; the caller decides
+// what to do with the URL (print it, open a browser, hand it to Playwright).
+function startServer() {
+  return new Promise((resolve, reject) => {
+    const server = http.createServer((req, res) => {
+      const reqPath = decodeURIComponent(req.url.split("?")[0]);
+      const filePath = path.join(ROOT, path.normalize(reqPath === "/" ? "/index.html" : reqPath));
 
-    if (!isPathContained(ROOT, filePath)) {
-      res.writeHead(403, SECURITY_HEADERS);
-      res.end("Forbidden");
-      return;
-    }
-
-    fs.readFile(filePath, (err, data) => {
-      if (err) {
-        res.writeHead(404, SECURITY_HEADERS);
-        res.end("Not found");
+      if (!isPathContained(ROOT, filePath)) {
+        res.writeHead(403, SECURITY_HEADERS);
+        res.end("Forbidden");
         return;
       }
-      res.writeHead(200, {
-        ...SECURITY_HEADERS,
-        "Content-Type": MIME[path.extname(filePath)] || "application/octet-stream",
+
+      fs.readFile(filePath, (err, data) => {
+        if (err) {
+          res.writeHead(404, SECURITY_HEADERS);
+          res.end("Not found");
+          return;
+        }
+        res.writeHead(200, {
+          ...SECURITY_HEADERS,
+          "Content-Type": MIME[path.extname(filePath)] || "application/octet-stream",
+        });
+        res.end(data);
       });
-      res.end(data);
+    });
+
+    server.on("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const { port } = server.address();
+      resolve({ server, port, url: `http://localhost:${port}` });
     });
   });
+}
 
-  server.listen(0, "127.0.0.1", () => {
-    const { port } = server.address();
-    const url = `http://localhost:${port}${LITE_MODE ? "/?lite=1" : ""}`;
+if (require.main === module) {
+  startServer().then(({ url: baseUrl }) => {
+    const url = `${baseUrl}${LITE_MODE ? "/?lite=1" : ""}`;
     console.log(`pptxdiff running at ${url}`);
     if (LITE_MODE) {
       console.log("PPTXDIFF_LITE_MODE is set — loading React/ReactDOM/Babel/JSZip/pptx-renderer/fonts from their original CDNs instead of the vendored local copies.");
@@ -89,7 +108,10 @@ if (require.main === module) {
 
     const { command, args } = buildBrowserOpenCommand(process.platform, url);
     execFile(command, args, () => {}); // ignore failure (e.g. headless/no GUI) — URL is printed above regardless
+  }).catch((e) => {
+    console.error(e && e.message ? e.message : e);
+    process.exitCode = 1;
   });
 }
 
-module.exports = { buildBrowserOpenCommand, isPathContained };
+module.exports = { buildBrowserOpenCommand, isPathContained, startServer };
