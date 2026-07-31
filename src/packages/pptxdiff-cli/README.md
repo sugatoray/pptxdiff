@@ -39,14 +39,55 @@ browser to drive, in this order:
 If none of the three succeed, commands that need a browser fail with a clear error explaining how
 to fix it — never a silent hang or a cryptic Playwright stack trace.
 
+## Commands
+
+- `pptxdiff-cli diff <before.pptx> <after.pptx>` — `diff(1)`-style exit codes (0/1/2), `--json`.
+- `pptxdiff-cli checksum <file.pptx>` — the file's parser-independent SHA-256 content checksum.
+- `pptxdiff-cli textconv <file.pptx>` — one deck's plain-text content, for git's `textconv`.
+- `pptxdiff-cli difftool <local.pptx> <remote.pptx>` — opens a real, visible browser window with
+  both files loaded and blocks until you close it, for git's `difftool`.
+
+## Git integration
+
+`textconv` and `difftool` exist specifically to wire pptxdiff into `git diff`/`git difftool` for
+`*.pptx` files, instead of git's default "Binary files differ." Two independent, optional pieces:
+
+```sh
+# .gitattributes (repo-local, committable — everyone on the team gets it)
+*.pptx diff=pptxdiff
+
+# git config (local by default: git config diff.pptxdiff.textconv "pptxdiff-cli textconv")
+git config diff.pptxdiff.textconv "pptxdiff-cli textconv"
+git config difftool.pptxdiff.cmd 'pptxdiff-cli difftool "$LOCAL" "$REMOTE"'
+```
+
+With just the `.gitattributes` + `textconv` config: `git diff`/`git log -p` line-diff the deck's
+extracted text instead of showing "Binary files differ." With `difftool` also configured: `git
+difftool` opens the real pptxdiff GUI, pre-loaded with both versions, for a full visual/semantic
+review — git waits for you to close that window before moving to the next changed file.
+
+An `install-git-integration` command that writes both automatically is planned but not built yet
+(see `docs/.scrolls/CLI_API_DESIGN.md` §7) — for now, wire these up by hand as shown above.
+
 ## Running the tests
 
-`test_automation_e2e.mjs` genuinely launches a headless browser against a real local copy of the
-app and drives it — it needs a real Chrome/Chromium/Edge available via one of the three mechanisms
-above. In a sandbox with no system browser installed, point it at a manually-installed one:
+`test_automation_e2e.mjs`, `test_diff_checksum_cli.mjs`, and the other files `npm test` runs
+genuinely launch a **headless** browser against a real local copy of the app and drive it — they
+need a real Chrome/Chromium/Edge available via one of the three mechanisms above. In a sandbox with
+no system browser installed, point it at a manually-installed one:
 
 ```sh
 PPTXDIFF_CHROME_PATH=/path/to/chrome npm test
+```
+
+`test_difftool_e2e.mjs`/`test_difftool_cli.mjs` (run via `npm run test:difftool`, not part of the
+default `npm test`) launch a real **visible** (non-headless) browser window instead — `difftool`'s
+whole point is a window a human looks at, so unlike every other command there's no meaningful
+headless version of it to test. On a normal desktop this just works; in a display-less sandbox/CI
+environment, provide a virtual display with `xvfb-run`:
+
+```sh
+PPTXDIFF_CHROME_PATH=/path/to/chrome xvfb-run -a npm run test:difftool
 ```
 
 ## Implementation notes (`lib/automation.js`)
