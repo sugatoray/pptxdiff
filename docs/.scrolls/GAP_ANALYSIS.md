@@ -24,7 +24,7 @@ Concrete, testable gaps between what SPEC.md describes and a fully "real" implem
 ## Batch
 
 ## Exports
-- [ ] "Shareable link" is a self-contained `data:` URL copied to clipboard — NOT a real short/hosted link. Large decks could produce a very long URL (no size-limit handling/warning).
+- [ ] "Shareable link" is a self-contained `data:` URL copied to clipboard — NOT a real short/hosted link. Large decks could produce a very long URL (no size-limit handling/warning). Grew larger this session (now embeds the full JSON report, not just the HTML report, so the diff status can be restored on another machine) — same pre-existing gap, more likely to matter, not a new one.
 - [ ] Slack export is clipboard-only plain text — no real Slack API/webhook integration (would need OAuth + a backend, out of scope for a client-only DC).
 - [ ] Email export uses `mailto:` — body length is subject to browser/OS mailto length limits; no truncation warning for large reports.
 - [ ] No PPTX-native export of the diff overlay (e.g. an annotated copy of the After deck with change highlights baked in as shapes).
