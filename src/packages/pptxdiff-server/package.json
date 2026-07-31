@@ -18,7 +18,7 @@
     "lib"
   ],
   "scripts": {
-    "test": "node test_server_unit.mjs && node test_server_e2e.mjs"
+    "test": "node test_server_unit.mjs && node test_server_bin.mjs && node test_server_e2e.mjs"
   },
   "dependencies": {
     "pptxdiff-cli": "file:../pptxdiff-cli"
