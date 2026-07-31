@@ -13,7 +13,8 @@
 // Run: node src/packages/pptxdiff-cli/test_diff_checksum_cli.mjs
 
 import { spawn } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, rmSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -94,6 +95,40 @@ console.log("6. --help / --version / unknown command");
 
   const unknown = await run(["frobnicate"]);
   assert("an unknown command exits 2", unknown.code === 2);
+}
+
+console.log("7. --out writes a real file on disk instead of stdout");
+{
+  const outFile = path.join(os.tmpdir(), `pptxdiff-cli-test-out-${process.pid}-${Date.now()}.json`);
+  try {
+    const r = await run(["diff", SAMPLE_BEFORE, SAMPLE_AFTER, "--json", "--out", outFile]);
+    assert("exits 1 (differences found) even with --out", r.code === 1);
+    assert("--out does not also print the report to stdout", r.stdout.trim() === "");
+    assert("stderr confirms where the file was written", r.stderr.includes(outFile));
+    let written = null;
+    try { written = JSON.parse(readFileSync(outFile, "utf8")); } catch (e) {}
+    assert("the real file on disk contains the parseable report", written !== null);
+    assert("the written report has the expected deck names", written && written.deckBefore === "sample_before.pptx" && written.deckAfter === "sample_after.pptx");
+  } finally {
+    rmSync(outFile, { force: true });
+  }
+}
+
+console.log("8. --quiet suppresses real stdout but keeps the real exit code");
+{
+  const r = await run(["diff", SAMPLE_BEFORE, SAMPLE_AFTER, "--quiet"]);
+  assert("exits 1 even when quiet", r.code === 1);
+  assert("stdout is empty", r.stdout.trim() === "");
+}
+
+console.log("9. --timeout: accepted for a real run, rejected when invalid");
+{
+  const ok = await run(["diff", SAMPLE_BEFORE, SAMPLE_BEFORE, "--timeout", "60000"]);
+  assert("a generous --timeout still completes normally (exit 0, no diffs)", ok.code === 0);
+
+  const bad = await run(["diff", SAMPLE_BEFORE, SAMPLE_AFTER, "--timeout", "not-a-number"]);
+  assert("a non-numeric --timeout exits 2 without ever launching a browser", bad.code === 2);
+  assert("stderr explains the bad --timeout value", /--timeout/.test(bad.stderr));
 }
 
 console.log(`diff-checksum-cli check: ${checks - failures.length}/${checks} passed`);

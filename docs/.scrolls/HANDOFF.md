@@ -25,16 +25,21 @@
   off the report's `key` field so an added/removed slide with an empty `differences` array still
   counts as changed — mirrors `index.html`'s own `!pa || !pb || diffs.length > 0`), `lib/cli-core.js`
   (argument parsing + `runDiff`/`runChecksum`, injectable automation functions for fast unit
-  testing), `bin/pptxdiff-cli.js` (thin entrypoint). 88 assertions total across 5 test files, 3 of
-  them genuine end-to-end (real browser, real `docs/assets/sample_before.pptx`/`sample_after.pptx`).
+  testing), `bin/pptxdiff-cli.js` (thin entrypoint). 98 assertions total across 5 test files, 3 of
+  them genuine end-to-end (real browser, real `docs/assets/sample_before.pptx`/`sample_after.pptx`)
+  — including real-spawned-process coverage for every CLI flag (`--json`/`--out`/`--quiet`/
+  `--timeout`), added after an explicit audit found the first pass only proved those via injected
+  I/O (`test_cli_core.mjs`), never against a real process's real filesystem/stdout.
 - **New package `src/packages/pptxdiff-server/`**: `lib/server.js` — stdlib-only `node:http`
   wrapper (no framework) around `pptxdiff-cli`'s `lib/index.js` public API. `POST /v1/diff`/
   `POST /v1/checksum` (base64-in-JSON body)/`GET /v1/health`. Binds to `127.0.0.1` by default,
   matching `bin/cli.js`'s existing hardening precedent — **no authentication yet**, documented
-  explicitly in the README as a real gap, not a silent one. 24 assertions across 2 test files (one
-  injected/fast, one a real server + real HTTP requests + real sample fixtures).
-- **Two real bugs found and fixed via genuine RED test failures during development** (both have
-  full write-ups in WISDOM.md's two new Trap entries this session — read those before touching
+  explicitly in the README as a real gap, not a silent one. 39 assertions across 3 test files (one
+  injected/fast, two real — including `test_server_bin.mjs`, added after the same audit found
+  `bin/pptxdiff-server.js` itself, the actual entrypoint a user runs, had ZERO test coverage; only
+  `lib/server.js` had ever been imported directly by a test).
+- **Three real bugs found and fixed via genuine RED test failures during development** (all have
+  full write-ups in WISDOM.md's new Trap entries this session — read those before touching
   `lib/automation.js` or `lib/server.js` again):
   1. The app boots with a default sample deck already auto-loading on both sides; the
      "Differences (N)" panel text can render from the constructor's initial empty state before
@@ -69,6 +74,22 @@
 - Next natural ticket: git `textconv`/`difftool` integration (PLAN.md ticket 4) — the literal
   headline motivating use case ("use pptxdiff as the diffing tool for `*.pptx` in git") — now
   unblocked since `pptxdiff-cli diff` exists with the right exit-code contract already.
+- **Follow-up same session, prompted by an explicit user question** ("did you add all the tests
+  you ran as regression tests?"): audited what was actually committed vs. what was only verified
+  ad-hoc (`node -e '...'`) while debugging the two automation-layer bugs above. Most ad-hoc scripts
+  were correctly NOT persisted — they were probing Playwright/React/JSZip internals to find root
+  causes (React fiber traversal, JSZip.loadAsync call tracing), not testing pptxdiff's own
+  behavior, and the bugs they found ARE covered by the committed tests. But the audit found two
+  real, genuine gaps and both are now closed: `bin/pptxdiff-server.js` (the actual entrypoint a
+  user runs) had zero test coverage of its own — only `lib/server.js` was ever imported directly by
+  a test — closed by new `test_server_bin.mjs` (15 assertions: pure `parseArgs()` plus a real
+  spawn-and-curl smoke test); and `pptxdiff-cli`'s `--out`/`--quiet`/`--timeout` flags were only
+  ever proven against INJECTED I/O in `test_cli_core.mjs`, never a real spawned process's real
+  filesystem/stdout — closed by extending `test_diff_checksum_cli.mjs` with 10 new real-process
+  assertions for all three. Final counts: 98 assertions in `pptxdiff-cli` (was 88), 39 in
+  `@pptxdiff/server` (was 24). Both new/extended test files demonstrated genuine RED before GREEN
+  (a deliberate one-line break of `bin/pptxdiff-server.js`'s printed URL, confirmed the new spawn
+  test caught it, restored).
 
 ## Update (2026-07-31 — headless CLI + Web API design proposal, no code changes)
 - User asked for a design (not implementation) of two new surfaces: a headless CLI exposing every
