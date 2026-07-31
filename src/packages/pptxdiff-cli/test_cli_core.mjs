@@ -12,7 +12,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
-const { parseArgs, runDiff, runChecksum } = await import(`file://${path.join(DIR, "lib", "cli-core.js")}`);
+const { parseArgs, runDiff, runChecksum, runTextconv } = await import(`file://${path.join(DIR, "lib", "cli-core.js")}`);
 
 let failures = [];
 let checks = 0;
@@ -127,6 +127,51 @@ function fakeIo() {
   io.existsSync = () => false;
   const code = await runChecksum("missing.pptx", {}, io);
   assert("runChecksum exits 2 when the file doesn't exist", code === 2);
+}
+
+// --- runTextconv (injected extractDeckText) ---
+const SAMPLE_SLIDES = [
+  { index: 1, shapeTexts: ["Title One", "Body one"], notes: "" },
+  { index: 2, shapeTexts: ["Title Two"], notes: "speaker notes" },
+];
+{
+  const io = fakeIo();
+  const code = await runTextconv("a.pptx", { json: false, quiet: false, out: null }, { extractDeckTextFn: async () => SAMPLE_SLIDES, ...io });
+  assert("runTextconv exits 0 on success (no 'differences found' concept for one file)", code === 0);
+  const printed = io.outLines.join("");
+  assert("runTextconv prints the formatted deck text", printed.includes("Title One") && printed.includes("Notes: speaker notes"));
+  assert("runTextconv's output is not double-newlined", !printed.includes("\n\n\n"));
+}
+{
+  const io = fakeIo();
+  const code = await runTextconv("a.pptx", { json: true, quiet: false, out: null }, { extractDeckTextFn: async () => SAMPLE_SLIDES, ...io });
+  assert("runTextconv --json exits 0 too", code === 0);
+  const parsed = JSON.parse(io.outLines.join(""));
+  assert("runTextconv --json prints the raw per-slide array", Array.isArray(parsed) && parsed.length === 2 && parsed[0].shapeTexts[0] === "Title One");
+}
+{
+  const io = fakeIo();
+  const code = await runTextconv("a.pptx", { json: false, quiet: false, out: "text.txt" }, { extractDeckTextFn: async () => SAMPLE_SLIDES, ...io });
+  assert("runTextconv --out writes to a file instead of stdout", io.writeFile.calls.length === 1 && io.writeFile.calls[0].p === "text.txt");
+  assert("runTextconv --out does not also print to stdout", io.outLines.length === 0);
+  assert("runTextconv --out still exits 0", code === 0);
+}
+{
+  const io = fakeIo();
+  io.existsSync = () => false;
+  const code = await runTextconv("missing.pptx", {}, io);
+  assert("runTextconv exits 2 when the file doesn't exist", code === 2);
+}
+{
+  const io = fakeIo();
+  const code = await runTextconv("a.pptx", {}, { extractDeckTextFn: async () => { throw new Error("boom"); }, ...io });
+  assert("runTextconv exits 2 when the automation layer throws", code === 2);
+  assert("runTextconv surfaces the underlying error message on stderr", io.errLines.join("").includes("boom"));
+}
+{
+  const io = fakeIo();
+  const code = await runTextconv(null, {}, io);
+  assert("runTextconv with no file argument exits 2 with a usage message", code === 2 && io.errLines.join("").includes("Usage"));
 }
 
 console.log(`cli-core check: ${checks - failures.length}/${checks} passed`);

@@ -1,8 +1,9 @@
 "use strict";
 
 const fs = require("node:fs");
-const { diffDecks, computeChecksum } = require("./automation.js");
+const { diffDecks, computeChecksum, extractDeckText } = require("./automation.js");
 const { hasDifferences, formatDiffSummary } = require("./format.js");
+const { formatDeckText } = require("./textconv.js");
 
 const USAGE = [
   "pptxdiff-cli <command> [options]",
@@ -12,6 +13,8 @@ const USAGE = [
   "                                    1 = differences found, 2 = error.",
   "  checksum <file.pptx>              Print the file's parser-independent",
   "                                    SHA-256 content checksum.",
+  "  textconv <file.pptx>              Print the deck's text content, for use",
+  "                                    as a git textconv driver (see README).",
   "",
   "Options:",
   "  --json           Print the full JSON report instead of a summary.",
@@ -132,6 +135,44 @@ async function runChecksum(filePath, flags, io = {}) {
   return 0;
 }
 
+// A git textconv driver: renders ONE deck's plain-text content so `git
+// diff`/`git log -p` can line-diff it, rather than pptxdiff's own semantic
+// diff (which needs two decks — see runDiff). Always exits 0 on success
+// (there's no "differences found" concept for a single file) or 2 on error.
+async function runTextconv(filePath, flags, io = {}) {
+  const {
+    extractDeckTextFn = extractDeckText,
+    out = process.stdout,
+    errOut = process.stderr,
+    writeFile = fs.writeFileSync,
+    existsSync = fs.existsSync,
+  } = io;
+
+  if (!filePath) {
+    errOut.write("Usage: pptxdiff-cli textconv <file.pptx> [--json] [--out <file>]\n");
+    return 2;
+  }
+  if (!existsSync(filePath)) {
+    errOut.write(`File not found: ${filePath}\n`);
+    return 2;
+  }
+
+  let slides;
+  try {
+    slides = await extractDeckTextFn(filePath, automationOpts(flags));
+  } catch (e) {
+    errOut.write(`${(e && e.message) || String(e)}\n`);
+    return 2;
+  }
+
+  // formatDeckText() already ends with its own trailing newline; strip it
+  // before handing to emit() (which adds its own) so output isn't
+  // double-newlined.
+  const text = flags.json ? JSON.stringify(slides, null, 2) : formatDeckText(slides).replace(/\n$/, "");
+  emit(text, flags, { out, errOut, writeFile });
+  return 0;
+}
+
 async function main(argv, io = {}) {
   const { out = process.stdout, errOut = process.stderr } = io;
   const parsed = parseArgs(argv);
@@ -154,10 +195,12 @@ async function main(argv, io = {}) {
       return runDiff(parsed.positional[0], parsed.positional[1], parsed.flags, io);
     case "checksum":
       return runChecksum(parsed.positional[0], parsed.flags, io);
+    case "textconv":
+      return runTextconv(parsed.positional[0], parsed.flags, io);
     default:
       errOut.write(`Unknown command: ${parsed.command || "(none)"}\n\n${USAGE}\n`);
       return 2;
   }
 }
 
-module.exports = { USAGE, parseArgs, runDiff, runChecksum, main };
+module.exports = { USAGE, parseArgs, runDiff, runChecksum, runTextconv, main };
