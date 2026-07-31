@@ -18,7 +18,7 @@
     "lib"
   ],
   "scripts": {
-    "test": "node test_browser_resolve.mjs && node test_automation_e2e.mjs && node test_report_format.mjs && node test_diff_checksum_cli.mjs"
+    "test": "node test_browser_resolve.mjs && node test_report_format.mjs && node test_cli_core.mjs && node test_automation_e2e.mjs && node test_diff_checksum_cli.mjs"
   },
   "dependencies": {
     "pptxdiff": "file:../../..",
