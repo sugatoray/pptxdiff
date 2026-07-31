@@ -2,7 +2,7 @@
 title: Documentation Coverage
 render_macros: true
 coverage_summary:
-  generated_at: '2026-07-31T21:01:12Z'
+  generated_at: '2026-07-31T21:33:42Z'
   totals:
     overall:
       items: 35

@@ -25,11 +25,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `bin/cli.js` now exports `startServer()` for reuse by the two packages
   above, alongside its existing CLI entrypoint behavior (unchanged).
 - New docs site page: [Headless CLI & Web API](https://sugatoray.github.io/pptxdiff/headless-cli-api/).
+- `pptxdiff-cli` gained git integration: `pptxdiff-cli textconv <file.pptx>`
+  (a git `textconv` driver — prints one deck's plain text so `git diff`/
+  `git log -p` can line-diff it), `pptxdiff-cli difftool <local> <remote>`
+  (a git `difftool` driver — opens a real, visible browser window with both
+  files loaded, blocks until you close it), and `pptxdiff-cli
+  install-git-integration [--global]` (wires both into a repo's
+  `.gitattributes` + git config in one idempotent command; local by
+  default, `--global` for `~/.gitconfig`).
 
-This is Phase 1 of a larger design (`docs/.scrolls/CLI_API_DESIGN.md`) — git
-`textconv`/`difftool` integration, `batch`/`report`/`merge` subcommands,
-server authentication, and a native (browser-free) engine are designed but
-not yet built.
+This is Phase 1 of a larger design (`docs/.scrolls/CLI_API_DESIGN.md`) —
+`batch`/`report`/`merge` subcommands, server authentication, and a native
+(browser-free) engine are designed but not yet built.
 
 ## [0.6.0] - 2026-07-31
 
