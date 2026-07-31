@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 No changes yet.
 
+## [0.5.0] - 2026-07-30
+
+### Added
+
+- New repo-root `SECURITY.md`: local-first model, zero production
+  dependencies/no lifecycle scripts, the CLI hardening below, the DC
+  runtime's `new Function` scoping, `PPTXDIFF_LITE_MODE`'s CDN opt-in,
+  live-push credential caveats, and a vulnerability-reporting process.
+- Vendored-dependency provenance: `src/pptxdiff/vendor/manifest.json` +
+  `PROVENANCE.md` documenting each vendored file's upstream package,
+  version, source URL, hash, and license, plus `scripts/verify_vendor.mjs`
+  to re-derive and check those hashes.
+
+### Changed
+
+- Hardened the `pptxdiff` CLI (`bin/cli.js`):
+  - The static file server now binds explicitly to loopback (`127.0.0.1`)
+    instead of an unspecified host.
+  - The browser-launch step uses `execFile()` with an argv array instead of
+    a shell-interpolated `exec()` call.
+  - Static-file path containment now uses a `path.relative()`-based check
+    instead of a raw `startsWith()` prefix check, closing a sibling-directory
+    edge case.
+  - Every response now sets `X-Content-Type-Options: nosniff` and
+    `Cache-Control: no-store`.
+
 ## [0.4.2] - 2026-07-29
 
 ### Changed
