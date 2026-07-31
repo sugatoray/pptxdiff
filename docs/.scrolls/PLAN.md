@@ -278,30 +278,29 @@ When picking up a new ticket: update this file's status, and add a short note to
 5. **P4 — Content checksum shows "unavailable" under the `file://` open path** (no secure context for `crypto.subtle`) — handled honestly, not worked around; see GAP_ANALYSIS.md.
 6. **P4 — Excluded-parts list for the content checksum is a fixed, hardcoded set** — would need a code change, not a setting, if a new non-content save-time-varying part type is ever observed in the wild.
 
-## Design proposal added this session (headless CLI + Web API) — not yet started
-Full reasoning, architecture, and open decisions: `docs/.scrolls/CLI_API_DESIGN.md`. Do not start
-any of these without re-reading that doc first — the phasing and package-split calls below depend
-on its §3/§6 reasoning (the engine's methods are already written in a Node-portable pure-core
-style, so extraction is a scoped refactor, not a rewrite).
-1. **P1 (proposed) — `@pptxdiff/core`: extract the parse/align/diff/checksum/report-building engine
-   out of `index.html`'s Component class into a standalone Node+browser dual-target module.**
-   Blocks the fast (non-Playwright) path for every other ticket below. See design doc §3/§4.
-2. **P1 (proposed) — `pptxdiff-cli`: headless `diff`/`checksum`/`batch`/`report`/`merge`
-   subcommands** with `--json` + `diff`-style exit codes (0/1/2). Phase 1 (Playwright-driven) can
-   ship before ticket 1 lands; Phase 2 moves everything but `pdf`/`screenshot` formats onto
-   `@pptxdiff/core`. See design doc §5/§6.
-3. **P2 (proposed) — git integration: `pptxdiff textconv`/`pptxdiff difftool` + `pptxdiff
+## Design proposal added this session (headless CLI + Web API) — decisions made, not yet started
+Full reasoning, architecture, and decisions: `docs/.scrolls/CLI_API_DESIGN.md`. Do not start any of
+these without re-reading that doc first. **Decided 2026-07-31** (design doc §10): four-package
+split; Phase 1 (Playwright-driven) built first; CLI and Web API built together on one shared
+automation shim, not sequentially.
+1. **P1 — Playwright-driven automation shim.** Headless Chromium loads `index.html`, drives it via
+   `page.evaluate()` the same way a human's click would, reads results back. This is the shared
+   foundation both ticket 2 and ticket 3 build on — build it once, not twice. See design doc §6.
+2. **P1 — `pptxdiff-cli`: headless `diff`/`checksum`/`batch`/`report`/`merge` subcommands** on top
+   of ticket 1's shim, with `--json` + `diff`-style exit codes (0/1/2). See design doc §5.
+3. **P1 — `@pptxdiff/server`: stateless diff/checksum/batch/report/merge endpoints** on top of
+   ticket 1's same shim. Stateful review-session endpoints (mirrors the GUI's
+   `slideDiffReviewerState_v1` shape) can follow once the stateless endpoints are proven.
+   Loopback-bind-by-default + API-key-for-non-loopback, matching the existing CLI security
+   hardening's precedent — do not relitigate that posture, extend it. See design doc §8.
+4. **P2 — git integration: `pptxdiff textconv`/`pptxdiff difftool` + `pptxdiff
    install-git-integration`.** Needs ticket 2's `diff` command first. Must default to repo-local
    `.gitattributes`/`.git/config`, never write `~/.gitconfig` without an explicit `--global` flag
    and confirmation. See design doc §7.
-4. **P2 (proposed) — `@pptxdiff/server`: stateless diff/checksum/batch/report/merge endpoints +
-   stateful review sessions** (server-side reviewer-workflow state, mirrors the GUI's
-   `slideDiffReviewerState_v1` shape so JSON report import/export stays compatible both ways).
-   Loopback-bind-by-default + API-key-for-non-loopback, matching the existing CLI security
-   hardening's precedent — do not relitigate that posture, extend it. See design doc §8.
-5. **P3 (proposed) — `pptxdiff mcp`: MCP server** wrapping the same `@pptxdiff/core` operations as
-   typed tools, for direct AI-agent tool-calling (no shell/HTTP boilerplate). See design doc §9.
-6. **Open decision, needs a user call before any of the above starts**: four-package split
-   (`pptxdiff` / `@pptxdiff/core` / `pptxdiff-cli` / `@pptxdiff/server`) vs. folding the new
-   surfaces into the existing `pptxdiff` package (simpler publish, but ends its current
-   zero-runtime-dependency claim for GUI-only users). See design doc §10.
+5. **P2 — `@pptxdiff/core`: extract the parse/align/diff/checksum/report-building engine** out of
+   `index.html`'s Component class into a standalone Node+browser dual-target module (Phase 2 —
+   deferred until Phase 1's surface is validated against real usage). Once landed, `pptxdiff-cli`/
+   `@pptxdiff/server` move `diff`/`checksum`/`batch`/`report`(non-pdf/screenshot)/`merge` onto it;
+   `pdf`/`screenshot` stay on the Playwright shim permanently. See design doc §3/§4/§6.
+6. **P3 — `pptxdiff mcp`: MCP server** wrapping the same operations as typed tools, for direct
+   AI-agent tool-calling (no shell/HTTP boilerplate). See design doc §9.
