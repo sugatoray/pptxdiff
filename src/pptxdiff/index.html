@@ -1735,6 +1735,58 @@ class Component extends DCLogic {
     assert('parseReportForImport restores collapsedPairs/selectedPairs/mergeWinnerOverrides from uiState', imported.collapsedPairs['a0:b0'] === true && imported.selectedPairs['a0:b0'] === true && imported.mergeWinnerOverrides['a0:b0'] === 'after');
     assert('parseReportForImport skips slides missing a key (older exports)', Object.keys(this.parseReportForImport({ slides: [{ label: 'no key here' }] }).decisions).length === 0);
 
+    // RED/GREEN for the shareable link now carrying the same diff status the JSON report export
+    // does: buildJsonReport() -> parseReportForImport() must round-trip the CURRENT session's own
+    // decisions/comments/uiState exactly, not just an independently-plausible fixture shape.
+    const savedShareState = { decisions: this.state.decisions, comments: this.state.comments, history: this.state.history, collapsedPairs: this.state.collapsedPairs, selectedPairs: this.state.selectedPairs, mergeWinnerOverrides: this.state.mergeWinnerOverrides };
+    this.setState({
+      decisions: { 'a0:b0': { alice: 'approved' } }, comments: { 'a0:b0': [{ author: 'alice', text: 'share-link round-trip fixture', ts: 42 }] },
+      history: [{ ts: 42, reviewer: 'alice', action: 'approved', label: 'Slide 1' }],
+      collapsedPairs: { 'a0:b0': true }, selectedPairs: { 'a0:b0': true }, mergeWinnerOverrides: { 'a0:b0': 'after' }
+    });
+    const roundTripReport = this.buildJsonReport();
+    const roundTripImported = this.parseReportForImport(roundTripReport);
+    assert('buildJsonReport() -> parseReportForImport() round-trips the current session\'s decisions', roundTripImported.decisions['a0:b0'] && roundTripImported.decisions['a0:b0'].alice === 'approved');
+    assert('buildJsonReport() -> parseReportForImport() round-trips the current session\'s comments', roundTripImported.comments['a0:b0'] && roundTripImported.comments['a0:b0'][0].text === 'share-link round-trip fixture');
+    assert('buildJsonReport() -> parseReportForImport() round-trips uiState (collapsedPairs/selectedPairs/mergeWinnerOverrides)', roundTripImported.collapsedPairs['a0:b0'] === true && roundTripImported.selectedPairs['a0:b0'] === true && roundTripImported.mergeWinnerOverrides['a0:b0'] === 'after');
+
+    // buildShareLinkHtml() must embed that exact report as parseable JSON inside the generated
+    // page — extract it the same way a real browser opening the shared link would (DOMParser).
+    const shareHtml = this.buildShareLinkHtml(roundTripReport, this.buildReportRows(), 'Before.pptx', 'After.pptx');
+    const shareDoc = new DOMParser().parseFromString(shareHtml, 'text/html');
+    const embeddedScript = shareDoc.getElementById('pptxdiff-report-json');
+    assert('buildShareLinkHtml embeds a #pptxdiff-report-json <script> tag', !!embeddedScript);
+    const embeddedReport = embeddedScript ? JSON.parse(embeddedScript.textContent) : null;
+    assert('the embedded JSON parses back into a report with the same decisions the app currently has', !!embeddedReport && embeddedReport.slides.find(s => s.key === 'a0:b0').reviewerVotes.alice === 'approved');
+    assert('the embedded JSON, re-run through parseReportForImport(), restores the exact same uiState', embeddedReport && this.parseReportForImport(embeddedReport).mergeWinnerOverrides['a0:b0'] === 'after');
+    assert('the original human-readable report body is still present (original scope preserved, not replaced)', /Slide 1/.test(shareHtml) && shareHtml.includes('<h1>PptxDiff Report</h1>'));
+    assert('a "download report.json" link is offered so the JSON can be restored without hand-extracting it', /download="pptxdiff-report\.json"/.test(shareHtml));
+
+    // RED/GREEN: a report containing a literal script-closing tag (e.g. typed into a comment)
+    // must not break out of the embedded <script> tag and inject a live element into the shared
+    // page. Demonstrated as genuine RED->GREEN during development (see WISDOM.md/HANDOFF.md):
+    // with the `.replace(/</g, '\\u003c')` escaping removed, this exact fixture produces a page
+    // with an extra live `<img>` element and a truncated/unparseable embedded JSON payload;
+    // restoring the escaping fixes both. Kept as a permanent regression guard, not a one-off
+    // manual check. (Built via string concatenation, not a literal in this file's own source —
+    // see WISDOM.md: the literal 8-char sequence, even inside a comment or a JS string, would
+    // itself prematurely close index.html's OWN outer <script type="text/x-dc"> tag when the
+    // HTML parser reads THIS file — an unrelated, source-level version of the exact bug under test.)
+    const hostileText = '<' + '/script><img src=x onerror=alert(1)>';
+    const hostileReport = Object.assign({}, roundTripReport, {
+      slides: [{ key: 'a0:b0', label: 'Slide 1', reviewerVotes: {}, comments: [{ author: 'eve', text: hostileText, ts: 99 }], differences: [] }]
+    });
+    const hostileHtml = this.buildShareLinkHtml(hostileReport, this.buildReportRows(), 'Before.pptx', 'After.pptx');
+    const hostileDoc = new DOMParser().parseFromString(hostileHtml, 'text/html');
+    assert('a script-closing tag inside embedded report data does not inject a live element into the shared page', hostileDoc.querySelectorAll('img').length === 0);
+    const hostileScript = hostileDoc.getElementById('pptxdiff-report-json');
+    assert('the #pptxdiff-report-json script tag itself still exists (was not prematurely closed)', !!hostileScript);
+    let hostileParsed = null; try { hostileParsed = hostileScript && JSON.parse(hostileScript.textContent); } catch (e) {}
+    assert('the hostile JSON still parses successfully despite the escaping', !!hostileParsed);
+    assert('the hostile comment text survives the round trip byte-for-byte (escaping neutralizes, not corrupts)', hostileParsed && hostileParsed.slides[0].comments[0].text === hostileText);
+
+    this.setState(savedShareState);
+
     // RED/GREEN for merge-vs-overwrite import: current session's own choices must win on a
     // per-key conflict; anything only present in the import must still be adopted.
     const cur = {
@@ -2233,13 +2285,38 @@ class Component extends DCLogic {
     const body = encodeURIComponent(this.buildPlainSummary());
     window.open('mailto:?subject=' + subject + '&body=' + body, '_blank');
   }
-  async exportShareLink() {
-    const rows = this.buildReportRows();
+  /* Pure: builds the shareable-link page's HTML from a report (same shape buildJsonReport()
+     produces) + its buildReportRows() rows + deck names — kept separate from exportShareLink()
+     so it's directly unit-testable without clipboard/state I/O. Still a single self-contained
+     page (no server, no change to that scope — see GAP_CONTEXT.md's "Data-URL shareable link"
+     entry): the ORIGINAL human-readable report body is unchanged; this only ADDS the same JSON
+     report exportJsonReport() produces, embedded in the page so the diff status (decisions,
+     comments, history, uiState) can be restored on another machine via the app's EXISTING
+     Export -> Import report JSON… path, not a second, parallel restore mechanism.
+     Two independent escaping concerns, not one: (1) `esc()` HTML-escapes the human-readable
+     section text, same as before; (2) the JSON payload embedded in its own <script> tag is
+     additionally run through `.replace(/</g, '\\u003c')` — JSON.stringify() never escapes `<`,
+     so a report containing a literal script-closing tag substring anywhere (e.g. someone typed
+     it into a comment) would otherwise prematurely close that <script> tag when the generated
+     page is parsed and could inject a live element into the shared page. Escaping every `<` (not
+     just that one substring) is the standard safe way to embed arbitrary JSON inside HTML
+     <script> content — see the self-test below for a real RED/GREEN demonstration of this. */
+  buildShareLinkHtml(report, rows, nameA, nameB) {
     const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     const body = rows.map(r => `<section style="margin:0 0 24px;padding-bottom:16px;border-bottom:1px solid #ddd"><h3>${esc(r.label)} — ${esc(r.decision)}</h3>${r.diffs.length ? '<ul>' + r.diffs.map(d => `<li><strong>${esc(d.type)}:</strong> ${esc(d.oldText)} → ${esc(d.newText || '')}</li>`).join('') + '</ul>' : '<p>Identical</p>'}</section>`).join('');
-    const html = `<!doctype html><html><head><meta charset="utf-8"><title>PptxDiff Report</title></head><body style="font-family:sans-serif;max-width:800px;margin:40px auto"><h1>PptxDiff Report</h1><p>${esc(this.state.nameA)} → ${esc(this.state.nameB)}</p>${body}</body></html>`;
+    const reportJsonPretty = JSON.stringify(report, null, 2);
+    const reportJsonSafe = JSON.stringify(report).replace(/</g, '\\u003c');
+    const reportDownloadUrl = 'data:application/json;base64,' + btoa(unescape(encodeURIComponent(reportJsonPretty)));
+    return `<!doctype html><html><head><meta charset="utf-8"><title>PptxDiff Report</title></head><body style="font-family:sans-serif;max-width:800px;margin:40px auto"><h1>PptxDiff Report</h1><p>${esc(nameA)} → ${esc(nameB)}</p>`
+      + `<p style="background:#f5f5f5;border:1px solid #ddd;border-radius:6px;padding:10px 14px;font-size:14px">This is a self-contained link (no server) that also carries the review status — decisions, comments, history — as embedded JSON. To restore it in PptxDiff on another machine: <a href="${reportDownloadUrl}" download="pptxdiff-report.json">download report.json</a>, then in PptxDiff use Export → Import report JSON…</p>`
+      + body
+      + `<script type="application/json" id="pptxdiff-report-json">${reportJsonSafe}<\/script>`
+      + `</body></html>`;
+  }
+  async exportShareLink() {
+    const html = this.buildShareLinkHtml(this.buildJsonReport(), this.buildReportRows(), this.state.nameA, this.state.nameB);
     const url = 'data:text/html;base64,' + btoa(unescape(encodeURIComponent(html)));
-    try { await navigator.clipboard.writeText(url); this.showToast('Shareable link copied (self-contained; paste into a browser)'); }
+    try { await navigator.clipboard.writeText(url); this.showToast('Shareable link copied (self-contained; includes review status as JSON — paste into a browser)'); }
     catch (e) { this.showToast('Could not copy — export HTML instead'); }
   }
   /* ---------- batch upload ---------- */
@@ -2596,17 +2673,23 @@ class Component extends DCLogic {
       return { key, label, diffs: c.diffs, decision: this.slideStatus(st.decisions[key]), reviewerVotes: st.decisions[key] || {}, comments: st.comments[key] || [] };
     });
   }
-  exportJsonReport() {
+  /* Pure: the one canonical report-JSON shape — same object parseReportForImport() consumes —
+     shared by exportJsonReport() and exportShareLink() (the shareable link embeds this same
+     report so opening it elsewhere can restore the identical decisions/comments/history/uiState
+     via the existing Import report JSON… path, not a second parallel mechanism). */
+  buildJsonReport() {
     const st = this.state;
     const rows = this.buildReportRows();
-    const report = {
+    return {
       generatedAt: new Date().toISOString(), deckBefore: st.nameA, deckAfter: st.nameB,
-      presentationDiffs: (this.state.fontsA.join(',') !== this.state.fontsB.join(',')) ? [{ type: 'Embedded fonts', before: st.fontsA, after: st.fontsB }] : [],
+      presentationDiffs: (st.fontsA.join(',') !== st.fontsB.join(',')) ? [{ type: 'Embedded fonts', before: st.fontsA, after: st.fontsB }] : [],
       slides: rows.map(r => ({ key: r.key, label: r.label, decision: r.decision, reviewerVotes: r.reviewerVotes, comments: r.comments, differences: r.diffs.map(d => ({ type: d.type, label: d.label, before: d.oldText, after: d.newText })) })),
       history: st.history,
       uiState: { collapsedPairs: st.collapsedPairs, selectedPairs: st.selectedPairs, mergeWinnerOverrides: st.mergeWinnerOverrides }
     };
-    this.downloadBlob('pptxdiff-report.json', JSON.stringify(report, null, 2), 'application/json');
+  }
+  exportJsonReport() {
+    this.downloadBlob('pptxdiff-report.json', JSON.stringify(this.buildJsonReport(), null, 2), 'application/json');
   }
   /* ---------- report-JSON round-trip import ---------- */
   /* Pure parser (no DOM/state I/O) so it's directly unit-testable: takes a parsed report object
