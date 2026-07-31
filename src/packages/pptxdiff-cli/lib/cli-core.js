@@ -1,7 +1,7 @@
 "use strict";
 
 const fs = require("node:fs");
-const { diffDecks, computeChecksum, extractDeckText } = require("./automation.js");
+const { diffDecks, computeChecksum, extractDeckText, openDifftool } = require("./automation.js");
 const { hasDifferences, formatDiffSummary } = require("./format.js");
 const { formatDeckText } = require("./textconv.js");
 
@@ -15,6 +15,9 @@ const USAGE = [
   "                                    SHA-256 content checksum.",
   "  textconv <file.pptx>              Print the deck's text content, for use",
   "                                    as a git textconv driver (see README).",
+  "  difftool <local.pptx> <remote.pptx>  Open a visible browser window with",
+  "                                    both files loaded; blocks until you",
+  "                                    close it. For git's difftool.",
   "",
   "Options:",
   "  --json           Print the full JSON report instead of a summary.",
@@ -173,6 +176,43 @@ async function runTextconv(filePath, flags, io = {}) {
   return 0;
 }
 
+// A git difftool driver: opens a real, visible browser window with both
+// files pre-loaded for a human to review, and blocks until they close it —
+// matching git's difftool contract of waiting for the configured command
+// to exit before moving to the next changed file. No stdout output of its
+// own (--json/--out/--quiet don't apply here — there's nothing to print,
+// the browser window IS the output); exits 0 once closed, 2 on error.
+async function runDifftool(localPath, remotePath, flags, io = {}) {
+  const {
+    openDifftoolFn = openDifftool,
+    errOut = process.stderr,
+    existsSync = fs.existsSync,
+  } = io;
+
+  if (!localPath || !remotePath) {
+    errOut.write("Usage: pptxdiff-cli difftool <local.pptx> <remote.pptx>\n");
+    return 2;
+  }
+  for (const p of [localPath, remotePath]) {
+    if (!existsSync(p)) {
+      errOut.write(`File not found: ${p}\n`);
+      return 2;
+    }
+  }
+
+  let handle;
+  try {
+    handle = await openDifftoolFn(localPath, remotePath, automationOpts(flags));
+  } catch (e) {
+    errOut.write(`${(e && e.message) || String(e)}\n`);
+    return 2;
+  }
+
+  errOut.write("Opened a browser window with both decks loaded — close it to continue.\n");
+  await handle.waitUntilClosed();
+  return 0;
+}
+
 async function main(argv, io = {}) {
   const { out = process.stdout, errOut = process.stderr } = io;
   const parsed = parseArgs(argv);
@@ -197,10 +237,12 @@ async function main(argv, io = {}) {
       return runChecksum(parsed.positional[0], parsed.flags, io);
     case "textconv":
       return runTextconv(parsed.positional[0], parsed.flags, io);
+    case "difftool":
+      return runDifftool(parsed.positional[0], parsed.positional[1], parsed.flags, io);
     default:
       errOut.write(`Unknown command: ${parsed.command || "(none)"}\n\n${USAGE}\n`);
       return 2;
   }
 }
 
-module.exports = { USAGE, parseArgs, runDiff, runChecksum, runTextconv, main };
+module.exports = { USAGE, parseArgs, runDiff, runChecksum, runTextconv, runDifftool, main };

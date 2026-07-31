@@ -201,6 +201,34 @@ async function exportJsonReport(page) {
   return JSON.parse(fs.readFileSync(filePath, "utf8"));
 }
 
+// Opens a REAL, VISIBLE browser window pre-loaded with both files, for a
+// human to review — this is what `pptxdiff-cli difftool <local> <remote>`
+// (git's `difftool.pptxdiff.cmd`) drives. Unlike every other function in
+// this file, the point isn't to read a result back programmatically; it's
+// to hand off to a person and then get out of the way. Deliberately does
+// NOT close the browser itself (that would defeat the point) — instead
+// returns a handle whose `waitUntilClosed()` resolves once the user closes
+// the window, matching git's difftool contract of waiting for the
+// configured command to exit before moving to the next changed file. A
+// fresh, dedicated browser instance is launched per call (same as every
+// other function here), so closing its only window closes the whole
+// browser process and fires Playwright's `disconnected` event reliably —
+// this would NOT be true if it reused the user's own everyday browser
+// window/profile, which is why it doesn't.
+async function openDifftool(localInput, remoteInput, opts = {}) {
+  const app = await launchApp({ ...opts, headless: false });
+  await uploadDeck(app.page, "before", localInput, { timeoutMs: app.timeoutMs });
+  await uploadDeck(app.page, "after", remoteInput, { timeoutMs: app.timeoutMs });
+  const closed = new Promise((resolve) => app.browser.on("disconnected", resolve));
+  return {
+    browser: app.browser,
+    async waitUntilClosed() {
+      await closed;
+      await app.close(); // browser is already closed; this stops the static file server
+    },
+  };
+}
+
 // Diffs two decks end-to-end and returns the same JSON report shape the
 // GUI's "Export → JSON report" button produces (see buildJsonReport() in
 // index.html): { deckBefore, deckAfter, contentChecksum, presentationDiffs,
@@ -275,4 +303,5 @@ module.exports = {
   diffDecks,
   computeChecksum,
   extractDeckText,
+  openDifftool,
 };

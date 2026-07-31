@@ -12,7 +12,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
-const { parseArgs, runDiff, runChecksum, runTextconv } = await import(`file://${path.join(DIR, "lib", "cli-core.js")}`);
+const { parseArgs, runDiff, runChecksum, runTextconv, runDifftool } = await import(`file://${path.join(DIR, "lib", "cli-core.js")}`);
 
 let failures = [];
 let checks = 0;
@@ -172,6 +172,37 @@ const SAMPLE_SLIDES = [
   const io = fakeIo();
   const code = await runTextconv(null, {}, io);
   assert("runTextconv with no file argument exits 2 with a usage message", code === 2 && io.errLines.join("").includes("Usage"));
+}
+
+// --- runDifftool (injected openDifftool) ---
+{
+  const io = fakeIo();
+  let waited = false;
+  const code = await runDifftool("local.pptx", "remote.pptx", {}, {
+    openDifftoolFn: async () => ({ waitUntilClosed: async () => { waited = true; } }),
+    ...io,
+  });
+  assert("runDifftool exits 0 once the browser is closed", code === 0);
+  assert("runDifftool actually awaits waitUntilClosed() before returning", waited === true);
+  assert("runDifftool prints nothing to stdout (the browser window IS the output)", io.outLines.length === 0);
+}
+{
+  const io = fakeIo();
+  io.existsSync = () => false;
+  const code = await runDifftool("missing.pptx", "remote.pptx", {}, { openDifftoolFn: async () => ({ waitUntilClosed: async () => {} }), ...io });
+  assert("runDifftool exits 2 when a file doesn't exist", code === 2);
+  assert("runDifftool reports which file was missing", io.errLines.join("").includes("missing.pptx"));
+}
+{
+  const io = fakeIo();
+  const code = await runDifftool("local.pptx", null, {}, io);
+  assert("runDifftool with a missing argument exits 2 with a usage message", code === 2 && io.errLines.join("").includes("Usage"));
+}
+{
+  const io = fakeIo();
+  const code = await runDifftool("local.pptx", "remote.pptx", {}, { openDifftoolFn: async () => { throw new Error("no display"); }, ...io });
+  assert("runDifftool exits 2 when the automation layer throws (e.g. no display available)", code === 2);
+  assert("runDifftool surfaces the underlying error message on stderr", io.errLines.join("").includes("no display"));
 }
 
 console.log(`cli-core check: ${checks - failures.length}/${checks} passed`);
