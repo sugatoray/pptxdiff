@@ -139,8 +139,13 @@
             <button onClick="{{ exportEmailSummary }}" style="font:inherit;font-size:13px;text-align:left;background:none;border:none;padding:8px 10px;border-radius:6px;cursor:pointer;color:{{ theme.text }}">Email summary</button>
             <button onClick="{{ exportShareLink }}" style="font:inherit;font-size:13px;text-align:left;background:none;border:none;padding:8px 10px;border-radius:6px;cursor:pointer;color:{{ theme.text }}">Copy shareable link</button>
             <div style="height:1px;background:{{ theme.border }};margin:4px 2px"></div>
-            <button onClick="{{ exportScreenshotsZip }}" disabled="{{ screenshotsBusy }}" style="font:inherit;font-size:13px;text-align:left;background:none;border:none;padding:8px 10px;border-radius:6px;cursor:{{ screenshotsBusyCursor }};color:{{ theme.text }};opacity:{{ screenshotsBusyOpacity }}">{{ screenshotsZipLabel }}</button>
-            <button onClick="{{ exportScreenshotsHtml }}" disabled="{{ screenshotsBusy }}" style="font:inherit;font-size:13px;text-align:left;background:none;border:none;padding:8px 10px;border-radius:6px;cursor:{{ screenshotsBusyCursor }};color:{{ theme.text }};opacity:{{ screenshotsBusyOpacity }}">{{ screenshotsHtmlLabel }}</button>
+            <details>
+              <summary style="list-style:none;font:inherit;font-size:13px;text-align:left;padding:8px 10px;border-radius:6px;cursor:pointer;color:{{ theme.text }}">Diff Screenshots ▾</summary>
+              <div style="display:flex;flex-direction:column;gap:2px;padding:2px 0 2px 14px">
+                <button onClick="{{ exportScreenshotsZip }}" disabled="{{ screenshotsBusy }}" style="font:inherit;font-size:13px;text-align:left;background:none;border:none;padding:8px 10px;border-radius:6px;cursor:{{ screenshotsBusyCursor }};color:{{ theme.text }};opacity:{{ screenshotsBusyOpacity }}">{{ screenshotsZipLabel }}</button>
+                <button onClick="{{ exportScreenshotsHtml }}" disabled="{{ screenshotsBusy }}" style="font:inherit;font-size:13px;text-align:left;background:none;border:none;padding:8px 10px;border-radius:6px;cursor:{{ screenshotsBusyCursor }};color:{{ theme.text }};opacity:{{ screenshotsBusyOpacity }}">{{ screenshotsHtmlLabel }}</button>
+              </div>
+            </details>
           </div>
         </details>
       </div>
@@ -1583,13 +1588,14 @@ class Component extends DCLogic {
     // RED/GREEN regression guard for the opposite failure mode from the one above: a menu item's
     // BINDING silently missing from renderVals() entirely (button present in the template but its
     // {{ handler }}/{{ label }} hole resolves to undefined, or the whole binding line was deleted)
-    // rather than pointing at a renamed/removed method. Covers the Export -> Screenshots items
-    // specifically since they're the newest, least-exercised-by-habit entries in that menu.
+    // rather than pointing at a renamed/removed method. Covers the Export -> Diff Screenshots
+    // submenu items specifically since they're the newest, least-exercised-by-habit entries in
+    // that menu.
     const rv = this.renderVals();
     assert('renderVals() wires exportScreenshotsZip to a real function', typeof rv.exportScreenshotsZip === 'function');
     assert('renderVals() wires exportScreenshotsHtml to a real function', typeof rv.exportScreenshotsHtml === 'function');
-    assert('renderVals() gives Screenshots -> ZIP a non-empty label', typeof rv.screenshotsZipLabel === 'string' && rv.screenshotsZipLabel.length > 0);
-    assert('renderVals() gives Screenshots -> HTML viewer a non-empty label', typeof rv.screenshotsHtmlLabel === 'string' && rv.screenshotsHtmlLabel.length > 0);
+    assert('renderVals() gives Diff Screenshots -> ZIP a non-empty label', typeof rv.screenshotsZipLabel === 'string' && rv.screenshotsZipLabel.length > 0);
+    assert('renderVals() gives Diff Screenshots -> HTML viewer a non-empty label', typeof rv.screenshotsHtmlLabel === 'string' && rv.screenshotsHtmlLabel.length > 0);
 
     // RED/GREEN regression guard for a second bug class found in the same audit: a method
     // defined but never actually invoked from anywhere (e.g. componentDidMount silently dropped
@@ -4057,8 +4063,8 @@ class Component extends DCLogic {
       exportPdf: () => window.print(),
       exportScreenshotsZip: () => this.exportScreenshotsZip(), exportScreenshotsHtml: () => this.exportScreenshotsHtml(),
       screenshotsBusy: st.screenshotsBusy, screenshotsBusyCursor: st.screenshotsBusy ? 'wait' : 'pointer', screenshotsBusyOpacity: st.screenshotsBusy ? .5 : 1,
-      screenshotsZipLabel: st.screenshotsBusy ? 'Capturing screenshots…' : 'Screenshots → ZIP',
-      screenshotsHtmlLabel: st.screenshotsBusy ? 'Capturing screenshots…' : 'Screenshots → HTML viewer',
+      screenshotsZipLabel: st.screenshotsBusy ? 'Capturing screenshots…' : 'Download as ZIP',
+      screenshotsHtmlLabel: st.screenshotsBusy ? 'Capturing screenshots…' : 'Download as HTML viewer',
       hasDeckDiffs: deckDiffs.length > 0,
       deckDiffs: deckDiffs.map(d => ({ type: d.type, label: d.label, oldText: d.oldText, newText: d.newText })),
       duplicateNotes: duplicateNotes.concat(sectionMoveNotes), hasDuplicates: duplicateNotes.length > 0 || sectionMoveNotes.length > 0,
