@@ -28,6 +28,34 @@ function findErrorBannerText() {
 }
 const FIND_ERROR_BANNER_TEXT_SRC = findErrorBannerText.toString();
 
+// Finds the live DCLogic component instance (this app's actual logic class
+// — see index.html's `class Component extends DCLogic`) so extractDeckText
+// can read its already-parsed `state.slidesA`/`slidesB` and call its real
+// `shapeText()` method directly, rather than re-parsing or reimplementing
+// text extraction. There's no existing UI/export feature for "just show me
+// one deck's text" (every export is diff-shaped, comparing two decks — see
+// buildJsonReport()), so this reaches the instance the same way it was
+// found while debugging this file's other two traps (see WISDOM.md): the
+// DC runtime (support.js) wraps the logic instance in a `StreamableComponent`
+// React wrapper and stores it at `stateNode.logic`, not `stateNode` itself;
+// fiber keys are non-enumerable, so `Object.getOwnPropertyNames()` is
+// required (`Object.keys()` won't find them).
+function findLogicInstance() {
+  for (const el of document.querySelectorAll("*")) {
+    const key = Object.getOwnPropertyNames(el).find((k) => k.startsWith("__reactFiber$"));
+    if (!key) continue;
+    let fiber = el[key];
+    while (fiber) {
+      if (fiber.stateNode && fiber.stateNode.logic && typeof fiber.stateNode.logic.shapeText === "function") {
+        return fiber.stateNode.logic;
+      }
+      fiber = fiber.return;
+    }
+  }
+  return null;
+}
+const FIND_LOGIC_INSTANCE_SRC = findLogicInstance.toString();
+
 const DEFAULT_TIMEOUT_MS = 30000;
 const HASH_RE = "[0-9a-f]{64}";
 
@@ -61,13 +89,13 @@ function extractChecksumLabel(bodyText, prefix) {
 // ingest() in index.html), so "both checksum labels show a real 64-hex
 // value" is an atomic, race-proof "this side's data is fully settled"
 // signal — used both here (initial boot) and in uploadDeck (a new file).
-async function launchApp({ env = process.env, platform = process.platform, timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+async function launchApp({ env = process.env, platform = process.platform, timeoutMs = DEFAULT_TIMEOUT_MS, headless = true } = {}) {
   const { server, url } = await startServer();
   const executablePath = resolveBrowserExecutable({ env, platform }) || undefined;
 
   let browser;
   try {
-    browser = await chromium.launch({ executablePath, headless: true });
+    browser = await chromium.launch({ executablePath, headless });
   } catch (e) {
     server.close();
     throw new BrowserUnavailableError(
@@ -79,10 +107,12 @@ async function launchApp({ env = process.env, platform = process.platform, timeo
 
   const page = await browser.newPage();
   // Installed before any navigation (and re-installed automatically on any
-  // future one) so window.__pptxdiffFindErrorBanner is available for every
-  // waitForFunction/evaluate call below — see findErrorBannerText's own
-  // comment for why this specific detection approach is necessary.
+  // future one) so window.__pptxdiffFindErrorBanner/__pptxdiffFindLogicInstance
+  // are available for every waitForFunction/evaluate call below — see
+  // findErrorBannerText's/findLogicInstance's own comments for why each
+  // specific approach is necessary.
   await page.addInitScript(`window.__pptxdiffFindErrorBanner = ${FIND_ERROR_BANNER_TEXT_SRC};`);
+  await page.addInitScript(`window.__pptxdiffFindLogicInstance = ${FIND_LOGIC_INSTANCE_SRC};`);
   await page.goto(url);
 
   try {
@@ -99,6 +129,7 @@ async function launchApp({ env = process.env, platform = process.platform, timeo
 
   return {
     page,
+    browser,
     timeoutMs,
     async close() {
       await browser.close().catch(() => {});
@@ -203,6 +234,37 @@ async function computeChecksum(input, opts = {}) {
   }
 }
 
+// Extracts one deck's plain-text content — real shape text (via the app's
+// own `shapeText()` method, called on the live component instance found by
+// findLogicInstance) plus speaker notes, per slide — for a git `textconv`
+// driver, which needs ONE file's comparable text representation, not a
+// diff between two (the diffDecks()/buildJsonReport() shape structurally
+// can't answer this: it only ever reports what CHANGED). Returns the raw
+// per-slide data; lib/textconv.js's formatDeckText() (pure) renders it.
+// Scope note: only text boxes/placeholders are covered, not table cells,
+// chart data labels, or SmartArt text — narrower than the app's own diff
+// engine (see GAP_ANALYSIS.md).
+async function extractDeckText(input, opts = {}) {
+  const app = await launchApp(opts);
+  try {
+    await uploadDeck(app.page, "before", input, { timeoutMs: app.timeoutMs });
+    const slides = await app.page.evaluate(() => {
+      const instance = window.__pptxdiffFindLogicInstance();
+      if (!instance) return null;
+      const slidesA = instance.state.slidesA || [];
+      return slidesA.map((slide, idx) => ({
+        index: idx + 1,
+        shapeTexts: (slide.shapes || []).map((s) => instance.shapeText(s)),
+        notes: (slide.notes && slide.notes.text) || "",
+      }));
+    });
+    if (!slides) throw new Error("Could not locate the live pptxdiff component instance to extract text from.");
+    return slides;
+  } finally {
+    await app.close();
+  }
+}
+
 module.exports = {
   BrowserUnavailableError,
   PptxParseError,
@@ -212,4 +274,5 @@ module.exports = {
   exportJsonReport,
   diffDecks,
   computeChecksum,
+  extractDeckText,
 };

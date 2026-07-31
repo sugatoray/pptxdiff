@@ -27,7 +27,8 @@ const SAMPLE_BEFORE = path.join(REPO_ROOT, "docs", "assets", "sample_before.pptx
 const SAMPLE_AFTER = path.join(REPO_ROOT, "docs", "assets", "sample_after.pptx");
 
 const automation = await import(`file://${path.join(DIR, "lib", "automation.js")}`);
-const { diffDecks, computeChecksum, BrowserUnavailableError, PptxParseError } = automation.default || automation;
+const { diffDecks, computeChecksum, extractDeckText, BrowserUnavailableError, PptxParseError } = automation.default || automation;
+const { formatDeckText } = await import(`file://${path.join(DIR, "lib", "textconv.js")}`);
 
 let failures = [];
 let checks = 0;
@@ -79,6 +80,14 @@ try {
 }
 assert("throws BrowserUnavailableError for a bad executable path", browserErrorCaught instanceof BrowserUnavailableError);
 assert("error message points at the fix (PPTXDIFF_CHROME_PATH / playwright install)", /PPTXDIFF_CHROME_PATH|playwright install/.test(browserErrorCaught && browserErrorCaught.message || ""));
+
+console.log("6. extractDeckText(sample_before) — real per-slide text, for a git textconv driver");
+const slides = await extractDeckText(SAMPLE_BEFORE);
+assert("extracts the real slide count", slides.length === 6);
+assert("first slide's title shape text is real, not empty", slides[0].shapeTexts.some((t) => t.includes("Q3 Business Review")));
+assert("a slide with real speaker notes has them extracted", slides.some((s) => s.notes.includes("Walk through the roadmap")));
+assert("formatDeckText renders it into deterministic, non-empty text", formatDeckText(slides).includes("Q3 Business Review"));
+assert("re-extracting the same file twice produces byte-identical text (deterministic)", formatDeckText(await extractDeckText(SAMPLE_BEFORE)) === formatDeckText(slides));
 
 console.log(`automation-e2e check: ${checks - failures.length}/${checks} passed`);
 if (failures.length) {

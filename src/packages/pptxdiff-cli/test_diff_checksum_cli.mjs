@@ -131,6 +131,31 @@ console.log("9. --timeout: accepted for a real run, rejected when invalid");
   assert("stderr explains the bad --timeout value", /--timeout/.test(bad.stderr));
 }
 
+console.log("10. textconv sample_before.pptx — real per-slide text, for a git textconv driver");
+{
+  const r = await run(["textconv", SAMPLE_BEFORE]);
+  assert("exits 0 (no 'differences found' concept for a single file)", r.code === 0);
+  assert("stdout has the real slide 1 title", r.stdout.includes("Q3 Business Review"));
+  assert("stdout has a real speaker-notes line", /Notes: /.test(r.stdout));
+}
+
+console.log("11. textconv --json — the raw per-slide array");
+{
+  const r = await run(["textconv", SAMPLE_BEFORE, "--json"]);
+  assert("exits 0", r.code === 0);
+  let parsed = null;
+  try { parsed = JSON.parse(r.stdout); } catch (e) {}
+  assert("stdout is valid, parseable JSON", parsed !== null);
+  assert("parsed array has the expected slide count", Array.isArray(parsed) && parsed.length === 6);
+}
+
+console.log("12. textconv with a missing file — tool error, not a hang");
+{
+  const r = await run(["textconv", path.join(DIR, "does-not-exist.pptx")]);
+  assert("exits 2 (tool error)", r.code === 2);
+  assert("stderr names the missing file", r.stderr.includes("does-not-exist.pptx"));
+}
+
 console.log(`diff-checksum-cli check: ${checks - failures.length}/${checks} passed`);
 if (failures.length) {
   console.error("FAILED:");
