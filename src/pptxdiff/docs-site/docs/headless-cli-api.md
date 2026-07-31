@@ -15,10 +15,10 @@ script, a CI job, a git hook, or an AI agent — without a human clicking throug
 
 **Not yet published to npm.** These packages live in this repository under `src/packages/` and are
 usable today from a source checkout, but you need to build/install them locally — see
-[Installing from source](#installing-from-source) below. Only `diff` and `checksum` are
-implemented so far; `batch`, `report` (HTML/PDF/CSV/etc.), `merge`, git `textconv`/`difftool`
-integration, and an MCP server are designed but not built yet. Full design rationale lives in this
-repo's `docs/.scrolls/CLI_API_DESIGN.md` and `docs/.scrolls/CLI_and_API.md`.
+[Installing from source](#installing-from-source) below. `diff`, `checksum`, and git integration
+(`textconv`/`difftool`/`install-git-integration`) are implemented; `batch`, `report`
+(HTML/PDF/CSV/etc.), `merge`, and an MCP server are designed but not built yet. Full design
+rationale lives in this repo's `docs/.scrolls/CLI_API_DESIGN.md` and `docs/.scrolls/CLI_and_API.md`.
 
 Both packages are thin wrappers around the exact same browser app documented everywhere else on
 this site (`src/pptxdiff/index.html`), driven headlessly via [Playwright](https://playwright.dev/)
@@ -44,6 +44,29 @@ pptxdiff-cli checksum deck.pptx    # the deck's parser-independent SHA-256 conte
 The `--json` output is the same report shape the app's own "Export → JSON report" button produces —
 deck names, a parser-independent content checksum per side, presentation-level differences, and a
 per-slide-pair list of differences.
+
+## Git integration
+
+Wires `*.pptx` into `git diff`/`git difftool`, instead of git's default "Binary files differ":
+
+```bash
+cd your-repo
+pptxdiff-cli install-git-integration          # local to this repo (default)
+pptxdiff-cli install-git-integration --global  # ~/.gitconfig instead — affects every repo
+```
+
+This appends `*.pptx diff=pptxdiff` to `.gitattributes` (idempotent — safe to run again) and points
+git at two more subcommands:
+
+```bash
+pptxdiff-cli textconv deck.pptx     # one deck's plain text, for `git diff`/`git log -p` to line-diff
+pptxdiff-cli difftool before.pptx after.pptx  # opens a real, visible browser window with both
+                                               # loaded; blocks until you close it, for `git difftool`
+```
+
+`textconv` covers shape/placeholder text and speaker notes (not table cells, chart data, or
+SmartArt text yet — see [Limitations](limitations.md)). `difftool` reuses the exact same upload/
+render path `diff` does, just in a visible window instead of headless.
 
 ## `@pptxdiff/server`
 
@@ -92,7 +115,7 @@ PPTXDIFF_CHROME_PATH=/path/to/chrome pptxdiff-cli diff before.pptx after.pptx
 ## Why this exists
 
 Turning a diff result into structured, scriptable data is what makes pptxdiff usable as
-infrastructure rather than only a tool a human operates — for example, as a git `difftool`/
-`textconv` driver for `*.pptx` files (planned, not built yet), or as something an AI agent can call
-directly to review a deck alongside a human reviewer. See [Limitations](limitations.md) for what's
-not built yet, and the [Changelog](changelog.md) for what's shipped so far.
+infrastructure rather than only a tool a human operates — as a git `difftool`/`textconv` driver for
+`*.pptx` files (above), or as something an AI agent can call directly to review a deck alongside a
+human reviewer. See [Limitations](limitations.md) for what's not built yet, and the
+[Changelog](changelog.md) for what's shipped so far.

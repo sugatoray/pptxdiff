@@ -302,11 +302,12 @@ shim, not sequentially — that plan is what shipped below.
    don't bind this server to a non-loopback host in practice until that ships. `batch`/`report`/
    `merge` endpoints and the stateful review-session endpoints are designed (design doc §8) but not
    built — see tickets 7 and 10.
-4. **P2 — git integration: `pptxdiff textconv`/`pptxdiff difftool` + `pptxdiff
-   install-git-integration`.** Needs ticket 2's `diff` command (now shipped). This is the headline
-   motivating use case for the whole effort and is the natural next ticket to pick up. Must default
-   to repo-local `.gitattributes`/`.git/config`, never write `~/.gitconfig` without an explicit
-   `--global` flag and confirmation. See design doc §7.
+4. **[DONE] P2 — git integration: `pptxdiff-cli textconv`/`pptxdiff-cli difftool` +
+   `pptxdiff-cli install-git-integration [--global]`.** Ships this session — the headline
+   motivating use case for the whole effort. `.gitattributes`/`.git/config` local by default;
+   `--global` (the flag itself is the consent, no separate prompt — a scriptable tool) writes
+   `~/.gitconfig`. See design doc §7, SPEC.md §31, and WISDOM.md's new `--global`-ordering trap
+   (found via a real RED test failure, not caught by the pure unit test alone).
 5. **P2 — `@pptxdiff/core`: extract the parse/align/diff/checksum/report-building engine** out of
    `index.html`'s Component class into a standalone Node+browser dual-target module (Phase 2 —
    deferred until Phase 1's surface is validated against real usage, per this session's explicit

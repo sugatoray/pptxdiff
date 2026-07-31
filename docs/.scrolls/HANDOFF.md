@@ -2,6 +2,54 @@
 
 **Read `.scrolls/SPEC.md` first for the full feature list.** This file is the "what's the state of things right now" note — update it at the end of every session, keep it short and current (prune stale entries).
 
+## Update (2026-07-31 — headless CLI git integration: `textconv`/`difftool`/`install-git-integration`)
+- Direct follow-up ask: "continue with git integration next" (PLAN.md ticket 4, the headline
+  motivating use case for this whole headless-CLI/API effort). Shipped all three pieces designed in
+  `CLI_API_DESIGN.md` §7, in three separate commits, each with real RED→GREEN TDD.
+- **`textconv <file.pptx>`**: prints one deck's plain text (real shape text + speaker notes) for
+  `git diff`/`git log -p` to line-diff. No existing UI/export answers "what does one deck say" (every
+  export is diff-shaped), so `lib/automation.js`'s new `extractDeckText()` reaches the LIVE mounted
+  component instance via React-fiber-traversal (`findLogicInstance()` — same technique this session
+  already used once debugging the error-banner detection trap) and calls its real `shapeText()`
+  method + reads its already-parsed `state.slidesA` directly. `lib/textconv.js`'s `formatDeckText()`
+  (pure) renders it. Scope-limited to shapes/notes only — tables/charts/SmartArt text aren't
+  included yet (new GAP_ANALYSIS.md entry).
+- **`difftool <local.pptx> <remote.pptx>`**: opens a real, VISIBLE browser window with both files
+  loaded, blocks until the user closes it (matching git's difftool contract). `launchApp()` gained a
+  `headless` option (default `true`, unused by every other command); `openDifftool()` launches
+  `headless:false` and returns `{browser, waitUntilClosed()}` rather than closing itself. Tests
+  needing a real display live in a separate `npm run test:difftool` script (not the default `npm
+  test`) — `xvfb-run -a` provides one in this sandbox; a real desktop needs nothing extra.
+- **`install-git-integration [--global]`**: writes `*.pptx diff=pptxdiff` to `.gitattributes`
+  (idempotent) + `diff.pptxdiff.textconv`/`difftool.pptxdiff.cmd` via real `git config` calls —
+  local by default, `--global` (the flag IS the consent, no separate TTY prompt) for `~/.gitconfig`.
+  Fails clearly outside a git repo.
+- **Real bug found and fixed via a genuine RED test failure**: `buildGitConfigCommands()` originally
+  produced `git --global config ...` — git rejects this outright ("unknown option: --global");
+  the correct shape is `git config --global ...` (`--global` is a flag TO `config`, not a top-level
+  `git` flag). Only caught by actually invoking real `git` against a real temp repo
+  (`test_git_integration_e2e.mjs`) — the pure unit test written alongside the implementation had
+  encoded the SAME wrong assumption and gave zero warning on its own. Full write-up in WISDOM.md's
+  new trap entry; lesson generalizes to any argv built for an external CLI this project doesn't
+  control — a pure test alone isn't ground truth, only a real invocation is.
+- **Testing**: 82 new assertions across 7 test files (`test_textconv_format.mjs`,
+  `test_git_integration_pure.mjs`, `test_git_integration_e2e.mjs`, `test_difftool_e2e.mjs`,
+  `test_difftool_cli.mjs`, `test_install_git_integration_cli.mjs`, plus additions to 3 existing
+  files) — `pptxdiff-cli` package total now 182 assertions (was 98). `test_git_integration_e2e.mjs`/
+  `test_install_git_integration_cli.mjs` run against real temp git repos, including a fake `HOME`
+  override so `--global` testing never touches this sandbox's real `~/.gitconfig`.
+- **Scrolls updated to match**: SPEC.md §31 (new), PLAN.md ticket 4 flipped to `[DONE]`,
+  GAP_ANALYSIS.md's git-integration bullet closed (`[x]`) with two new narrower gaps added
+  (textconv's shapes/notes-only scope, no global `.gitattributes`), GAP_CONTEXT.md gained four new
+  "why" entries (textconv's fiber-reach approach, difftool's dedicated-browser-per-call design, no
+  global `.gitattributes`, `--global`-as-consent), WISDOM.md gained three new entries (the
+  `--global` ordering trap, testing a headed-browser-only feature, the fiber-instance-reach pattern
+  now used twice and worth remembering before reaching for `page.evaluate()`-from-scratch a third
+  time).
+- **Not done**: `batch`/`report`/`merge` CLI+API subcommands, `@pptxdiff/core` native engine, server
+  auth, multipart upload, MCP server, and (new, narrower) textconv's table/chart/SmartArt text
+  coverage and a true global `.gitattributes` setup — all tracked in PLAN.md/GAP_ANALYSIS.md.
+
 ## Update (2026-07-31 — headless CLI + Web API, Phase 1 implementation: `diff`/`checksum` shipped)
 - Follow-up to the design session below: user said "proceed with the implementation, use thorough
   Red/Green TDD." Implemented Phase 1 per the decided plan (design doc §10) — a shared
