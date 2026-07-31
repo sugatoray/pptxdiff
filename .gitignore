@@ -302,7 +302,6 @@ venv.bak/
 
 # mkdocs documentation
 /site
-src/pptxdiff/docs-site/site/
 
 # mypy
 .mypy_cache/
@@ -369,7 +368,12 @@ node_modules
 ## Ignore vscode extension artifacts
 *.vsix
 
-## capture_screenshots.mjs staging area (docs/.scrolls/DOCS.md sec 11) --
-## captures land here first, before being pixel-compared and promoted into
-## docs-site/docs/assets/img/
-src/pptxdiff/docs-site/docs/assets/img/.staging/
+## Ignore .npm-cache folder
+.npm-cache
+
+## src/packages/pptxdiff-cli/lib/ is a real, tracked Node source directory
+## (its package.json's "main" points at lib/index.js) — un-ignore it from
+## the py.gitignore template's generic `lib/` rule (meant for Python
+## virtualenv-style lib dirs), which would otherwise silently swallow it.
+!src/packages/pptxdiff-cli/lib/
+!src/packages/pptxdiff-cli/lib/**
