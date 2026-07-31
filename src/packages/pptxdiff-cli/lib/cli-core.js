@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const { diffDecks, computeChecksum, extractDeckText, openDifftool } = require("./automation.js");
 const { hasDifferences, formatDiffSummary } = require("./format.js");
 const { formatDeckText } = require("./textconv.js");
+const { installGitIntegration } = require("./git-integration.js");
 
 const USAGE = [
   "pptxdiff-cli <command> [options]",
@@ -18,12 +19,18 @@ const USAGE = [
   "  difftool <local.pptx> <remote.pptx>  Open a visible browser window with",
   "                                    both files loaded; blocks until you",
   "                                    close it. For git's difftool.",
+  "  install-git-integration [--global]  Wire *.pptx into `git diff`/",
+  "                                    `git difftool` (.gitattributes +",
+  "                                    git config). Local repo by default;",
+  "                                    --global writes ~/.gitconfig instead.",
   "",
   "Options:",
   "  --json           Print the full JSON report instead of a summary.",
   "  --out <file>      Write the output to a file instead of stdout.",
   "  --quiet, -q       Suppress stdout output (exit code still reflects the result).",
   "  --timeout <ms>    Override the default browser-automation timeout.",
+  "  --global          install-git-integration only: write to ~/.gitconfig",
+  "                    instead of the current repo's local git config.",
   "  --help, -h        Show this help.",
   "  --version, -v     Show the installed version.",
 ].join("\n");
@@ -33,7 +40,7 @@ const USAGE = [
 // every flag-handling behavior below independently testable without
 // spawning a real process.
 function parseArgs(argv) {
-  const flags = { json: false, quiet: false, help: false, version: false, out: null, timeoutMs: null };
+  const flags = { json: false, quiet: false, help: false, version: false, out: null, timeoutMs: null, global: false };
   const positional = [];
   let command = null;
 
@@ -43,6 +50,7 @@ function parseArgs(argv) {
     if (a === "--version" || a === "-v") { flags.version = true; continue; }
     if (a === "--json") { flags.json = true; continue; }
     if (a === "--quiet" || a === "-q") { flags.quiet = true; continue; }
+    if (a === "--global") { flags.global = true; continue; }
     if (a === "--out") { flags.out = argv[++i]; continue; }
     if (a === "--timeout") {
       const n = Number(argv[++i]);
@@ -239,6 +247,8 @@ async function main(argv, io = {}) {
       return runTextconv(parsed.positional[0], parsed.flags, io);
     case "difftool":
       return runDifftool(parsed.positional[0], parsed.positional[1], parsed.flags, io);
+    case "install-git-integration":
+      return installGitIntegration({ global: parsed.flags.global }, io);
     default:
       errOut.write(`Unknown command: ${parsed.command || "(none)"}\n\n${USAGE}\n`);
       return 2;
