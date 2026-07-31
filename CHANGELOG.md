@@ -7,7 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-No changes yet.
+### Added
+
+- New `pptxdiff-cli` package (`src/packages/pptxdiff-cli/`): a headless CLI —
+  `pptxdiff-cli diff <before.pptx> <after.pptx>` (`diff(1)`-style exit codes:
+  0 = no differences, 1 = differences found, 2 = tool error; `--json`,
+  `--out`, `--quiet`, `--timeout`) and `pptxdiff-cli checksum <file.pptx>`.
+  Drives the existing browser app headlessly via `playwright-core` — uploads
+  through the real file inputs, reads the real "Export → JSON report" —
+  rather than reimplementing the diff engine, so results can't disagree
+  with the GUI. Not yet published to npm (installs from source).
+- New `@pptxdiff/server` package (`src/packages/pptxdiff-server/`): a
+  stdlib-only (`node:http`) Web API over the same engine — `POST /v1/diff`,
+  `POST /v1/checksum`, `GET /v1/health`. Binds to `127.0.0.1` by default;
+  no authentication yet for a non-loopback bind (documented, not silent).
+  Not yet published to npm.
+- `bin/cli.js` now exports `startServer()` for reuse by the two packages
+  above, alongside its existing CLI entrypoint behavior (unchanged).
+- New docs site page: [Headless CLI & Web API](https://sugatoray.github.io/pptxdiff/headless-cli-api/).
+
+This is Phase 1 of a larger design (`docs/.scrolls/CLI_API_DESIGN.md`) — git
+`textconv`/`difftool` integration, `batch`/`report`/`merge` subcommands,
+server authentication, and a native (browser-free) engine are designed but
+not yet built.
 
 ## [0.6.0] - 2026-07-31
 

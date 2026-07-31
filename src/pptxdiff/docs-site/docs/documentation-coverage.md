@@ -2,21 +2,21 @@
 title: Documentation Coverage
 render_macros: true
 coverage_summary:
-  generated_at: '2026-07-26T21:39:20Z'
+  generated_at: '2026-07-31T21:01:12Z'
   totals:
     overall:
-      items: 33
-      complete: 33
-      partial: 0
+      items: 35
+      complete: 34
+      partial: 1
       missing: 0
     feature:
-      items: 21
+      items: 22
       complete: 21
-      partial: 0
+      partial: 1
       missing: 0
     limitation:
-      items: 12
-      complete: 12
+      items: 13
+      complete: 13
       partial: 0
       missing: 0
   items:
@@ -73,6 +73,13 @@ coverage_summary:
     locations:
     - page: features/exports.md
       anchor: null
+  - id: headless-cli-api
+    kind: feature
+    title: Headless CLI (pptxdiff-cli) & Web API (@pptxdiff/server)
+    quality: partial
+    locations:
+    - page: headless-cli-api.md
+      anchor: status
   - id: keyboard-shortcuts
     kind: feature
     title: Keyboard shortcuts
@@ -230,6 +237,14 @@ coverage_summary:
     locations:
     - page: features/exports.md
       anchor: sharing
+    - page: limitations.md
+      anchor: null
+  - id: headless-cli-api-limitations
+    kind: limitation
+    title: 'Headless CLI/API: not published, Phase 1 only (diff/checksum), no server
+      auth'
+    quality: complete
+    locations:
     - page: limitations.md
       anchor: null
   - id: lite-mode-limitations

@@ -24,6 +24,8 @@ doc_coverage:
     quality: complete
   - id: lite-mode-limitations
     quality: complete
+  - id: headless-cli-api-limitations
+    quality: complete
 ---
 
 # Known limitations
@@ -47,6 +49,7 @@ These are documented, accepted trade-offs — not bugs waiting to be fixed. Each
 | **The npm CLI opens a browser tab, not a native app window** | No dock/taskbar icon, no standalone app process — `bin/cli.js` is a static file server, not an Electron/Tauri wrapper. See [CLI reference](cli.md). |
 | **Offline vendoring has two known gaps** | `pdfjs-dist` (an optional peer dependency of the rendering library, used only for embedded-PDF-object rendering) isn't vendored — this was never functional even before the app went offline-capable. The vendored Spectral font ships only its latin subset (matching the English-only UI); non-Latin text falls back to the browser's default font. See [Architecture](architecture.md#runtime-dependencies-vendored-locally). |
 | **`PPTXDIFF_LITE_MODE` is all 5 dependencies at once** | No way to mix vendored and CDN sourcing per-dependency (e.g. vendored React with CDN `pptx-renderer`) without hand-editing the source. See [CLI reference](cli.md#lite-mode-cdn-sourcing). |
+| **The headless CLI/API aren't published, and only cover `diff`/`checksum`** | `pptxdiff-cli`/`@pptxdiff/server` are source-only (`file:` dependencies on their monorepo siblings) — install from a checkout, not `npm install`. `batch`/`report`/`merge`, git `textconv`/`difftool` integration, and server authentication for a non-loopback bind are designed but not built. Every invocation currently pays a real headless-browser boot cost (no native, browser-free engine yet). See [Headless CLI & Web API](headless-cli-api.md). |
 
 ## Not currently accepting contributions
 
