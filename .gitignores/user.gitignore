@@ -15,9 +15,10 @@ node_modules
 ## Ignore .npm-cache folder
 .npm-cache
 
-## src/packages/pptxdiff-cli/lib/ is a real, tracked Node source directory
-## (its package.json's "main" points at lib/index.js) — un-ignore it from
+## Every src/packages/*/lib/ is a real, tracked Node source directory (each
+## package's package.json "main"/"bin" points into it) — un-ignore them from
 ## the py.gitignore template's generic `lib/` rule (meant for Python
-## virtualenv-style lib dirs), which would otherwise silently swallow it.
-!src/packages/pptxdiff-cli/lib/
-!src/packages/pptxdiff-cli/lib/**
+## virtualenv-style lib dirs), which would otherwise silently swallow them.
+## Covers pptxdiff-cli, @pptxdiff/server, and any future src/packages/*/lib/.
+!src/packages/*/lib/
+!src/packages/*/lib/**
