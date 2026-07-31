@@ -12,7 +12,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
-const { parseArgs, runDiff, runChecksum, runTextconv, runDifftool } = await import(`file://${path.join(DIR, "lib", "cli-core.js")}`);
+const { parseArgs, runDiff, runChecksum, runTextconv, runDifftool, main } = await import(`file://${path.join(DIR, "lib", "cli-core.js")}`);
 
 let failures = [];
 let checks = 0;
@@ -25,7 +25,7 @@ function assert(label, cond) {
 assert(
   "parses a basic diff command",
   JSON.stringify(parseArgs(["diff", "a.pptx", "b.pptx"])) ===
-    JSON.stringify({ command: "diff", positional: ["a.pptx", "b.pptx"], flags: { json: false, quiet: false, help: false, version: false, out: null, timeoutMs: null } })
+    JSON.stringify({ command: "diff", positional: ["a.pptx", "b.pptx"], flags: { json: false, quiet: false, help: false, version: false, out: null, timeoutMs: null, global: false } })
 );
 assert(
   "parses --json and --quiet flags",
@@ -43,6 +43,8 @@ assert(
   parseArgs(["diff", "a.pptx", "b.pptx", "--timeout", "5000"]).flags.timeoutMs === 5000
 );
 assert("rejects a non-numeric --timeout instead of producing NaN", !!parseArgs(["diff", "a.pptx", "b.pptx", "--timeout", "soon"]).error);
+assert("parses --global", parseArgs(["install-git-integration", "--global"]).flags.global === true);
+assert("--global defaults to false", parseArgs(["install-git-integration"]).flags.global === false);
 assert("rejects an unknown flag", !!parseArgs(["diff", "--nope"]).error);
 assert("--help works with no command", parseArgs(["--help"]).flags.help === true);
 assert("-h is a synonym for --help", parseArgs(["-h"]).flags.help === true);
@@ -203,6 +205,37 @@ const SAMPLE_SLIDES = [
   const code = await runDifftool("local.pptx", "remote.pptx", {}, { openDifftoolFn: async () => { throw new Error("no display"); }, ...io });
   assert("runDifftool exits 2 when the automation layer throws (e.g. no display available)", code === 2);
   assert("runDifftool surfaces the underlying error message on stderr", io.errLines.join("").includes("no display"));
+}
+
+// --- main()'s dispatch of install-git-integration (fast, injected `git` calls — the real,
+// no-injection version is separately covered end-to-end by test_install_git_integration_cli.mjs
+// against an actual git repo; this just proves argv -> parseArgs -> main()'s switch -> the right
+// call, quickly and deterministically) ---
+function fakeGitIo(execFileSyncFn) {
+  const out = [], err = [];
+  return {
+    execFileSyncFn,
+    existsSync: () => false,
+    readFileSync: () => "",
+    writeFileSync: () => {},
+    out: { write: (s) => out.push(s) },
+    errOut: { write: (s) => err.push(s) },
+    outLines: out,
+    errLines: err,
+  };
+}
+{
+  const calls = [];
+  const io = fakeGitIo((cmd, args) => { calls.push(args); return args[0] === "rev-parse" ? "/fake/repo\n" : ""; });
+  const code = await main(["install-git-integration"], io);
+  assert("main() dispatches install-git-integration and exits 0", code === 0);
+  assert("without --global, none of the git config calls include --global", !calls.some((a) => a.includes("--global")));
+}
+{
+  const calls = [];
+  const io = fakeGitIo((cmd, args) => { calls.push(args); return args[0] === "rev-parse" ? "/fake/repo\n" : ""; });
+  const code = await main(["install-git-integration", "--global"], io);
+  assert("main() forwards --global through to installGitIntegration", code === 0 && calls.some((a) => a.includes("--global")));
 }
 
 console.log(`cli-core check: ${checks - failures.length}/${checks} passed`);

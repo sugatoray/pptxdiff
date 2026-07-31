@@ -46,28 +46,37 @@ to fix it — never a silent hang or a cryptic Playwright stack trace.
 - `pptxdiff-cli textconv <file.pptx>` — one deck's plain-text content, for git's `textconv`.
 - `pptxdiff-cli difftool <local.pptx> <remote.pptx>` — opens a real, visible browser window with
   both files loaded and blocks until you close it, for git's `difftool`.
+- `pptxdiff-cli install-git-integration [--global]` — wires the two commands above into git for
+  `*.pptx` files (see below).
 
 ## Git integration
 
-`textconv` and `difftool` exist specifically to wire pptxdiff into `git diff`/`git difftool` for
-`*.pptx` files, instead of git's default "Binary files differ." Two independent, optional pieces:
+`textconv`/`difftool` exist specifically to make `git diff`/`git difftool` do something useful with
+`*.pptx` files, instead of git's default "Binary files differ." `install-git-integration` wires
+both up in one step:
 
 ```sh
-# .gitattributes (repo-local, committable — everyone on the team gets it)
-*.pptx diff=pptxdiff
-
-# git config (local by default: git config diff.pptxdiff.textconv "pptxdiff-cli textconv")
-git config diff.pptxdiff.textconv "pptxdiff-cli textconv"
-git config difftool.pptxdiff.cmd 'pptxdiff-cli difftool "$LOCAL" "$REMOTE"'
+cd your-repo
+pptxdiff-cli install-git-integration
 ```
 
-With just the `.gitattributes` + `textconv` config: `git diff`/`git log -p` line-diff the deck's
-extracted text instead of showing "Binary files differ." With `difftool` also configured: `git
-difftool` opens the real pptxdiff GUI, pre-loaded with both versions, for a full visual/semantic
-review — git waits for you to close that window before moving to the next changed file.
+This does two things, both idempotent (safe to run again — a fresh clone, a teammate who already
+ran it, etc.):
 
-An `install-git-integration` command that writes both automatically is planned but not built yet
-(see `docs/.scrolls/CLI_API_DESIGN.md` §7) — for now, wire these up by hand as shown above.
+1. Appends `*.pptx diff=pptxdiff` to the repo's `.gitattributes` (created if it doesn't exist yet;
+   pre-existing content is preserved). Commit this file so the whole team gets it.
+2. Sets `diff.pptxdiff.textconv` and `difftool.pptxdiff.cmd` in the **local** `.git/config` by
+   default — `--global` writes `~/.gitconfig` instead, applying to every repo on the machine (the
+   flag itself is the explicit consent for that; there's no separate interactive prompt, so this
+   stays scriptable).
+
+With just step 1 + the `textconv` config: `git diff`/`git log -p` line-diff the deck's extracted
+text instead of showing "Binary files differ." With `difftool` also configured: `git difftool`
+opens the real pptxdiff GUI, pre-loaded with both versions, for a full visual/semantic review — git
+waits for you to close that window before moving to the next changed file.
+
+Must be run from inside a git repository (checked via `git rev-parse --show-toplevel`) — fails
+clearly, not with a confusing crash, if it isn't.
 
 ## Running the tests
 
