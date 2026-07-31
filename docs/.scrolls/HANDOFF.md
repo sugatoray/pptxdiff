@@ -2,6 +2,74 @@
 
 **Read `.scrolls/SPEC.md` first for the full feature list.** This file is the "what's the state of things right now" note — update it at the end of every session, keep it short and current (prune stale entries).
 
+## Update (2026-07-31 — headless CLI + Web API, Phase 1 implementation: `diff`/`checksum` shipped)
+- Follow-up to the design session below: user said "proceed with the implementation, use thorough
+  Red/Green TDD." Implemented Phase 1 per the decided plan (design doc §10) — a shared
+  Playwright-driven automation shim, `pptxdiff-cli`'s `diff`/`checksum` subcommands, and
+  `@pptxdiff/server`'s stateless `/v1/diff`/`/v1/checksum`/`/v1/health` endpoints. `batch`/`report`/
+  `merge`, git integration, the native `@pptxdiff/core` engine, server auth, and an MCP server are
+  all designed but NOT built this session — see PLAN.md's renumbered ticket list.
+- **`bin/cli.js` refactor (first, isolated commit)**: extracted `startServer()` as a new export,
+  behavior-preserving — reran all 6 pre-existing CLI tests (loopback bind, path containment,
+  security headers, lite mode, execFile browser-open, offline-capable) to confirm zero regressions
+  before building anything on top, plus a new `test_start_server_export_cli.mjs` for the export
+  itself. This is what `pptxdiff-cli`/`@pptxdiff/server` both depend on to get the real, hardened
+  static server instead of growing a third copy (see WISDOM.md's pre-existing trap about
+  `pptxdiff-vscode/extension.js` already having grown a second, once-out-of-sync copy).
+- **New package `src/packages/pptxdiff-cli/`**: `lib/browser.js` (pure `resolveBrowserExecutable`
+  — `PPTXDIFF_CHROME_PATH` override, then per-OS well-known paths, else defer to `playwright-core`'s
+  own resolution), `lib/automation.js` (the shared shim — `launchApp`/`uploadDeck`/
+  `exportJsonReport`/`diffDecks`/`computeChecksum`, driving the real unmodified `index.html` via
+  `playwright-core`, reusing the app's own "Export → JSON report" path rather than reimplementing
+  anything), `lib/format.js` (pure `hasDifferences`/`countChangedSlides`/`formatDiffSummary`, keyed
+  off the report's `key` field so an added/removed slide with an empty `differences` array still
+  counts as changed — mirrors `index.html`'s own `!pa || !pb || diffs.length > 0`), `lib/cli-core.js`
+  (argument parsing + `runDiff`/`runChecksum`, injectable automation functions for fast unit
+  testing), `bin/pptxdiff-cli.js` (thin entrypoint). 88 assertions total across 5 test files, 3 of
+  them genuine end-to-end (real browser, real `docs/assets/sample_before.pptx`/`sample_after.pptx`).
+- **New package `src/packages/pptxdiff-server/`**: `lib/server.js` — stdlib-only `node:http`
+  wrapper (no framework) around `pptxdiff-cli`'s `lib/index.js` public API. `POST /v1/diff`/
+  `POST /v1/checksum` (base64-in-JSON body)/`GET /v1/health`. Binds to `127.0.0.1` by default,
+  matching `bin/cli.js`'s existing hardening precedent — **no authentication yet**, documented
+  explicitly in the README as a real gap, not a silent one. 24 assertions across 2 test files (one
+  injected/fast, one a real server + real HTTP requests + real sample fixtures).
+- **Two real bugs found and fixed via genuine RED test failures during development** (both have
+  full write-ups in WISDOM.md's two new Trap entries this session — read those before touching
+  `lib/automation.js` or `lib/server.js` again):
+  1. The app boots with a default sample deck already auto-loading on both sides; the
+     "Differences (N)" panel text can render from the constructor's initial empty state before
+     that load even starts, so waiting on it alone raced a real upload against the default load's
+     own `setState`. Fixed by waiting on each side's content checksum (SPEC.md §29) settling to a
+     NEW 64-hex value instead — an atomic signal since it's set in the same `setState` as
+     everything else about that side, as the last step of `ingest()`.
+  2. React sets inline styles via the DOM `style` PROPERTY, not an HTML `style="..."` ATTRIBUTE —
+     `element.getAttribute('style')` on the app's own error banner returns `null` despite the
+     template literally saying `style="background:#FBEFEC"`, so a `div[style*="#FBEFEC"]` CSS
+     selector could never match, for any inline-styled element in this app. Fixed with
+     `getComputedStyle(el).backgroundColor === 'rgb(251, 239, 236)'`.
+  3. (Found in `@pptxdiff/server`, smaller): the first request-body-size-limit implementation
+     called `req.destroy()` on overflow, which tears down the shared request/response socket before
+     the intended 413 JSON response could ever be written — client saw a raw connection reset
+     instead. Fixed by draining-but-not-accumulating past the limit instead of destroying the
+     connection.
+- **Also fixed**: `src/packages/pptxdiff-cli/lib/` and `src/packages/pptxdiff-server/lib/` were
+  being silently swallowed by the repo's generated `.gitignore` (`py.gitignore`'s generic `lib/`
+  rule, meant for Python virtualenvs, collided with these real Node source directories) — added a
+  scoped double-negation to `.gitignores/user.gitignore` and regenerated. See WISDOM.md.
+- **Local-dev-only `file:` dependencies**: both new packages depend on their monorepo siblings via
+  `file:../...` rather than a published semver range (documented in each README and in
+  GAP_CONTEXT.md's new entry) — `pptxdiff-cli` needs `bin/cli.js`'s `startServer()` export, which
+  doesn't exist in the currently-published `pptxdiff@0.5.0`. Must be swapped to a real semver range
+  before either package is actually published to npm.
+- **Verification note for the next session**: all Playwright-driven tests need a real
+  Chrome/Chromium/Edge. This sandbox has none on `PATH`, but has a Playwright-managed Chromium at
+  `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` (per this environment's own setup) — run
+  tests with `PPTXDIFF_CHROME_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npm test`
+  from either new package's directory (or `node <test file>.mjs` individually).
+- Next natural ticket: git `textconv`/`difftool` integration (PLAN.md ticket 4) — the literal
+  headline motivating use case ("use pptxdiff as the diffing tool for `*.pptx` in git") — now
+  unblocked since `pptxdiff-cli diff` exists with the right exit-code contract already.
+
 ## Update (2026-07-31 — headless CLI + Web API design proposal, no code changes)
 - User asked for a design (not implementation) of two new surfaces: a headless CLI exposing every
   pptxdiff feature scriptably, and a Web API exposing the same over HTTP — motivated by wanting
