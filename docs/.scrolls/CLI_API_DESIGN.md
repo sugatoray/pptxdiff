@@ -239,16 +239,17 @@ usable by anyone." Two concrete mechanisms, complementary:
    boilerplate, structured tool schemas instead of a man page) and can be a thin wrapper over the
    exact same `@pptxdiff/core` calls the CLI and API already use — not a fourth reimplementation.
 
-## 10. Open decisions (need a call before implementation starts)
+## 10. Decisions (resolved 2026-07-31)
 
-- Package split: four packages as proposed in §4, or fold `pptxdiff-cli`/`@pptxdiff/server` into
-  the existing `pptxdiff` package (simpler to publish, but breaks its current zero-runtime-deps
-  claim for users who only wanted the GUI).
-- Phase 1 (Playwright-driven) first, or go straight to Phase 2 extraction for the commands that
-  don't need PDF/screenshot? Phase 1 is faster to ship and de-risks the surface design; Phase 2 is
-  the right long-term shape for the git-driver use case specifically.
-- Which surface to build first if not both at once — CLI (unlocks git integration immediately) or
-  Web API (unlocks the multi-client/session/agent-collaboration story immediately)?
+- **Package split: four packages**, as proposed in §4 (`pptxdiff` / `@pptxdiff/core` /
+  `pptxdiff-cli` / `@pptxdiff/server`) — the GUI launcher keeps its zero-runtime-dependency claim.
+- **Execution strategy: Phase 1 (Playwright-driven) first.** Ship the full CLI+API command/endpoint
+  surface reusing the existing browser engine as-is; defer the `@pptxdiff/core` native extraction
+  (Phase 2) until the surface design is validated against real usage.
+- **Build order: CLI and Web API together, not sequentially.** Since Phase 1 means both surfaces
+  are thin wrappers around the same Playwright-driven automation shim, build that shim once and
+  stand up both the CLI subcommands (§5) and the API endpoints (§8) on top of it in the same pass,
+  rather than building one first and duplicating the wrapper logic for the other later.
 
 ## 11. What this does NOT change
 
