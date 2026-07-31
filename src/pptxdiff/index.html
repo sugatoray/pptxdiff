@@ -332,6 +332,14 @@
       </div>
     </sc-if>
 
+    <!-- Content checksums (parser-independent, timestamp-excluding SHA-256 — see WISDOM.md) -->
+    <div style="margin-top:20px;background:{{ theme.card }};border:1px solid {{ theme.border }};border-radius:12px;padding:14px 18px">
+      <div style="font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:{{ theme.muted }};margin-bottom:8px">Content checksums (SHA-256)</div>
+      <div style="font-family:ui-monospace,Menlo,monospace;font-size:12.5px;color:{{ theme.text }};word-break:break-all">Before: {{ contentHashALabel }}</div>
+      <div style="font-family:ui-monospace,Menlo,monospace;font-size:12.5px;color:{{ theme.text }};word-break:break-all;margin-top:4px">After: {{ contentHashBLabel }}</div>
+      <div style="font-size:11.5px;color:{{ theme.muted }};margin-top:6px">{{ contentChecksumAlgorithmLabel }}</div>
+    </div>
+
     <!-- Deck-level differences -->
     <sc-if value="{{ hasDeckDiffs }}" hint-placeholder-val="{{ false }}">
       <div style="margin-top:20px;background:{{ theme.card }};border:1px solid {{ theme.border }};border-radius:12px;padding:14px 18px">
@@ -916,7 +924,8 @@ class Component extends DCLogic {
       pendingConfirm: null,
       clearDecisionsScope: 'all', clearDecisionsReviewerHandle: '', clearDecisionsRangeFrom: 1, clearDecisionsRangeTo: 1,
       crossDupThreshold: 0.92, crossDupForceLarge: false, ignoredCrossDupKeys: {}, mergeDuplicateSlides: false,
-      screenshotsBusy: false
+      screenshotsBusy: false,
+      contentHashA: null, contentHashB: null
     };
     this.batchBuffers = [];
     // Non-state runtime handles
@@ -926,6 +935,11 @@ class Component extends DCLogic {
     this.tokA = 0; this.tokB = 0;
     this.mounts = new Map(); this.meta = new Map(); this.handles = new Map(); this.sigs = new Map();
     this._ro = new WeakSet();
+    // Static environment fact (checked once, never changes mid-session) — distinguishes "content
+    // checksum still computing" (contentHashA/B null, but this is true) from "genuinely
+    // unavailable" (null AND this is false) in renderVals(), since crypto.subtle requires a
+    // secure context (https/localhost; not guaranteed under a plain file:// open).
+    this.cryptoSubtleAvailable = typeof crypto !== 'undefined' && !!crypto.subtle;
   }
 
   /* ---------- constants ---------- */
@@ -1205,6 +1219,55 @@ class Component extends DCLogic {
     await this.ingest('B', bufB, 'Q3-Review_v2.pptx', ['Brand Sans', 'Brand Mono']);
   }
 
+  /* ---------- content checksum (parser-independent, timestamp-excluding SHA-256) ----------
+     Deliberately NOT a hash of the raw .pptx file bytes (a .pptx is a zip; docProps/core.xml's
+     save timestamp/revision count, docProps/app.xml's edit-time counter, and docProps/thumbnail.*
+     all change on a routine re-save with zero real content change — see GAP_CONTEXT.md). Also
+     deliberately NOT a hash of this app's own parsed slide structure — that would only prove "our
+     parser extracted the same fields," not "the underlying OOXML content is the same," and would
+     silently miss anything the parser doesn't read. Instead: read the raw zip directly (same
+     JSZip already vendored, no new dependency), per-part SHA-256 every non-excluded part's raw
+     decompressed bytes (decompressing already sidesteps zip-level timestamps/compression-method
+     differences — those live in the zip container, not in a part's own content), sort by path for
+     determinism regardless of the zip's internal entry order, then SHA-256 the sorted
+     "path:hash\n" manifest as the final checksum. This is exactly reproducible OUTSIDE this app
+     with standard tools (see CONTENT_CHECKSUM_RECIPE below) since SHA-256 is a standardized,
+     tool-independent algorithm — `crypto.subtle.digest('SHA-256', ...)` and `openssl dgst -sha256`
+     produce byte-identical output for the same input bytes. */
+  CONTENT_CHECKSUM_EXCLUDED_EXACT = ['docProps/core.xml', 'docProps/app.xml'];
+  CONTENT_CHECKSUM_ALGORITHM_LABEL = 'SHA-256 of a sorted per-part-SHA-256 manifest (excludes docProps/core.xml, docProps/app.xml, docProps/thumbnail.*)';
+  /* Pure: documents (and enforces) exactly which zip parts are excluded as non-content metadata —
+     docProps/core.xml (dcterms:created/modified, cp:revision) and docProps/app.xml (TotalTime
+     edit-session counter) are pure save-timestamp/editing-session metadata, never slide content;
+     docProps/thumbnail.* (the auto-generated preview image some tools embed) is DERIVED from
+     content but not itself authored content, and isn't guaranteed to re-render identically across
+     saves/tools even when the real content hasn't changed. Everything else (slide/layout/master/
+     theme XML, media, [Content_Types].xml, every .rels file) is real content or a real structural
+     fact about it, and is included. */
+  isExcludedFromContentChecksum(path) {
+    return this.CONTENT_CHECKSUM_EXCLUDED_EXACT.includes(path) || /^docProps\/thumbnail\.[a-z0-9]+$/i.test(path);
+  }
+  async sha256Hex(bytes) {
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+  /* Impure (reads the raw zip + native crypto): returns a hex SHA-256 string, or null if
+     window.crypto.subtle isn't available (requires a secure context — https/localhost; not
+     guaranteed under a plain file:// open, one of this app's documented launch paths). Never
+     throws — a checksum failure must not block loading/comparing the decks themselves. */
+  async computeContentChecksum(buf) {
+    if (!this.cryptoSubtleAvailable) return null;
+    try {
+      const zip = await JSZip.loadAsync(buf);
+      const names = Object.keys(zip.files).filter(n => !zip.files[n].dir && !this.isExcludedFromContentChecksum(n)).sort();
+      const lines = [];
+      for (const name of names) {
+        const bytes = await zip.file(name).async('uint8array');
+        lines.push(name + ':' + (await this.sha256Hex(bytes)));
+      }
+      return await this.sha256Hex(new TextEncoder().encode(lines.join('\n')));
+    } catch (e) { console.warn('content checksum failed', e); return null; }
+  }
   /* ---------- ingest (parse for diff + parse for render) ---------- */
   async parseDeckMeta(buf) {
     const zip = await JSZip.loadAsync(buf);
@@ -1230,6 +1293,7 @@ class Component extends DCLogic {
     if (!slides.length) throw new Error('No slides with text found in ' + name + '.');
     let deckMeta = { fonts: knownFonts || [], sections: [] };
     if (!knownFonts) { try { deckMeta = await this.parseDeckMeta(buf.slice(0)); } catch (e) { console.warn('deck meta parse failed', e); } }
+    const contentHash = await this.computeContentChecksum(buf.slice(0));
     let pres = null, libOk = false;
     if (this.libMod) {
       try {
@@ -1241,11 +1305,11 @@ class Component extends DCLogic {
     if (side === 'A') {
       if (pres) { if (!this.viewerA) this.viewerA = new this.libMod.PptxViewer(document.createElement('div'), { fitMode: 'contain' }); this.viewerA.load(pres); }
       this.presA = pres; this.tokA++;
-      this.setState({ slidesA: slides, nameA: name, idxA: 0, selectedKey: null, errorMsg: null, libOkA: libOk, fontsA: deckMeta.fonts, sectionsA: deckMeta.sections, decisions: {} });
+      this.setState({ slidesA: slides, nameA: name, idxA: 0, selectedKey: null, errorMsg: null, libOkA: libOk, fontsA: deckMeta.fonts, sectionsA: deckMeta.sections, decisions: {}, contentHashA: contentHash });
     } else {
       if (pres) { if (!this.viewerB) this.viewerB = new this.libMod.PptxViewer(document.createElement('div'), { fitMode: 'contain' }); this.viewerB.load(pres); }
       this.presB = pres; this.tokB++;
-      this.setState({ slidesB: slides, nameB: name, idxB: 0, selectedKey: null, errorMsg: null, libOkB: libOk, fontsB: deckMeta.fonts, sectionsB: deckMeta.sections, decisions: {} });
+      this.setState({ slidesB: slides, nameB: name, idxB: 0, selectedKey: null, errorMsg: null, libOkB: libOk, fontsB: deckMeta.fonts, sectionsB: deckMeta.sections, decisions: {}, contentHashB: contentHash });
     }
   }
   pairKey(aIdx, bIdx) { return 'a' + (aIdx === null || aIdx === undefined ? 'x' : aIdx) + ':b' + (bIdx === null || bIdx === undefined ? 'x' : bIdx); }
@@ -1680,6 +1744,48 @@ class Component extends DCLogic {
     assert('filenameSim scores an exact match as 1', this.filenameSim('Deck-v1.pptx', 'Deck-v1.pptx') === 1);
     assert('filenameSim scores a clearly different name lower than a close one',
       this.filenameSim('Q3-Review-v1.pptx', 'Q3-Review-v2-final.pptx') > this.filenameSim('Q3-Review-v1.pptx', 'Totally-Different-File.pptx'));
+
+    // RED/GREEN for the parser-independent content checksum: isExcludedFromContentChecksum is the
+    // pure predicate that decides which zip parts are "just metadata" (never slide content).
+    assert('isExcludedFromContentChecksum excludes docProps/core.xml', this.isExcludedFromContentChecksum('docProps/core.xml'));
+    assert('isExcludedFromContentChecksum excludes docProps/app.xml', this.isExcludedFromContentChecksum('docProps/app.xml'));
+    assert('isExcludedFromContentChecksum excludes docProps/thumbnail.jpeg', this.isExcludedFromContentChecksum('docProps/thumbnail.jpeg'));
+    assert('isExcludedFromContentChecksum excludes docProps/thumbnail.emf (any extension)', this.isExcludedFromContentChecksum('docProps/thumbnail.emf'));
+    assert('isExcludedFromContentChecksum does NOT exclude real slide content', !this.isExcludedFromContentChecksum('ppt/slides/slide1.xml'));
+    assert('isExcludedFromContentChecksum does NOT exclude [Content_Types].xml (reflects real structural changes, e.g. added/removed slides)', !this.isExcludedFromContentChecksum('[Content_Types].xml'));
+    assert('isExcludedFromContentChecksum does NOT exclude a same-named file outside docProps/', !this.isExcludedFromContentChecksum('ppt/docProps/core.xml'));
+
+    // computeContentChecksum itself: build small synthetic zips (JSZip is already vendored/global)
+    // with tight control over exactly what differs, rather than trusting buildPptx()'s own
+    // timestamp behavior (unknown/irrelevant here — this test needs to control that variable
+    // directly). Two zips with identical "content" but different docProps/core.xml (simulating two
+    // saves of the same deck at different times) must hash the SAME; a zip with genuinely
+    // different slide content must hash DIFFERENTLY.
+    if (typeof JSZip !== 'undefined' && this.cryptoSubtleAvailable) {
+      const buildFakeDeckZip = async (coreModified, slideText) => {
+        const zip = new JSZip();
+        zip.file('docProps/core.xml', '<coreProperties><dcterms:modified>' + coreModified + '</dcterms:modified></coreProperties>');
+        zip.file('docProps/app.xml', '<Properties><TotalTime>' + coreModified.length + '</TotalTime></Properties>');
+        zip.file('ppt/slides/slide1.xml', '<sld><txt>' + slideText + '</txt></sld>');
+        return zip.generateAsync({ type: 'arraybuffer' });
+      };
+      const bufSavedJan = await buildFakeDeckZip('2020-01-01T00:00:00Z', 'Hello world');
+      const bufSavedJune = await buildFakeDeckZip('2024-06-06T12:34:56Z', 'Hello world');
+      const bufDifferentContent = await buildFakeDeckZip('2020-01-01T00:00:00Z', 'Goodbye world');
+      const hashJan = await this.computeContentChecksum(bufSavedJan);
+      const hashJune = await this.computeContentChecksum(bufSavedJune);
+      const hashDifferent = await this.computeContentChecksum(bufDifferentContent);
+      assert('computeContentChecksum returns a 64-char hex SHA-256 string', typeof hashJan === 'string' && /^[0-9a-f]{64}$/.test(hashJan), String(hashJan));
+      assert('computeContentChecksum is identical for the same content saved with different docProps/core.xml + app.xml timestamps', hashJan === hashJune);
+      assert('computeContentChecksum differs when the actual slide content differs', hashJan !== hashDifferent);
+      const savedCryptoFlag = this.cryptoSubtleAvailable;
+      this.cryptoSubtleAvailable = false;
+      const hashWhenUnavailable = await this.computeContentChecksum(bufSavedJan);
+      this.cryptoSubtleAvailable = savedCryptoFlag;
+      assert('computeContentChecksum returns null (not a throw, not a wrong value) when crypto.subtle is unavailable', hashWhenUnavailable === null);
+    } else {
+      assert('computeContentChecksum tests', false, 'JSZip not loaded yet or crypto.subtle unavailable in this environment — re-run after the app finishes loading');
+    }
 
     // Merged .pptx export: build a real file from two synthetic slides via the same writer used by
     // the "Merged .pptx" export button, then re-parse it with our own reader to confirm it round-trips.
@@ -2267,10 +2373,12 @@ class Component extends DCLogic {
   /* ---------- share / slack / email exports ---------- */
   buildPlainSummary() {
     const rows = this.buildReportRows();
+    const st = this.state;
     const changed = rows.filter(r => r.diffs.length > 0).length;
     const lines = [
-      'PptxDiff report: ' + this.state.nameA + ' vs ' + this.state.nameB,
-      rows.length + ' slide pair(s), ' + changed + ' with differences.', ''
+      'PptxDiff report: ' + st.nameA + ' vs ' + st.nameB,
+      rows.length + ' slide pair(s), ' + changed + ' with differences.',
+      'SHA-256 (content) — before: ' + (st.contentHashA || 'unavailable') + ', after: ' + (st.contentHashB || 'unavailable'), ''
     ];
     rows.forEach(r => { lines.push('• ' + r.label + ' — ' + (r.diffs.length ? r.diffs.length + ' change(s) [' + r.decision + ']' : 'identical')); });
     return lines.join('\n');
@@ -2307,7 +2415,9 @@ class Component extends DCLogic {
     const reportJsonPretty = JSON.stringify(report, null, 2);
     const reportJsonSafe = JSON.stringify(report).replace(/</g, '\\u003c');
     const reportDownloadUrl = 'data:application/json;base64,' + btoa(unescape(encodeURIComponent(reportJsonPretty)));
+    const checksum = report.contentChecksum || {};
     return `<!doctype html><html><head><meta charset="utf-8"><title>PptxDiff Report</title></head><body style="font-family:sans-serif;max-width:800px;margin:40px auto"><h1>PptxDiff Report</h1><p>${esc(nameA)} → ${esc(nameB)}</p>`
+      + `<p style="font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#6B655A;background:#f5f5f5;border:1px solid #ddd;border-radius:6px;padding:8px 12px">SHA-256 (content, before): ${esc(checksum.before || 'unavailable')}<br>SHA-256 (content, after): ${esc(checksum.after || 'unavailable')}</p>`
       + `<p style="background:#f5f5f5;border:1px solid #ddd;border-radius:6px;padding:10px 14px;font-size:14px">This is a self-contained link (no server) that also carries the review status — decisions, comments, history — as embedded JSON. To restore it in PptxDiff on another machine: <a href="${reportDownloadUrl}" download="pptxdiff-report.json">download report.json</a>, then in PptxDiff use Export → Import report JSON…</p>`
       + body
       + `<script type="application/json" id="pptxdiff-report-json">${reportJsonSafe}<\/script>`
@@ -2682,6 +2792,7 @@ class Component extends DCLogic {
     const rows = this.buildReportRows();
     return {
       generatedAt: new Date().toISOString(), deckBefore: st.nameA, deckAfter: st.nameB,
+      contentChecksum: { algorithm: this.CONTENT_CHECKSUM_ALGORITHM_LABEL, before: st.contentHashA, after: st.contentHashB },
       presentationDiffs: (st.fontsA.join(',') !== st.fontsB.join(',')) ? [{ type: 'Embedded fonts', before: st.fontsA, after: st.fontsB }] : [],
       slides: rows.map(r => ({ key: r.key, label: r.label, decision: r.decision, reviewerVotes: r.reviewerVotes, comments: r.comments, differences: r.diffs.map(d => ({ type: d.type, label: d.label, before: d.oldText, after: d.newText })) })),
       history: st.history,
@@ -2791,10 +2902,12 @@ class Component extends DCLogic {
         : '<div style="color:#3E7C5A">Identical</div>'}
       ${r.comments.length ? '<div style="margin-top:10px;font-size:13px;color:#4A463E"><strong>Comments:</strong>' + r.comments.map(c => `<div style="margin-top:4px">— ${esc(c.author)}: ${esc(c.text)}</div>`).join('') + '</div>' : ''}
     </section>`).join('');
+    const st = this.state;
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>PptxDiff Report</title></head>
       <body style="font-family:-apple-system,Helvetica,Arial,sans-serif;max-width:900px;margin:40px auto;padding:0 20px;color:#1F1E1B">
       <h1 style="font-family:Georgia,serif">PptxDiff Report</h1>
-      <div style="color:#6B655A;margin-bottom:24px">${esc(this.state.nameA)} → ${esc(this.state.nameB)} · generated ${esc(new Date().toLocaleString())}</div>
+      <div style="color:#6B655A;margin-bottom:24px">${esc(st.nameA)} → ${esc(st.nameB)} · generated ${esc(new Date().toLocaleString())}</div>
+      <div style="font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#8A8273;background:#F7F4EC;border:1px solid #E2DCCE;border-radius:6px;padding:8px 12px;margin-bottom:24px">SHA-256 (content, before): ${esc(st.contentHashA || 'unavailable')}<br>SHA-256 (content, after): ${esc(st.contentHashB || 'unavailable')}</div>
       ${body}</body></html>`;
     this.downloadBlob('pptxdiff-report.html', html, 'text/html');
   }
@@ -2810,7 +2923,8 @@ class Component extends DCLogic {
   buildMarkdownBody() {
     const st = this.state;
     const rows = this.buildReportRows();
-    const lines = ['# PptxDiff report', '', '**Before:** ' + st.nameA, '**After:** ' + st.nameB, '**Generated:** ' + new Date().toLocaleString(), ''];
+    const lines = ['# PptxDiff report', '', '**Before:** ' + st.nameA, '**After:** ' + st.nameB, '**Generated:** ' + new Date().toLocaleString(), '',
+      '**SHA-256 (content, before):** `' + (st.contentHashA || 'unavailable') + '`', '**SHA-256 (content, after):** `' + (st.contentHashB || 'unavailable') + '`', ''];
     rows.forEach(r => {
       lines.push('## ' + r.label + ' — ' + r.decision.charAt(0).toUpperCase() + r.decision.slice(1));
       if (!r.diffs.length) { lines.push('', '_Identical_', ''); }
@@ -2842,7 +2956,8 @@ class Component extends DCLogic {
     const st = this.state;
     const rows = this.buildReportRows();
     const esc = (s) => String(s == null ? '' : s).replace(/\|/g, '\\|');
-    const lines = ['h1. PptxDiff report', '', '*Before:* ' + st.nameA, '*After:* ' + st.nameB, '*Generated:* ' + new Date().toLocaleString(), ''];
+    const lines = ['h1. PptxDiff report', '', '*Before:* ' + st.nameA, '*After:* ' + st.nameB, '*Generated:* ' + new Date().toLocaleString(), '',
+      '*SHA-256 (content, before):* {{' + (st.contentHashA || 'unavailable') + '}}', '*SHA-256 (content, after):* {{' + (st.contentHashB || 'unavailable') + '}}', ''];
     rows.forEach(r => {
       lines.push('h2. ' + r.label + ' — ' + r.decision);
       if (!r.diffs.length) lines.push('', '_Identical_', '');
@@ -4148,6 +4263,9 @@ class Component extends DCLogic {
       screenshotsBusy: st.screenshotsBusy, screenshotsBusyCursor: st.screenshotsBusy ? 'wait' : 'pointer', screenshotsBusyOpacity: st.screenshotsBusy ? .5 : 1,
       screenshotsZipLabel: st.screenshotsBusy ? 'Capturing screenshots…' : 'Download as ZIP',
       screenshotsHtmlLabel: st.screenshotsBusy ? 'Capturing screenshots…' : 'Download as HTML viewer',
+      contentHashALabel: st.contentHashA || (this.cryptoSubtleAvailable ? 'computing…' : 'unavailable (requires a secure context — https or localhost)'),
+      contentHashBLabel: st.contentHashB || (this.cryptoSubtleAvailable ? 'computing…' : 'unavailable (requires a secure context — https or localhost)'),
+      contentChecksumAlgorithmLabel: this.CONTENT_CHECKSUM_ALGORITHM_LABEL,
       hasDeckDiffs: deckDiffs.length > 0,
       deckDiffs: deckDiffs.map(d => ({ type: d.type, label: d.label, oldText: d.oldText, newText: d.newText })),
       duplicateNotes: duplicateNotes.concat(sectionMoveNotes), hasDuplicates: duplicateNotes.length > 0 || sectionMoveNotes.length > 0,
