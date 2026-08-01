@@ -208,3 +208,37 @@ Closes the gap flagged in §5/HANDOFF.md ("not wired into CI/deployment... `site
 - **Triggers**: push to `master` (this repo's default branch — confirmed via `git status`, not assumed) scoped with `paths:` to `src/pptxdiff/docs-site/**`, `pyproject.toml`, `uv.lock`, and the workflow file itself, plus `workflow_dispatch` for a manual re-run. Path-scoped so unrelated app-only commits don't trigger a docs deploy.
 - **Action versions pinned to the current latest release as of 2026-07-28** (checked live, not from memory): `actions/checkout@v7`, `astral-sh/setup-uv@v9.0.0` (exact version, not a floating major tag — the project stopped publishing those at v8 for supply-chain reasons and documents pinning the full version instead), `actions/upload-pages-artifact@v5`, `actions/deploy-pages@v5`.
 - **Manual one-time step, done 2026-07-29**: the first run after merging (`run 30419449850`) failed — `build` succeeded but `deploy` hit `HttpError: Not Found` / `status: 404` from `actions/deploy-pages@v5`, because "GitHub Actions" had never been selected as the Pages source in the repo's Settings → Pages UI (workflow permissions alone don't do this — confirmed `actions/configure-pages`'s `enablement` option can't do it either, since it defaults to `false` and even when enabled requires a token with `administration:write`, which the workflow's `GITHUB_TOKEN` doesn't have). The repo owner enabled "GitHub Actions" as the source manually via the Settings UI; no workflow-file change was needed. `site_url` in `mkdocs.yml` (already `https://sugatoray.github.io/pptxdiff/`) didn't need to change.
+
+## 14. New "Headless CLI & Web API" page for `pptxdiff-cli`/`@pptxdiff/server` (added this session)
+
+Follow-up to the headless CLI/API Phase 1 implementation (`diff`/`checksum` shipped — see SPEC.md
+§30, HANDOFF.md) — explicit ask to "update documentation if not done so already." The `.scrolls/`
+working-memory docs were already updated as part of shipping the feature; this closes the
+PUBLIC-docs-site side of that same rule.
+
+- **New page, not a section tacked onto `cli.md`.** `cli.md` is specifically about the `pptxdiff`
+  npm package's CLI (a static-file-server-and-browser-launcher with no runtime dependencies and no
+  `.pptx`-file access of its own — see its own "What it does"). `pptxdiff-cli`/`@pptxdiff/server`
+  are different packages with a different purpose (real file access, real diffing, via a headless
+  browser) and a materially different status (not published, only a subset of the design built) —
+  conflating them into one page would blur a distinction that matters to a reader deciding whether
+  to trust either one for a given use case. `headless-cli-api.md`, added to the nav right after
+  "CLI Reference," cross-links back to `cli.md#security-note` for the shared loopback-binding
+  precedent rather than re-explaining it.
+- **Marked `partial`, not `complete`, in the coverage registry — deliberately.** The page itself is
+  a complete, accurate description of what's actually shipped (no invented capabilities), but the
+  underlying FEATURE it documents is intentionally incomplete (Phase 1 only: `diff`/`checksum`, no
+  `batch`/`report`/`merge`, no git integration, no server auth) — `partial` reflects that honestly,
+  the same convention `getting-started.md`/`npm-cli-packaging`'s own `partial` marking already
+  established for "the page is fine, the underlying thing has known gaps." A matching new
+  limitation row (`headless-cli-api-limitations`, marked `complete` — the LIMITATION is fully
+  documented even though the feature isn't fully built) went into `limitations.md`.
+- **No `documentation-coverage.md` id invented without a real page+row backing it**, per this
+  file's own established rule (see §8) — both new registry ids (`headless-cli-api`,
+  `headless-cli-api-limitations`) were added in the SAME change as the page/table-row that declares
+  them via `doc_coverage:` front matter, then `sync_doc_coverage.py --write`/`--check` re-run to
+  confirm 34/35 complete + 1 partial (up from 33/33 complete), zero missing.
+- **Verified for real**: `mkdocs build --strict` clean (used `--only-group docs`, not `--group
+  docs`, per §5/§13's existing note about avoiding the root `[project]` deps' torch/CUDA pull), the
+  new page's `/headless-cli-api/index.html` present in the built `site/` output, and
+  `sync_doc_coverage.py --check` passing (34 complete, 1 partial, 0 missing, structurally valid).

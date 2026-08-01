@@ -210,6 +210,19 @@ incident response. Nothing here is urgent in the sense of an active vulnerabilit
    Do not start implementation without an explicit ask; this is exactly the kind of
    "substantial, standalone effort" `PLAN.md` asks to scope deliberately before touching.
 
+## P1 — `@pptxdiff/server` (new this session, headless CLI/Web API Phase 1)
+
+10. **[ ] API-key authentication for a non-loopback `@pptxdiff/server` bind.** New this
+    session (see `docs/.scrolls/CLI_API_DESIGN.md` §8, `GAP_ANALYSIS.md`, and
+    `GAP_CONTEXT.md`'s "Why @pptxdiff/server ships with no authentication..." entry):
+    `startServer()` binds to `127.0.0.1` by default, matching this file's existing P0
+    loopback-binding precedent for `bin/cli.js`, but passing `--host` to bind elsewhere is
+    currently an unguarded opt-in with zero auth. The package's own README already warns
+    against this in practice; this ticket is the actual fix (a minimal API-key check —
+    where the key comes from, constant-time comparison, applies only when not bound to
+    loopback) rather than just a documented warning. Treat this the same as any other P1
+    ticket here — deliberate, Red/Green tested, not bolted on casually.
+
 ## Explicitly out of scope (per SECURITY_ANALYSIS.md's own framing)
 
 - Removing `PPTXDIFF_LITE_MODE`/CDN mode entirely — it's already opt-in, documented,

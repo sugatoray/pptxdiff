@@ -277,3 +277,62 @@ When picking up a new ticket: update this file's status, and add a short note to
 ## New tickets opened this session
 5. **P4 — Content checksum shows "unavailable" under the `file://` open path** (no secure context for `crypto.subtle`) — handled honestly, not worked around; see GAP_ANALYSIS.md.
 6. **P4 — Excluded-parts list for the content checksum is a fixed, hardcoded set** — would need a code change, not a setting, if a new non-content save-time-varying part type is ever observed in the wild.
+
+## Headless CLI + Web API — Phase 1 `diff`/`checksum` shipped this session
+Full reasoning, architecture, and decisions: `docs/.scrolls/CLI_API_DESIGN.md` (see also
+`docs/.scrolls/CLI_and_API.md`). **Decided 2026-07-31** (design doc §10): four-package split;
+Phase 1 (Playwright-driven) built first; CLI and Web API built together on one shared automation
+shim, not sequentially — that plan is what shipped below.
+1. **[DONE] P1 — Playwright-driven automation shim** (`pptxdiff-cli`'s `lib/automation.js`).
+   Headless Chromium (via `playwright-core`) loads the real `index.html`, uploads files through the
+   real file inputs, waits for the real diff engine, clicks the real "Export → JSON report" button
+   — not `page.evaluate()` reaching into internals, but driving the actual UI a human would use,
+   which is what guarantees the CLI/API can never disagree with the GUI. Two real races/bugs found
+   and fixed via genuine RED failures — see WISDOM.md's two new Trap entries this session (the
+   default-sample-load race, and the `getAttribute('style')`-returns-null discovery). This is the
+   shared foundation tickets 2 and 3 below are built on. See design doc §6.
+2. **[DONE, partial] P1 — `pptxdiff-cli`: headless CLI subcommands.** `diff` and `checksum` ship,
+   with `--json` + `diff`-style exit codes (0 = no differences, 1 = differences found, 2 = tool
+   error) and `--out`/`--quiet`/`--timeout` flags. `batch`/`report`/`merge` are designed (design doc
+   §5) but NOT built — see ticket 7 below.
+3. **[DONE, partial] P1 — `@pptxdiff/server`: stateless Web API.** `POST /v1/diff`, `POST
+   /v1/checksum`, `GET /v1/health` ship (base64-in-JSON file upload, not multipart — see ticket 8).
+   Binds to `127.0.0.1` by default, matching the existing CLI security hardening's precedent — but
+   **the design doc's API-key-for-non-loopback requirement is NOT implemented yet** (see ticket 9);
+   don't bind this server to a non-loopback host in practice until that ships. `batch`/`report`/
+   `merge` endpoints and the stateful review-session endpoints are designed (design doc §8) but not
+   built — see tickets 7 and 10.
+4. **[DONE] P2 — git integration: `pptxdiff-cli textconv`/`pptxdiff-cli difftool` +
+   `pptxdiff-cli install-git-integration [--global]`.** Ships this session — the headline
+   motivating use case for the whole effort. `.gitattributes`/`.git/config` local by default;
+   `--global` (the flag itself is the consent, no separate prompt — a scriptable tool) writes
+   `~/.gitconfig`. See design doc §7, SPEC.md §31, and WISDOM.md's new `--global`-ordering trap
+   (found via a real RED test failure, not caught by the pure unit test alone).
+5. **P2 — `@pptxdiff/core`: extract the parse/align/diff/checksum/report-building engine** out of
+   `index.html`'s Component class into a standalone Node+browser dual-target module (Phase 2 —
+   deferred until Phase 1's surface is validated against real usage, per this session's explicit
+   decision — see GAP_CONTEXT.md's new "Why the headless CLI/API drive the real browser app
+   instead of extracting a native engine first" entry). Once landed, `pptxdiff-cli`/`@pptxdiff/server`
+   move `diff`/`checksum`/`batch`/`report`(non-pdf/screenshot)/`merge` onto it; `pdf`/`screenshot`
+   stay on the Playwright shim permanently. This is the fix for ticket 1's real, currently-accepted
+   cost (a headless-Chromium boot per invocation) — see GAP_ANALYSIS.md. See design doc §3/§4/§6.
+6. **P3 — `pptxdiff mcp`: MCP server** wrapping the same operations as typed tools, for direct
+   AI-agent tool-calling (no shell/HTTP boilerplate). See design doc §9.
+7. **P2 — `batch`/`report`/`merge` CLI subcommands and API endpoints.** Designed (design doc §5/§8)
+   but not built this session — `diff`/`checksum` were the priority slice. `report`'s `pdf`/
+   `screenshot` formats will always need a real browser (ticket 1's shim), regardless of whether
+   ticket 5 ever lands; the other report formats (html/md/json/csv/notion/confluence) can move to
+   `@pptxdiff/core` once ticket 5 exists.
+8. **P2 — `@pptxdiff/server`: real `multipart/form-data` file upload**, replacing/supplementing the
+   current base64-in-JSON-body wire format (chosen for Phase 1 specifically because it needs zero
+   new dependency — see GAP_CONTEXT.md's new entry). Matters most once large-deck upload efficiency
+   is a real concern, not before.
+9. **P1 — `@pptxdiff/server`: API-key authentication for a non-loopback bind.** Real, named,
+   currently-open gap — see GAP_ANALYSIS.md and GAP_CONTEXT.md's new "Why @pptxdiff/server ships
+   with no authentication..." entry. The loopback-by-default bind is a real (if partial) mitigation
+   in the meantime, not a substitute for actually building this.
+10. **P3 — `@pptxdiff/server`: stateful review-session endpoints** (`POST /v1/sessions`, `PATCH
+    /v1/sessions/{id}/decisions|comments|merge-choices`, `GET /v1/sessions/{id}/report`), mirroring
+    the GUI's `slideDiffReviewerState_v1` shape so a human on the GUI and an agent on the API can
+    collaborate on the same review. This is the design doc's most distinctive value beyond "diff as
+    a service" (§8) — not started.

@@ -7,7 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-No changes yet.
+### Added
+
+- New `pptxdiff-cli` package (`src/packages/pptxdiff-cli/`): a headless CLI —
+  `pptxdiff-cli diff <before.pptx> <after.pptx>` (`diff(1)`-style exit codes:
+  0 = no differences, 1 = differences found, 2 = tool error; `--json`,
+  `--out`, `--quiet`, `--timeout`) and `pptxdiff-cli checksum <file.pptx>`.
+  Drives the existing browser app headlessly via `playwright-core` — uploads
+  through the real file inputs, reads the real "Export → JSON report" —
+  rather than reimplementing the diff engine, so results can't disagree
+  with the GUI. Not yet published to npm (installs from source).
+- New `@pptxdiff/server` package (`src/packages/pptxdiff-server/`): a
+  stdlib-only (`node:http`) Web API over the same engine — `POST /v1/diff`,
+  `POST /v1/checksum`, `GET /v1/health`. Binds to `127.0.0.1` by default;
+  no authentication yet for a non-loopback bind (documented, not silent).
+  Not yet published to npm.
+- `bin/cli.js` now exports `startServer()` for reuse by the two packages
+  above, alongside its existing CLI entrypoint behavior (unchanged).
+- New docs site page: [Headless CLI & Web API](https://sugatoray.github.io/pptxdiff/headless-cli-api/).
+- `pptxdiff-cli` gained git integration: `pptxdiff-cli textconv <file.pptx>`
+  (a git `textconv` driver — prints one deck's plain text so `git diff`/
+  `git log -p` can line-diff it), `pptxdiff-cli difftool <local> <remote>`
+  (a git `difftool` driver — opens a real, visible browser window with both
+  files loaded, blocks until you close it), and `pptxdiff-cli
+  install-git-integration [--global]` (wires both into a repo's
+  `.gitattributes` + git config in one idempotent command; local by
+  default, `--global` for `~/.gitconfig`).
+
+This is Phase 1 of a larger design (`docs/.scrolls/CLI_API_DESIGN.md`) —
+`batch`/`report`/`merge` subcommands, server authentication, and a native
+(browser-free) engine are designed but not yet built.
+
+## [0.5.0] - 2026-07-30
+
+### Added
+
+- New repo-root `SECURITY.md`: local-first model, zero production
+  dependencies/no lifecycle scripts, the CLI hardening below, the DC
+  runtime's `new Function` scoping, `PPTXDIFF_LITE_MODE`'s CDN opt-in,
+  live-push credential caveats, and a vulnerability-reporting process.
+- Vendored-dependency provenance: `src/pptxdiff/vendor/manifest.json` +
+  `PROVENANCE.md` documenting each vendored file's upstream package,
+  version, source URL, hash, and license, plus `scripts/verify_vendor.mjs`
+  to re-derive and check those hashes.
+
+### Changed
+
+- Hardened the `pptxdiff` CLI (`bin/cli.js`):
+  - The static file server now binds explicitly to loopback (`127.0.0.1`)
+    instead of an unspecified host.
+  - The browser-launch step uses `execFile()` with an argv array instead of
+    a shell-interpolated `exec()` call.
+  - Static-file path containment now uses a `path.relative()`-based check
+    instead of a raw `startsWith()` prefix check, closing a sibling-directory
+    edge case.
+  - Every response now sets `X-Content-Type-Options: nosniff` and
+    `Cache-Control: no-store`.
 
 ## [0.6.0] - 2026-07-31
 

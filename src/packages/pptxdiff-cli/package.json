@@ -1,0 +1,44 @@
+{
+  "name": "pptxdiff-cli",
+  "version": "0.1.0",
+  "description": "Headless CLI for pptxdiff — diff two PowerPoint decks from a script, CI job, or git driver, with JSON output and diff(1)-style exit codes. No browser tab, no manual clicking.",
+  "license": "Apache-2.0",
+  "private": true,
+  "author": {
+    "name": "Sugato Ray",
+    "email": "sugatoray.dev@gmail.com",
+    "url": "https://github.com/sugatoray"
+  },
+  "bin": {
+    "pptxdiff-cli": "./bin/pptxdiff-cli.js"
+  },
+  "main": "./lib/index.js",
+  "files": [
+    "bin",
+    "lib"
+  ],
+  "scripts": {
+    "test": "node test_browser_resolve.mjs && node test_report_format.mjs && node test_textconv_format.mjs && node test_git_integration_pure.mjs && node test_git_integration_e2e.mjs && node test_cli_core.mjs && node test_automation_e2e.mjs && node test_diff_checksum_cli.mjs && node test_install_git_integration_cli.mjs",
+    "test:difftool": "node test_difftool_e2e.mjs && node test_difftool_cli.mjs"
+  },
+  "dependencies": {
+    "pptxdiff": "file:../../..",
+    "playwright-core": "^1.48.0"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sugatoray/pptxdiff.git",
+    "directory": "src/packages/pptxdiff-cli"
+  },
+  "homepage": "https://github.com/sugatoray/pptxdiff#readme",
+  "keywords": [
+    "pptx",
+    "powerpoint",
+    "diff",
+    "cli",
+    "git-difftool"
+  ]
+}

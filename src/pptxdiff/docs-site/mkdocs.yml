@@ -111,6 +111,7 @@ nav:
       - UI, Shortcuts & Themes: features/ui-shortcuts.md
       - Self-Tests: features/self-tests.md
   - CLI Reference: cli.md
+  - Headless CLI & Web API: headless-cli-api.md
   - VS Code Extension: vscode-extension.md
   - Architecture: architecture.md
   - Limitations: limitations.md

@@ -24,6 +24,15 @@ summary, that one is the record of *why*.
 
 No changes yet.
 
+## 2026-07-31 — New "Headless CLI & Web API" page for `pptxdiff-cli`/`@pptxdiff/server`
+
+### Added
+
+- New page `headless-cli-api.md`, added to the nav right after "CLI Reference" — documents the new `pptxdiff-cli` and `@pptxdiff/server` packages (Phase 1: `diff`/`checksum` only), their current not-yet-published status, install-from-source instructions, and the no-server-auth-yet security caveat.
+- New `documentation-coverage.md` registry entries: `headless-cli-api` (feature, marked `partial` — the feature itself is only partially built) and `headless-cli-api-limitations` (limitation, `complete` — a real row added to `limitations.md`).
+
+See `docs/.scrolls/DOCS.md` §14 for the full reasoning.
+
 ## 2026-07-30 — Content corrections for `pptxdiff::v0.5.0` security hardening
 
 ### Fixed
