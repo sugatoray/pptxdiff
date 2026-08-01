@@ -249,3 +249,14 @@ When picking up a new ticket: update this file's status, and add a short note to
 
 ## New tickets opened this session
 1. **P2 — Drift-check or shared module for `bin/cli.js` / `pptxdiff-vscode/extension.js`'s duplicated static-server code.** No automated check keeps the two in sync; see WISDOM.md's new trap and GAP_ANALYSIS.md's new "Security hardening" section.
+
+## Done this session (screenshot export: zip + self-contained HTML viewer)
+- [x] **P2 — "Screenshots → ZIP" export.** Captures the All-pairs tab collapsed, All-pairs expanded, and every aligned slide pair's single-view comparison (full page, diffs included) as SVG, bundled into a downloadable `pptxdiff-screenshots.zip` via the already-vendored JSZip. No new dependency.
+- [x] **P2 — "Screenshots → HTML viewer" export.** Same captures, bundled into one self-contained `pptxdiff-screenshots.html` with a left-nav tab per screenshot (inline vanilla-JS tab switcher).
+- [x] Real technical discovery mid-session: the obvious PNG-rasterization step (SVG-`foreignObject` → `<canvas>` → `toDataURL()`) is unconditionally blocked by a Chromium canvas-taint restriction, confirmed via an isolated repro rather than assumed. Pivoted to shipping SVG directly rather than vendoring `html2canvas` — see WISDOM.md's new trap and GAP_CONTEXT.md's new "Why screenshot exports ship SVG, not PNG" entry.
+- [x] New shared pure helpers (`pairLabelFor`, `buildCollapsedMap`, `sanitizeFilename`) refactored into existing code (`buildReportRows`, `toggleAllPairsCollapsed`) instead of duplicated, each with new self-tests (103 total, up from 100/89 depending which prior session's count).
+- [x] Verified end-to-end with Playwright against the real CLI (not just self-tests): both exports download correctly, the zip's `.svg` files each open rendering the correct captured view, and the HTML viewer's tabs correctly switch between all 8 screenshots for the sample deck.
+
+## New tickets opened this session
+2. **P4 — Screenshot captures are `.svg`, not `.png`.** Would need vendoring `html2canvas` (or an equivalent) to produce real raster bytes, given the canvas-taint wall — not attempted without an explicit ask; see GAP_ANALYSIS.md.
+3. **P4 — Custom `@font-face` text (Spectral headings) may not carry its font into captured screenshots** — the foreignObject sandbox preserves inline `style` but not a separate `@font-face` declaration. Would need inlining the font as a data URI into the captured SVG's own `<style>`; not attempted.

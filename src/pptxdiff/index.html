@@ -47,7 +47,7 @@
 <meta name="omelette-owns-print" content="1">
 </helmet>
 
-<div class="sd-scroll" style="min-height:100vh;background:{{ theme.bg }};color:{{ theme.text }};font-family:-apple-system,'Helvetica Neue',Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;padding:32px 28px 80px;transition:background .15s,color .15s">
+<div id="sd-app-root" class="sd-scroll" style="min-height:100vh;background:{{ theme.bg }};color:{{ theme.text }};font-family:-apple-system,'Helvetica Neue',Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;padding:32px 28px 80px;transition:background .15s,color .15s">
   <div style="max-width:1180px;margin:0 auto;position:relative">
 
     <button onClick="{{ toggleLiteMode }}" role="switch" aria-checked="{{ liteAriaChecked }}" title="{{ liteToggleTitle }}" class="no-print" style="position:absolute;top:14px;right:16px;z-index:5;display:flex;align-items:center;gap:9px;font:inherit;background:{{ theme.card }};border:1px solid {{ theme.border }};border-radius:999px;padding:6px 8px 6px 14px;box-shadow:0 8px 24px -8px rgba(31,30,27,.25);cursor:pointer">
@@ -138,6 +138,14 @@
             <button onClick="{{ exportSlackMessage }}" style="font:inherit;font-size:13px;text-align:left;background:none;border:none;padding:8px 10px;border-radius:6px;cursor:pointer;color:{{ theme.text }}">Copy Slack message</button>
             <button onClick="{{ exportEmailSummary }}" style="font:inherit;font-size:13px;text-align:left;background:none;border:none;padding:8px 10px;border-radius:6px;cursor:pointer;color:{{ theme.text }}">Email summary</button>
             <button onClick="{{ exportShareLink }}" style="font:inherit;font-size:13px;text-align:left;background:none;border:none;padding:8px 10px;border-radius:6px;cursor:pointer;color:{{ theme.text }}">Copy shareable link</button>
+            <div style="height:1px;background:{{ theme.border }};margin:4px 2px"></div>
+            <details>
+              <summary style="list-style:none;font:inherit;font-size:13px;text-align:left;padding:8px 10px;border-radius:6px;cursor:pointer;color:{{ theme.text }}">Diff Screenshots ▾</summary>
+              <div style="display:flex;flex-direction:column;gap:2px;padding:2px 0 2px 14px">
+                <button onClick="{{ exportScreenshotsZip }}" disabled="{{ screenshotsBusy }}" style="font:inherit;font-size:13px;text-align:left;background:none;border:none;padding:8px 10px;border-radius:6px;cursor:{{ screenshotsBusyCursor }};color:{{ theme.text }};opacity:{{ screenshotsBusyOpacity }}">{{ screenshotsZipLabel }}</button>
+                <button onClick="{{ exportScreenshotsHtml }}" disabled="{{ screenshotsBusy }}" style="font:inherit;font-size:13px;text-align:left;background:none;border:none;padding:8px 10px;border-radius:6px;cursor:{{ screenshotsBusyCursor }};color:{{ theme.text }};opacity:{{ screenshotsBusyOpacity }}">{{ screenshotsHtmlLabel }}</button>
+              </div>
+            </details>
           </div>
         </details>
       </div>
@@ -907,7 +915,8 @@ class Component extends DCLogic {
       selectedDiffs: {}, selectedComments: {}, selectedHistory: {},
       pendingConfirm: null,
       clearDecisionsScope: 'all', clearDecisionsReviewerHandle: '', clearDecisionsRangeFrom: 1, clearDecisionsRangeTo: 1,
-      crossDupThreshold: 0.92, crossDupForceLarge: false, ignoredCrossDupKeys: {}, mergeDuplicateSlides: false
+      crossDupThreshold: 0.92, crossDupForceLarge: false, ignoredCrossDupKeys: {}, mergeDuplicateSlides: false,
+      screenshotsBusy: false
     };
     this.batchBuffers = [];
     // Non-state runtime handles
@@ -1576,6 +1585,18 @@ class Component extends DCLogic {
     const staleRefs = this.checkStaleMethodRefs();
     assert('renderVals() output has no stale this.xxx() references to renamed/removed methods', staleRefs.length === 0, staleRefs.join(', '));
 
+    // RED/GREEN regression guard for the opposite failure mode from the one above: a menu item's
+    // BINDING silently missing from renderVals() entirely (button present in the template but its
+    // {{ handler }}/{{ label }} hole resolves to undefined, or the whole binding line was deleted)
+    // rather than pointing at a renamed/removed method. Covers the Export -> Diff Screenshots
+    // submenu items specifically since they're the newest, least-exercised-by-habit entries in
+    // that menu.
+    const rv = this.renderVals();
+    assert('renderVals() wires exportScreenshotsZip to a real function', typeof rv.exportScreenshotsZip === 'function');
+    assert('renderVals() wires exportScreenshotsHtml to a real function', typeof rv.exportScreenshotsHtml === 'function');
+    assert('renderVals() gives Diff Screenshots -> ZIP a non-empty label', typeof rv.screenshotsZipLabel === 'string' && rv.screenshotsZipLabel.length > 0);
+    assert('renderVals() gives Diff Screenshots -> HTML viewer a non-empty label', typeof rv.screenshotsHtmlLabel === 'string' && rv.screenshotsHtmlLabel.length > 0);
+
     // RED/GREEN regression guard for a second bug class found in the same audit: a method
     // defined but never actually invoked from anywhere (e.g. componentDidMount silently dropped
     // its call to restorePersisted() during an earlier refactor, so saved reviewer state/decisions
@@ -1900,6 +1921,27 @@ class Component extends DCLogic {
     this.confirmPendingYes();
     assert('confirmPendingYes wipes every decision after confirmation (scope=all)', Object.keys(this.state.decisions).length === 0 && this.state.pendingConfirm === null);
     this.setState({ decisions: savedDecisions2, pendingConfirm: null, clearDecisionsScope: 'all' });
+
+    // RED/GREEN for the screenshot-export pure helpers (the impure DOM-capture/zip/download shell
+    // around them — captureElementSvg/captureAllScreenshots/exportScreenshotsZip/
+    // exportScreenshotsHtml — isn't safe to invoke from a self-test since it mutates real view
+    // state and triggers a real file download).
+    assert('sanitizeFilename lowercases and hyphenates', this.sanitizeFilename('Slide 2 → 3 (Added)') === 'slide-2-3-added');
+    assert('sanitizeFilename trims leading/trailing hyphens', this.sanitizeFilename('  --Hello--  ') === 'hello');
+    assert('sanitizeFilename falls back to "untitled" for empty input', this.sanitizeFilename('') === 'untitled' && this.sanitizeFilename(null) === 'untitled');
+    assert('pairLabelFor: matched pair', this.pairLabelFor({ aIdx: 0, bIdx: 2 }) === 'Slide 1 → 3');
+    assert('pairLabelFor: removed-only pair', this.pairLabelFor({ aIdx: 1, bIdx: null }) === 'Slide 2 (removed in After)');
+    assert('pairLabelFor: added-only pair', this.pairLabelFor({ aIdx: null, bIdx: 1 }) === 'Slide 2 (added in After)');
+    const ssAlignment = [{ aIdx: 0, bIdx: 0 }, { aIdx: 1, bIdx: null }, { aIdx: null, bIdx: 1 }];
+    const collapsedTrue = this.buildCollapsedMap(ssAlignment, true);
+    assert('buildCollapsedMap sets every pairKey to the given value', collapsedTrue['a0:b0'] === true && collapsedTrue['a1:bx'] === true && collapsedTrue['ax:b1'] === true);
+    const collapsedFalse = this.buildCollapsedMap(ssAlignment, false);
+    assert('buildCollapsedMap(false) flips every pairKey back', Object.values(collapsedFalse).every(v => v === false));
+    const shotsFixture = [{ name: '00-all-pairs-collapsed.svg', svg: '<svg data-marker="AAA"></svg>' }, { name: '02-pair-slide-1-2.svg', svg: '<svg data-marker="BBB"></svg>' }];
+    const shotsHtml = this.buildScreenshotsHtmlDoc(shotsFixture);
+    assert('buildScreenshotsHtmlDoc embeds every screenshot\'s SVG inline', shotsHtml.includes('data-marker="AAA"') && shotsHtml.includes('data-marker="BBB"'));
+    assert('buildScreenshotsHtmlDoc renders one nav tab per screenshot', (shotsHtml.match(/class="sd-shot-tab/g) || []).length === shotsFixture.length);
+    assert('buildScreenshotsHtmlDoc wires up the tab-switching script', shotsHtml.includes('function sdShowShot'));
 
     return tests;
   }
@@ -2377,6 +2419,172 @@ class Component extends DCLogic {
     setTimeout(() => URL.revokeObjectURL(url), 4000);
   }
   csvEscape(v) { const s = String(v == null ? '' : v); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+
+  /* ---------- screenshot export (zip / embedded HTML) ----------
+     No new vendored dependency (no html2canvas): this app's own authoring constraint that
+     EVERY style is an inline `style="..."` attribute (see WISDOM.md's Constraints) makes a
+     hand-rolled SVG-<foreignObject> capture of the live DOM reliable here in a way it usually
+     isn't for a CSS-classes/stylesheet-driven app — there's no external stylesheet/CSS-variable
+     resolution for foreignObject to get wrong.
+     The captured artifact is the SVG itself, NOT a rasterized PNG. Tried the obvious next step
+     (draw the foreignObject SVG onto a <canvas>, then canvas.toDataURL() for real PNG bytes) and
+     hit a hard, unconditional browser wall: Chromium (confirmed empirically, including with a
+     zero-image/zero-canvas/plain-text SVG) marks ANY canvas "tainted" the instant an SVG
+     containing <foreignObject> is drawn onto it via drawImage(), and a tainted canvas throws
+     SecurityError on toDataURL()/toBlob() no matter how clean/local its actual content is — see
+     WISDOM.md for the isolated repro. There is no workaround for this within the foreignObject
+     technique (it's exactly why html2canvas exists — it re-implements rendering with plain
+     canvas 2D drawing primitives instead of ever routing through an SVG image). Shipping the
+     SVG file directly sidesteps the wall entirely: a real browser (or most image viewers) opens
+     an .svg file and renders the foreignObject content correctly — the restriction is ONLY on
+     reading pixel bytes back out via canvas, not on displaying the SVG itself (verified: opening
+     the exact same markup as a real document renders it correctly). The one known gap: custom
+     @font-face text (this app's Spectral headings) isn't guaranteed to carry its font into the
+     foreignObject sandbox — plain inline `style` colors/layout/images/canvases all do. */
+  sleep(ms) { return new Promise(resolve => setTimeout(resolve, ms)); }
+  setStateAsync(patch) { return new Promise(resolve => this.setState(patch, resolve)); }
+  /* Double rAF: the first fires before the browser's next paint, the second after — waiting for
+     both ensures the DOM mutations from the just-applied setState have actually been laid out,
+     not just committed to the React tree. Still followed by a short sleep() by the caller since
+     pptx-renderer's own thumbnail rendering into <canvas> happens asynchronously AFTER
+     renderThumbnailToContainer() returns (see maybeRenderKey above) — there's no promise it
+     exposes to await instead. */
+  nextFrame() { return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))); }
+  sanitizeFilename(s) {
+    return String(s || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'untitled';
+  }
+  /* Captures one DOM element (including its full scroll height, not just the visible viewport)
+     as a self-contained SVG string — see the section comment above for why SVG, not PNG. */
+  captureElementSvg(el) {
+    const width = Math.max(1, el.scrollWidth), height = Math.max(1, el.scrollHeight);
+    const clone = el.cloneNode(true);
+    // cloneNode() copies canvas ELEMENTS but never their drawn pixels — burn each live canvas's
+    // current bitmap into an <img> at the same slot in the clone before serializing. (Reading a
+    // canvas's OWN pixels via toDataURL() is unaffected by the foreignObject-taint rule above —
+    // that rule only taints a canvas something is drawn ONTO, not a canvas being read directly.)
+    const liveCanvases = el.querySelectorAll('canvas');
+    const cloneCanvases = clone.querySelectorAll('canvas');
+    liveCanvases.forEach((c, i) => {
+      const target = cloneCanvases[i];
+      if (!target) return;
+      let dataUrl = '';
+      try { dataUrl = c.toDataURL('image/png'); } catch (e) { dataUrl = ''; }
+      const img = document.createElement('img');
+      img.setAttribute('width', String(c.width));
+      img.setAttribute('height', String(c.height));
+      if (dataUrl) img.setAttribute('src', dataUrl);
+      target.replaceWith(img);
+    });
+    // cloneNode() also doesn't reflect a live input's current .value/.checked/.selected (only the
+    // original HTML attribute) — copy the live values across so typed reviewer text etc. shows up.
+    const liveFields = el.querySelectorAll('input, textarea, select');
+    const cloneFields = clone.querySelectorAll('input, textarea, select');
+    liveFields.forEach((f, i) => {
+      const target = cloneFields[i];
+      if (!target) return;
+      if (f.tagName === 'SELECT') { Array.from(f.options).forEach((o, oi) => { if (target.options[oi]) target.options[oi].selected = o.selected; }); }
+      else if (f.type === 'checkbox' || f.type === 'radio') { target.toggleAttribute('checked', f.checked); }
+      else { target.setAttribute('value', f.value); }
+    });
+    const xml = new XMLSerializer().serializeToString(clone);
+    const bg = getComputedStyle(el).backgroundColor;
+    const fill = bg && bg !== 'rgba(0, 0, 0, 0)' ? bg : '#ffffff';
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="' + width + '" height="' + height + '" viewBox="0 0 ' + width + ' ' + height + '">'
+      + '<rect width="100%" height="100%" fill="' + fill + '"/>'
+      + '<foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml">' + xml + '</div></foreignObject></svg>';
+  }
+  /* Impure orchestrator shared by exportScreenshotsZip()/exportScreenshotsHtml(): drives the app
+     through All-pairs-collapsed, All-pairs-expanded, then every aligned pair's single view,
+     capturing a full-page screenshot at each step, then restores whatever view the user was
+     actually on before this ran. Returns [] (and toasts) if there's nothing loaded to shoot. */
+  async captureAllScreenshots() {
+    const st0 = this.state;
+    if (st0.screenshotsBusy) return [];
+    if (!st0.slidesA.length && !st0.slidesB.length) { this.showToast('Load two decks first'); return []; }
+    const root = document.getElementById('sd-app-root');
+    if (!root) return [];
+    const saved = { viewMode: st0.viewMode, idxA: st0.idxA, idxB: st0.idxB, collapsedPairs: st0.collapsedPairs, allPairsCollapsed: st0.allPairsCollapsed };
+    // Any open <details> (e.g. the Export ▾ menu the user just clicked inside) would otherwise
+    // show up as a floating panel in every single captured screenshot.
+    document.querySelectorAll('details[open]').forEach(d => { d.open = false; });
+    await this.setStateAsync({ screenshotsBusy: true });
+    const shots = [];
+    const settle = async () => { await this.nextFrame(); await this.sleep(350); };
+    try {
+      const alignment = this.computeAlignment();
+      await this.setStateAsync({ viewMode: 'all', allPairsCollapsed: true, collapsedPairs: this.buildCollapsedMap(alignment, true) });
+      await settle();
+      shots.push({ name: '00-all-pairs-collapsed.svg', svg: this.captureElementSvg(root) });
+
+      await this.setStateAsync({ allPairsCollapsed: false, collapsedPairs: this.buildCollapsedMap(alignment, false) });
+      await settle();
+      shots.push({ name: '01-all-pairs-expanded.svg', svg: this.captureElementSvg(root) });
+
+      for (let i = 0; i < alignment.length; i++) {
+        const al = alignment[i];
+        await this.setStateAsync({ viewMode: 'single', idxA: al.aIdx != null ? al.aIdx : saved.idxA, idxB: al.bIdx != null ? al.bIdx : saved.idxB, selectedKey: null });
+        await settle();
+        const n = String(i + 2).padStart(2, '0');
+        shots.push({ name: n + '-pair-' + this.sanitizeFilename(this.pairLabelFor(al)) + '.svg', svg: this.captureElementSvg(root) });
+      }
+    } finally {
+      await this.setStateAsync(saved);
+      this.setState({ screenshotsBusy: false });
+    }
+    return shots;
+  }
+  async exportScreenshotsZip() {
+    const shots = await this.captureAllScreenshots();
+    if (!shots.length) return;
+    if (typeof JSZip === 'undefined') { this.showToast('JSZip still loading — try again in a moment'); return; }
+    const zip = new JSZip();
+    const folder = zip.folder('pptxdiff-screenshots');
+    shots.forEach(s => folder.file(s.name, s.svg));
+    const blob = await zip.generateAsync({ type: 'blob' });
+    this.downloadBlob('pptxdiff-screenshots.zip', blob, 'application/zip');
+    this.showToast('Downloaded ' + shots.length + ' screenshots (.svg) as pptxdiff-screenshots.zip');
+  }
+  /* Pure: builds the self-contained viewer HTML string from a shots array (same shape
+     captureAllScreenshots() returns) — kept separate from exportScreenshotsHtml() so it's
+     directly unit-testable without a real DOM capture. Each screenshot's SVG is embedded
+     INLINE (a plain <div> wrapper, not an <img src="data:...">) — simpler, no base64 bloat, and
+     an inline <svg> renders identically to opening the .svg file directly. */
+  buildScreenshotsHtmlDoc(shots) {
+    const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const prettyName = (name) => name.replace(/\.svg$/, '').replace(/^\d+-/, '').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    const navItems = shots.map((s, i) => '<button class="sd-shot-tab' + (i === 0 ? ' active' : '') + '" data-idx="' + i + '" onclick="sdShowShot(' + i + ')">' + esc(prettyName(s.name)) + '</button>').join('\n');
+    const panels = shots.map((s, i) => '<div class="sd-shot-wrap" data-idx="' + i + '" style="display:' + (i === 0 ? 'block' : 'none') + '">' + s.svg + '</div>').join('\n');
+    return '<!DOCTYPE html>\n<html><head><meta charset="utf-8"><title>PptxDiff Screenshots</title>\n<style>\n'
+      + '  *{box-sizing:border-box}\n'
+      + '  body{margin:0;font-family:-apple-system,\'Helvetica Neue\',Helvetica,Arial,sans-serif;display:flex;height:100vh;background:#F7F4EC;color:#1F1E1B}\n'
+      + '  nav{width:260px;flex:none;overflow:auto;border-right:1px solid #E4DFD1;padding:14px;box-sizing:border-box;background:#FBF9F3}\n'
+      + '  nav h1{font-size:14px;margin:0 0 12px;padding:0 6px}\n'
+      + '  nav button{display:block;width:100%;text-align:left;font:inherit;font-size:13px;padding:8px 10px;margin-bottom:4px;border:1px solid transparent;border-radius:6px;background:none;cursor:pointer;color:#1F1E1B}\n'
+      + '  nav button:hover{background:#EFE9D9}\n'
+      + '  nav button.active{background:#C9684A;color:#fff;border-color:#C9684A}\n'
+      + '  main{flex:1;overflow:auto;padding:20px;text-align:center}\n'
+      + '  .sd-shot-wrap{display:inline-block;max-width:100%;border:1px solid #ddd;border-radius:8px;background:#fff;overflow:hidden}\n'
+      + '  .sd-shot-wrap svg{display:block;max-width:100%;height:auto}\n'
+      + '</style></head>\n<body>\n<nav><h1>PptxDiff Screenshots (' + shots.length + ')</h1>\n' + navItems + '</nav>\n<main>\n' + panels + '\n</main>\n'
+      + '<script>\nfunction sdShowShot(i){\n'
+      + '  document.querySelectorAll(".sd-shot-wrap").forEach(function(w){ w.style.display = (+w.dataset.idx===i) ? "block" : "none"; });\n'
+      + '  document.querySelectorAll(".sd-shot-tab").forEach(function(b){ b.classList.toggle("active", +b.dataset.idx===i); });\n'
+      + '}\n<\/script>\n</body></html>';
+  }
+  async exportScreenshotsHtml() {
+    const shots = await this.captureAllScreenshots();
+    if (!shots.length) return;
+    this.downloadBlob('pptxdiff-screenshots.html', this.buildScreenshotsHtmlDoc(shots), 'text/html');
+    this.showToast('Downloaded ' + shots.length + ' screenshots as a self-contained HTML file');
+  }
+
+  /* Pure: the one canonical "Slide N -> M" / "(removed/added in After)" label for an alignment
+     entry, shared by buildReportRows() and the screenshot-export filenames below so the two
+     never drift into two different label formats for the same pair. */
+  pairLabelFor(al) {
+    const pa = al.aIdx != null, pb = al.bIdx != null;
+    return pa && pb ? ('Slide ' + (al.aIdx + 1) + ' → ' + (al.bIdx + 1)) : pa ? ('Slide ' + (al.aIdx + 1) + ' (removed in After)') : ('Slide ' + (al.bIdx + 1) + ' (added in After)');
+  }
   buildReportRows() {
     const st = this.state;
     const alignment = this.refineMoves(this.alignSlides(st.slidesA, st.slidesB), st.slidesA, st.slidesB);
@@ -2384,7 +2592,7 @@ class Component extends DCLogic {
       const pa = al.aIdx != null ? st.slidesA[al.aIdx] : null, pb = al.bIdx != null ? st.slidesB[al.bIdx] : null;
       const c = this.compareSlidePair(pa, pb);
       const key = this.pairKey(al.aIdx, al.bIdx);
-      const label = pa && pb ? ('Slide ' + (al.aIdx + 1) + ' → ' + (al.bIdx + 1)) : pa ? ('Slide ' + (al.aIdx + 1) + ' (removed in After)') : ('Slide ' + (al.bIdx + 1) + ' (added in After)');
+      const label = this.pairLabelFor(al);
       return { key, label, diffs: c.diffs, decision: this.slideStatus(st.decisions[key]), reviewerVotes: st.decisions[key] || {}, comments: st.comments[key] || [] };
     });
   }
@@ -3493,12 +3701,17 @@ class Component extends DCLogic {
     }
     this.showToast('No more changed slides after this one');
   }
+  /* Pure: pairKey -> val for every alignment entry, shared by toggleAllPairsCollapsed and the
+     screenshot-export orchestrator below (both need to force every pair collapsed/expanded). */
+  buildCollapsedMap(alignment, val) {
+    const map = {};
+    alignment.forEach(al => { map[this.pairKey(al.aIdx, al.bIdx)] = val; });
+    return map;
+  }
   toggleAllPairsCollapsed() {
     this.setState(s => {
       const next = !s.allPairsCollapsed;
-      const alignment = this.computeAlignment();
-      const collapsedPairs = {};
-      alignment.forEach(al => { collapsedPairs[this.pairKey(al.aIdx, al.bIdx)] = next; });
+      const collapsedPairs = this.buildCollapsedMap(this.computeAlignment(), next);
       return { allPairsCollapsed: next, collapsedPairs };
     });
     setTimeout(() => this.persistState(), 0);
@@ -3848,6 +4061,10 @@ class Component extends DCLogic {
       credRememberConfluencePageId: !!st.persistedCredFields.confluencePageId, onRememberConfluencePageId: (e) => this.toggleFieldPersistence('confluencePageId', e),
       selectAllCredFields: () => this.selectAllCredFields(), selectNoneCredFields: () => this.selectNoneCredFields(),
       exportPdf: () => window.print(),
+      exportScreenshotsZip: () => this.exportScreenshotsZip(), exportScreenshotsHtml: () => this.exportScreenshotsHtml(),
+      screenshotsBusy: st.screenshotsBusy, screenshotsBusyCursor: st.screenshotsBusy ? 'wait' : 'pointer', screenshotsBusyOpacity: st.screenshotsBusy ? .5 : 1,
+      screenshotsZipLabel: st.screenshotsBusy ? 'Capturing screenshots…' : 'Download as ZIP',
+      screenshotsHtmlLabel: st.screenshotsBusy ? 'Capturing screenshots…' : 'Download as HTML viewer',
       hasDeckDiffs: deckDiffs.length > 0,
       deckDiffs: deckDiffs.map(d => ({ type: d.type, label: d.label, oldText: d.oldText, newText: d.newText })),
       duplicateNotes: duplicateNotes.concat(sectionMoveNotes), hasDuplicates: duplicateNotes.length > 0 || sectionMoveNotes.length > 0,
