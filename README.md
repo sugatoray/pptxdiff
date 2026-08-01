@@ -81,7 +81,7 @@ Note: the app is fully offline-capable — React, ReactDOM, Babel, JSZip, `@aide
 
 ## Documentation
 
-Project documentation is maintained at: [`pptxdiff` Docs](https://sugatoray.github.io/pptxdiff/).
+Project documentation is maintained at: [`pptxdiff`]
 
 ## Development
 
