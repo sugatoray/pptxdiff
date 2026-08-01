@@ -2,6 +2,30 @@
 
 **Read `.scrolls/SPEC.md` first for the full feature list.** This file is the "what's the state of things right now" note — update it at the end of every session, keep it short and current (prune stale entries).
 
+## Update (2026-08-01 — rebased `expt/add-pptxdiff-cli-and-api` onto `master`, no code changes)
+- Housekeeping/integration session, not feature work: `git rebase --onto master 6866250 expt/add-pptxdiff-cli-and-api`.
+  `6866250` was the last commit the two histories shared before `master`'s PR #42 squash-merged the same
+  parser-independent-checksum work that the `expt/` branch also carried unsquashed — rebasing dropped that
+  now-duplicated prefix and replayed just the 14 CLI/API/git-integration commits (the entire Phase 1 headless
+  CLI + Web API + git-textconv/difftool/install-git-integration effort documented in the two entries below)
+  on top of `master`'s current tip (`aa54356`, v0.6.0).
+- **Zero merge conflicts** — all 14 commits applied cleanly.
+- **Full regression pass after rebase, all green, nothing broken**: `pptxdiff-cli` 200/200 assertions
+  (`npm test`, `PPTXDIFF_CHROME_PATH=/opt/pw-browsers/chromium`) + 8/8 `npm run test:difftool` (needs
+  `xvfb-run -a` in this sandbox — no display otherwise, per that test file's own header comment);
+  `@pptxdiff/server` 39/39 (`npm test`); root `pptxdiff` package's 7 CLI/security self-test files (loopback
+  bind, path containment, security headers, lite mode, execFile browser-open, offline-capable, plus the
+  Phase-1-added `test_start_server_export_cli.mjs`) all green; `test_gen-sample-pptx.py` (uv + python-pptx)
+  clean. This is the same "re-verify `bin/cli.js`'s hardening after touching it" precedent the CLI/API
+  sessions below already established — the rebase itself touches nothing, so this was confirmation, not new
+  discovery.
+- **One follow-up commit needed**: `src/packages/pptxdiff-cli/package-lock.json` still pinned the root
+  `pptxdiff` `file:../../..` dependency at the pre-rebase `0.5.0` — refreshed to `0.6.0` to match the
+  rebased root `package.json` (committed separately as `chore: refresh pptxdiff-cli lockfile pin...`).
+- Pushed to `claude/rebase-pptxdiff-onto-master-bbpzi2`. No PR opened (not asked for). Next session picking
+  up CLI/API work should treat this branch's tip as the new starting point — it now has master's latest
+  release plus the full CLI/API/git-integration surface in one line of history.
+
 ## Update (2026-07-31 — headless CLI git integration: `textconv`/`difftool`/`install-git-integration`)
 - Direct follow-up ask: "continue with git integration next" (PLAN.md ticket 4, the headline
   motivating use case for this whole headless-CLI/API effort). Shipped all three pieces designed in
