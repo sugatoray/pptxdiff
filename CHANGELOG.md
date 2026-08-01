@@ -64,6 +64,51 @@ This is Phase 1 of a larger design (`docs/.scrolls/CLI_API_DESIGN.md`) —
   - Every response now sets `X-Content-Type-Options: nosniff` and
     `Cache-Control: no-store`.
 
+## [0.6.0] - 2026-07-31
+
+### Added
+
+- Diff screenshot exports under `Export` -> `Diff Screenshots`, with downloadable SVG screenshots as a ZIP and a self-contained HTML viewer.
+- Shareable links now embed the same report JSON used by `Export` -> `Import report JSON...`, so review decisions, comments, history, and UI state can be restored on another machine.
+- Parser-independent SHA-256 content checksums for each deck, computed from raw `.pptx` zip parts while excluding save metadata (`docProps/core.xml`, `docProps/app.xml`) and derived thumbnails.
+- Content checksum display in the app and checksum output across PDF/print, HTML, JSON, Markdown, Notion, Confluence, Slack, Email, and shareable-link exports.
+
+### Changed
+
+- Extracted shared report-building helpers so JSON export and shareable-link export use one canonical report shape.
+- Reused shared slide-pair labeling and collapsed-pair helpers across report rows, all-pairs controls, and screenshot exports.
+- Updated npm package metadata and lockfile to version `0.6.0`.
+
+### Security
+
+- Escaped embedded report JSON in shareable-link HTML so comment text containing script-closing markup cannot break out of the JSON script tag.
+
+## [0.5.0] - 2026-07-30
+
+### Added
+
+- New repo-root `SECURITY.md`: local-first model, zero production
+  dependencies/no lifecycle scripts, the CLI hardening below, the DC
+  runtime's `new Function` scoping, `PPTXDIFF_LITE_MODE`'s CDN opt-in,
+  live-push credential caveats, and a vulnerability-reporting process.
+- Vendored-dependency provenance: `src/pptxdiff/vendor/manifest.json` +
+  `PROVENANCE.md` documenting each vendored file's upstream package,
+  version, source URL, hash, and license, plus `scripts/verify_vendor.mjs`
+  to re-derive and check those hashes.
+
+### Changed
+
+- Hardened the `pptxdiff` CLI (`bin/cli.js`):
+  - The static file server now binds explicitly to loopback (`127.0.0.1`)
+    instead of an unspecified host.
+  - The browser-launch step uses `execFile()` with an argv array instead of
+    a shell-interpolated `exec()` call.
+  - Static-file path containment now uses a `path.relative()`-based check
+    instead of a raw `startsWith()` prefix check, closing a sibling-directory
+    edge case.
+  - Every response now sets `X-Content-Type-Options: nosniff` and
+    `Cache-Control: no-store`.
+
 ## [0.4.2] - 2026-07-29
 
 ### Changed

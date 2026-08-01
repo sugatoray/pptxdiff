@@ -89,7 +89,7 @@ Not published to npm yet — install from a checkout (see each package's own REA
 
 ## Documentation
 
-Project documentation is maintained at: [`pptxdiff` Docs](https://sugatoray.github.io/pptxdiff/).
+Project documentation is maintained at: [`pptxdiff`]
 
 ## Development
 

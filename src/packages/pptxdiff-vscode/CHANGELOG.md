@@ -2,6 +2,19 @@
 
 All notable changes to the pptxdiff VS Code extension will be documented in this file.
 
+## [0.2.0] - 2026-07-31
+
+### Added
+
+- Bundled upstream `pptxdiff` app `0.6.0` into the extension package.
+- Added upstream Diff Screenshots exports (`Export` -> `Diff Screenshots`) for SVG ZIP downloads and a self-contained HTML screenshot viewer.
+- Added upstream parser-independent SHA-256 content checksums in the app and across report/share exports.
+- Added upstream shareable links with embedded report JSON, allowing decisions, comments, history, and UI state to be restored through the existing JSON import flow.
+
+### Security
+
+- Includes upstream hardening for embedded report JSON in shareable-link HTML, preventing script-closing text in comments from escaping the JSON payload.
+
 ## [0.1.9] - 2026-07-30
 
 ### Changed

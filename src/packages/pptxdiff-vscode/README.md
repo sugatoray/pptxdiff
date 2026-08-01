@@ -20,7 +20,9 @@
 
 ![banner](https://raw.githubusercontent.com/sugatoray/pptxdiff/HEAD/docs/assets/pptxdiff_banner.png)
 
-Opens the [pptxdiff](https://github.com/sugatoray/pptxdiff) PowerPoint diff tool in your browser.
+Opens the [pptxdiff](https://github.com/sugatoray/pptxdiff) PowerPoint diff tool in your browser, bundled locally for offline-first use.
+
+The bundled app includes review-state share links, parser-independent SHA-256 content checksums, and Diff Screenshots exports as ZIP or a self-contained HTML viewer.
 
 ## Usage
 
