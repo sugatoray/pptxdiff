@@ -163,6 +163,11 @@ incident response. Nothing here is urgent in the sense of an active vulnerabilit
    `vendor/react.production.min.js` on disk — caught by both the sha256-vs-manifest
    check AND the sha384-vs-support.js cross-check, restored (`git status` confirmed
    byte-identical to the tracked copy afterward), clean again. Clean run: 35/35.
+   **Follow-up (2026-08-01)**: a license audit (see `HANDOFF.md`) found that
+   `pptx-renderer.bundle.js` also compiles in `echarts`/`zrender`/`tslib`/an embedded
+   d3.js fragment, none of which had license files or manifest coverage. Added their
+   license text under `vendor/licenses/` and extended `verify_vendor.mjs` to assert
+   those files exist (35/35 → 40/40, still green). See `docs/.scrolls/LICENSE_REVIEW.md`.
 
 ## P2 — CI / static analysis
 

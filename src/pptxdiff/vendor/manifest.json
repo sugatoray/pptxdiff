@@ -40,7 +40,7 @@
       "package": "@aiden0z/pptx-renderer",
       "version": "1.1.0",
       "sourceUrl": "npm:@aiden0z/pptx-renderer@1.1.0 + npm:jszip@3.10.1, esbuild-bundled locally (not a single fetchable CDN URL — see docs/.scrolls/WISDOM.md \"vendoring CDN dependencies\" addendum for the exact rebuild recipe)",
-      "license": "MIT (src/pptxdiff/vendor/licenses/pptx-renderer.LICENSE)",
+      "license": "Apache-2.0 (src/pptxdiff/vendor/licenses/pptx-renderer.LICENSE); also bundles pptx-renderer's own runtime dependency echarts (Apache-2.0 + ASF NOTICE, licenses/echarts.LICENSE, licenses/echarts.NOTICE), echarts' own dependencies zrender (BSD-3-Clause, licenses/zrender.LICENSE) and tslib (0BSD-style, licenses/tslib.LICENSE), and a d3.js fragment embedded inside echarts (BSD-3-Clause, licenses/d3.LICENSE) — see docs/.scrolls/LICENSE_REVIEW.md for the full review",
       "sha256": "698fefd6522b721c30700964f7e5c453927c2a95afac4ffe0304226a5524dc64"
     },
     {

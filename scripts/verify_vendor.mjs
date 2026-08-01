@@ -95,6 +95,24 @@ if (reactDomSriMatch) {
   );
 }
 
+// pptx-renderer.bundle.js compiles in several dependencies beyond the
+// top-level @aiden0z/pptx-renderer package (echarts, zrender, tslib, an
+// embedded d3.js fragment) — see docs/.scrolls/LICENSE_REVIEW.md. None of
+// these get their own manifest.json hash entry (they're not separately
+// fetchable files), but their license text must still ship, so check for
+// its presence directly rather than relying only on manifest.json coverage.
+const bundledSubLicenses = [
+  "echarts.LICENSE",
+  "echarts.NOTICE",
+  "zrender.LICENSE",
+  "d3.LICENSE",
+  "tslib.LICENSE",
+];
+for (const name of bundledSubLicenses) {
+  const licensePath = path.join(PPTXDIFF_DIR, "vendor", "licenses", name);
+  assert(`vendor/licenses/${name}: exists (pptx-renderer.bundle.js sub-dependency license)`, existsSync(licensePath));
+}
+
 console.log(`vendor provenance check: ${checks - failures.length}/${checks} passed`);
 if (failures.length) {
   console.error("FAILED:");

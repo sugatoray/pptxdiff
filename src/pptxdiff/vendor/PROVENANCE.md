@@ -69,7 +69,7 @@ unaffected by anything in this file.
   jszip@3.10.1 esbuild@<version>` in a scratch dir, then
   `esbuild entry.mjs --bundle --format=esm --platform=browser
   --target=es2020`)
-- License: MIT (src/pptxdiff/vendor/licenses/pptx-renderer.LICENSE)
+- License: Apache-2.0 (src/pptxdiff/vendor/licenses/pptx-renderer.LICENSE)
 - sha256: `698fefd6522b721c30700964f7e5c453927c2a95afac4ffe0304226a5524dc64`
 - Note: the original `esm.sh` URL (`https://esm.sh/@aiden0z/pptx-renderer@1.1.0`,
   still used verbatim in lite mode — see `index.html`'s `LIB_URL`) transparently
@@ -77,6 +77,24 @@ unaffected by anything in this file.
   request time; a plain downloaded copy would still contain an unresolvable
   bare `import "jszip"`, which is why this file is a custom bundle rather than
   a straight fetch-and-save of one URL.
+- Note: this bundle also pulls in `@aiden0z/pptx-renderer`'s own runtime
+  dependency, `echarts` (`^6.0.0`, used for chart rendering), and echarts'
+  own dependencies `zrender` and `tslib`. `echarts` is an Apache Software
+  Foundation project distributed under Apache-2.0 with a mandatory `NOTICE`
+  file (ASF projects require reproducing NOTICE-file attribution text in any
+  redistribution per Apache-2.0 §4(d)); that text is preserved verbatim at
+  `src/pptxdiff/vendor/licenses/echarts.NOTICE`, and echarts' own LICENSE
+  (`licenses/echarts.LICENSE`) is included alongside it. `zrender` is
+  BSD-3-Clause (`licenses/zrender.LICENSE`, Copyright (c) 2017 Baidu Inc.).
+  `tslib` is Microsoft's permissive 0BSD-style license
+  (`licenses/tslib.LICENSE`). echarts' own LICENSE further discloses that a
+  handful of its source files (`treemapLayout.ts`, `layoutHelper.ts`,
+  `forceHelper.ts`, `number.ts`) embed BSD-3-Clause code from `d3.js`
+  (Copyright 2010-2016 Mike Bostock); that subcomponent license is preserved
+  at `licenses/d3.LICENSE`. None of this was previously documented here —
+  see `docs/.scrolls/LICENSE_REVIEW.md` for the full compliance review and
+  `docs/.scrolls/WISDOM.md`'s vendoring addendum for why this was missed the
+  first time and how to avoid repeating it on the next rebuild.
 
 ### vendor/fonts/spectral-400-normal.woff2
 - Package: Spectral (Google Fonts)
@@ -130,3 +148,15 @@ this file and `manifest.json` with the new version/source/hash — then run
 with the bytes on disk. `verify_vendor.mjs` treats a hash-string mismatch
 between this file and `manifest.json` as a failure, so an update to only one
 of the two will be caught.
+
+For any bundle produced by esbuild (or any other bundler) rather than a
+straight fetch-and-save of one upstream file — currently only
+`pptx-renderer.bundle.js` — also re-check the *runtime* dependencies of the
+bundled package itself, not just the package named in the rebuild recipe.
+`@aiden0z/pptx-renderer`'s own `package.json` lists `echarts` as a
+dependency, which pulled in `zrender`, `tslib`, and an embedded d3.js
+fragment — none of which were caught the first time this bundle was
+vendored, because the review only looked at the top-level package's own
+license. `npm view <package> dependencies` (recursively, for anything with
+its own further dependencies) is the fastest way to catch this before it
+ships undocumented again.
