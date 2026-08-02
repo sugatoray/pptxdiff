@@ -2,17 +2,17 @@
 title: Documentation Coverage
 render_macros: true
 coverage_summary:
-  generated_at: '2026-07-31T21:33:42Z'
+  generated_at: '2026-08-02T22:11:11Z'
   totals:
     overall:
-      items: 35
-      complete: 34
-      partial: 1
+      items: 38
+      complete: 35
+      partial: 3
       missing: 0
     feature:
-      items: 22
-      complete: 21
-      partial: 1
+      items: 25
+      complete: 22
+      partial: 3
       missing: 0
     limitation:
       items: 13
@@ -73,13 +73,20 @@ coverage_summary:
     locations:
     - page: features/exports.md
       anchor: null
-  - id: headless-cli-api
+  - id: git-integration
     kind: feature
-    title: Headless CLI (pptxdiff-cli) & Web API (@pptxdiff/server)
+    title: Git integration for .pptx files (textconv/difftool)
     quality: partial
     locations:
     - page: headless-cli-api.md
-      anchor: status
+      anchor: git-integration
+  - id: headless-cli
+    kind: feature
+    title: Headless CLI (@pptxdiff/cli)
+    quality: partial
+    locations:
+    - page: headless-cli-api.md
+      anchor: pptxdiffcli
   - id: keyboard-shortcuts
     kind: feature
     title: Keyboard shortcuts
@@ -136,6 +143,13 @@ coverage_summary:
       anchor: lite-mode-cdn-sourcing
     - page: features/ui-shortcuts.md
       anchor: offline-mode
+  - id: openapi-docs
+    kind: feature
+    title: OpenAPI docs endpoints (/openapi.json and /docs)
+    quality: complete
+    locations:
+    - page: headless-cli-api.md
+      anchor: api-discovery
   - id: rendering-fidelity
     kind: feature
     title: Rendering fidelity (Rendered vs. Schematic)
@@ -193,6 +207,13 @@ coverage_summary:
       anchor: packaging-layers
     - page: vscode-extension.md
       anchor: null
+  - id: web-api
+    kind: feature
+    title: Web API (@pptxdiff/server)
+    quality: partial
+    locations:
+    - page: headless-cli-api.md
+      anchor: pptxdiffserver
   - id: word-level-diff
     kind: feature
     title: Word-level (LCS) text diffing
@@ -231,7 +252,7 @@ coverage_summary:
       anchor: null
   - id: exports-limitations
     kind: limitation
-    title: 'Export limitations (shareable link is a data: URL, Notion/Confluence live
+    title: 'Export limitations (shareable link is data: URL, Notion/Confluence live
       push is CORS-limited)'
     quality: complete
     locations:
@@ -241,8 +262,7 @@ coverage_summary:
       anchor: null
   - id: headless-cli-api-limitations
     kind: limitation
-    title: 'Headless CLI/API: not published, Phase 1 only (diff/checksum), no server
-      auth'
+    title: 'Headless CLI/API: not published, Phase 1 only, no server auth'
     quality: complete
     locations:
     - page: limitations.md
@@ -264,7 +284,7 @@ coverage_summary:
       anchor: null
   - id: packaging-limitations
     kind: limitation
-    title: Packaging limitations (opens a browser tab, not a native window)
+    title: Packaging limitations (opens browser tab, not native window)
     quality: complete
     locations:
     - page: limitations.md
@@ -280,8 +300,7 @@ coverage_summary:
       anchor: null
   - id: reviewer-workflow-limitations
     kind: limitation
-    title: Reviewer workflow limitations (merge is planning-scope, review state is
-      local)
+    title: Reviewer workflow limitations (merge is planning-scope, review state local)
     quality: complete
     locations:
     - page: features/merge.md
@@ -299,7 +318,7 @@ coverage_summary:
       anchor: null
   - id: transitions-limitations
     kind: limitation
-    title: Transition preview is a simplified crossfade, not per-type accurate
+    title: Transition preview is simplified crossfade, not per-type accurate
     quality: complete
     locations:
     - page: features/rendering.md

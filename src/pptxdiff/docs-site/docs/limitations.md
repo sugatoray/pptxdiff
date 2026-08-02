@@ -53,6 +53,19 @@ These are documented, accepted trade-offs — not bugs waiting to be fixed. Each
 | **`textconv` only extracts shape/placeholder text and speaker notes** | Table cell text, chart data labels, and SmartArt text aren't included — narrower than the app's own GUI diff engine, which does cover those. A `git diff` on a `.pptx` won't show a change that's only inside a table cell or chart data point. |
 | **`install-git-integration` only writes a repo-local `.gitattributes`**, never a global one | `--global` sets the `git config` driver definition machine-wide, but the `*.pptx diff=pptxdiff` association itself still needs a per-repo `.gitattributes` (or manually configuring `core.attributesFile` yourself) — there's no fully zero-per-repo-setup mode yet. |
 
+## Headless CLI/API Notes
+
+`@pptxdiff/cli` and `@pptxdiff/server` are source-only packages today. CLI
+`diff`/`checksum`, Git integration (`textconv`/`difftool`/
+`install-git-integration`), Web API `diff`/`checksum`/`health`, and API
+discovery (`/openapi.json`/`/docs`) ship; `batch`, non-JSON `report` outputs,
+`merge`, non-loopback server authentication, and browser-free `@pptxdiff/core`
+engine extraction are still future work.
+
+`@pptxdiff/server` serves `/openapi.json` locally, but `/docs` loads Swagger UI
+assets from a CDN. The interactive docs page therefore needs network access
+unless those assets are vendored or replaced by a local renderer later.
+
 ## Not currently accepting contributions
 
 The project is not open to external contributions at this time. Bug reports and feature requests are still welcome via [GitHub issues](https://github.com/sugatoray/pptxdiff/issues).

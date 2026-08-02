@@ -1,121 +1,185 @@
 ---
 doc_coverage:
-  - id: headless-cli-api
+  - id: headless-cli
     quality: partial
-    anchor: status
+    anchor: pptxdiffcli
+  - id: git-integration
+    quality: partial
+    anchor: git-integration
+  - id: web-api
+    quality: partial
+    anchor: pptxdiffserver
+  - id: openapi-docs
+    quality: complete
+    anchor: api-discovery
 ---
 
 # Headless CLI & Web API
 
-`pptxdiff` (the [CLI reference](cli.md) covered elsewhere on this site) is a browser app you look
-at. Two additional, separate packages let you get a diff result as **data** instead — from a
-script, a CI job, a git hook, or an AI agent — without a human clicking through anything.
+The browser app remains the primary `pptxdiff` experience. The packages under
+`src/packages/` expose the same diff engine to scripts, CI jobs, Git drivers,
+and local automation.
+
+Both packages are Phase 1 wrappers around the existing browser app
+(`src/pptxdiff/index.html`) driven through Playwright. They upload the decks
+through the same file inputs, wait for the same diff engine, and read the same
+JSON report export the UI produces. That keeps CLI/API results aligned with what
+a human reviewer sees in the browser.
 
 ## Status
 
-**Not yet published to npm.** These packages live in this repository under `src/packages/` and are
-usable today from a source checkout, but you need to build/install them locally — see
-[Installing from source](#installing-from-source) below. `diff`, `checksum`, and git integration
-(`textconv`/`difftool`/`install-git-integration`) are implemented; `batch`, `report`
-(HTML/PDF/CSV/etc.), `merge`, and an MCP server are designed but not built yet. Full design
-rationale lives in this repo's `docs/.scrolls/CLI_API_DESIGN.md` and `docs/.scrolls/CLI_and_API.md`.
+The packages are not published to npm yet. They are usable from a source checkout
+with local `file:` dependencies.
 
-Both packages are thin wrappers around the exact same browser app documented everywhere else on
-this site (`src/pptxdiff/index.html`), driven headlessly via [Playwright](https://playwright.dev/)
-— they upload files through the real file inputs, wait for the real diff engine, and click the
-real "Export → JSON report" button. This is deliberate: it means a diff result from the CLI or the
-API can never disagree with what you'd see clicking through the app yourself.
+Implemented now:
 
-## `pptxdiff-cli`
+- `@pptxdiff/cli`: `diff`, `checksum`, `textconv`, `difftool`, and
+  `install-git-integration`.
+- `@pptxdiff/server`: `GET /v1/health`, `POST /v1/diff`,
+  `POST /v1/checksum`, `GET /openapi.json`, and `GET /docs`.
 
-A headless CLI with `diff(1)`-style exit codes, so it can gate a script or CI step directly.
+Designed but not built yet:
+
+- `batch`
+- non-JSON `report` outputs such as HTML, PDF, CSV, Markdown, Notion, and
+  Confluence
+- `merge`
+- MCP server
+- browser-free `@pptxdiff/core` engine extraction
+
+The design rationale lives in `docs/.scrolls/CLI_API_DESIGN.md` and
+`docs/.scrolls/CLI_and_API.md`.
+
+## `@pptxdiff/cli`
+
+`@pptxdiff/cli` provides the `pptxdiff-cli` binary for headless deck comparison.
+The `diff` command follows `diff(1)`-style exit codes, so it can gate a script or
+CI step directly.
 
 ```bash
 pptxdiff-cli diff before.pptx after.pptx
-# exit 0 = no differences, 1 = differences found, 2 = a tool error (missing/unparseable file, no browser available)
+# exit 0 = no differences
+# exit 1 = differences found
+# exit 2 = tool error, such as missing file, unparseable file, or no browser
 
-pptxdiff-cli diff before.pptx after.pptx --json          # print the full JSON report instead of a summary
-pptxdiff-cli diff before.pptx after.pptx --out report.json  # write to a file instead of stdout
-pptxdiff-cli diff before.pptx after.pptx --quiet          # suppress stdout; only the exit code matters
+pptxdiff-cli diff before.pptx after.pptx --json
+pptxdiff-cli diff before.pptx after.pptx --out report.json
+pptxdiff-cli diff before.pptx after.pptx --quiet
 
-pptxdiff-cli checksum deck.pptx    # the deck's parser-independent SHA-256 content checksum, standalone
+pptxdiff-cli checksum deck.pptx
 ```
 
-The `--json` output is the same report shape the app's own "Export → JSON report" button produces —
-deck names, a parser-independent content checksum per side, presentation-level differences, and a
-per-slide-pair list of differences.
+`--json` emits the same report shape as the browser app's "Export -> JSON
+report" action: deck names, parser-independent checksums, presentation-level
+differences, and per-slide-pair differences.
 
-## Git integration
+## Git Integration
 
-Wires `*.pptx` into `git diff`/`git difftool`, instead of git's default "Binary files differ":
+`pptxdiff-cli` can wire `.pptx` files into Git so `git diff` and `git difftool`
+show useful PowerPoint-specific output instead of only "Binary files differ".
 
 ```bash
 cd your-repo
-pptxdiff-cli install-git-integration          # local to this repo (default)
-pptxdiff-cli install-git-integration --global  # ~/.gitconfig instead — affects every repo
+pptxdiff-cli install-git-integration
+pptxdiff-cli install-git-integration --global
 ```
 
-This appends `*.pptx diff=pptxdiff` to `.gitattributes` (idempotent — safe to run again) and points
-git at two more subcommands:
+The installer adds an idempotent `*.pptx diff=pptxdiff` entry to `.gitattributes`
+and configures Git to use these subcommands:
 
 ```bash
-pptxdiff-cli textconv deck.pptx     # one deck's plain text, for `git diff`/`git log -p` to line-diff
-pptxdiff-cli difftool before.pptx after.pptx  # opens a real, visible browser window with both
-                                               # loaded; blocks until you close it, for `git difftool`
+pptxdiff-cli textconv deck.pptx
+pptxdiff-cli difftool before.pptx after.pptx
 ```
 
-`textconv` covers shape/placeholder text and speaker notes (not table cells, chart data, or
-SmartArt text yet — see [Limitations](limitations.md)). `difftool` reuses the exact same upload/
-render path `diff` does, just in a visible window instead of headless.
+`textconv` extracts shape/placeholder text and speaker notes for line-oriented
+Git diffs. It does not extract table cell text, chart data labels, or SmartArt
+text yet; see [Limitations](limitations.md).
+
+`difftool` opens a visible browser window with both decks loaded through the real
+app path. It waits until the browser window closes, then returns control to Git.
 
 ## `@pptxdiff/server`
 
-A stateless HTTP API over the same engine — `POST /v1/diff`, `POST /v1/checksum`, `GET /v1/health`.
-File content travels as base64 inline in the JSON request body (not `multipart/form-data` yet):
+`@pptxdiff/server` provides the `pptxdiff-server` binary and a stateless HTTP API
+over the same engine. It binds to `127.0.0.1` on an OS-assigned free port by
+default.
 
 ```bash
-pptxdiff-server            # binds to 127.0.0.1 on an OS-assigned free port by default
+pptxdiff-server
 ```
+
+Endpoints:
+
+| Method | Path | Purpose |
+| --- | --- | --- |
+| `GET` | `/v1/health` | Health check with package version. |
+| `POST` | `/v1/diff` | Diff two base64-encoded `.pptx` files. |
+| `POST` | `/v1/checksum` | Compute a parser-independent SHA-256 deck checksum. |
+| `GET` | `/openapi.json` | Serve the OpenAPI 3.1 specification. |
+| `GET` | `/docs` | Serve browser API docs backed by `/openapi.json`. |
+
+File content is sent as base64 inline in JSON, not as `multipart/form-data` yet.
 
 ```bash
 curl -s -X POST http://127.0.0.1:PORT/v1/diff \
   -H 'content-type: application/json' \
-  -d "{\"before\":{\"content\":\"$(base64 -w0 before.pptx)\"},\"after\":{\"content\":\"$(base64 -w0 after.pptx)\"}}"
+  -d '{
+    "before": {"name": "before.pptx", "content": "BASE64_BEFORE"},
+    "after": {"name": "after.pptx", "content": "BASE64_AFTER"}
+  }'
 ```
 
-**No authentication yet.** The default loopback bind keeps it off your network by default, matching
-the same hardening the [`pptxdiff` CLI's server](cli.md#security-note) already has — but passing
-`--host` to bind elsewhere is currently an unguarded opt-in. Don't expose this server directly to
-an untrusted network; put it behind your own auth/reverse proxy if you need non-local access.
+No authentication is implemented yet. The default loopback bind keeps the server
+off the network by default, but `--host` is an explicit opt-in. Do not expose the
+server directly to an untrusted network; put it behind your own auth or reverse
+proxy if you need non-local access.
 
-## Installing from source
+## API Discovery
+
+The Web API exposes lightweight, FastAPI-style discovery endpoints:
+
+```text
+GET /openapi.json
+GET /docs
+```
+
+`/openapi.json` is generated locally by the server and works offline. `/docs`
+serves a small Swagger UI page that loads Swagger UI assets from a CDN, so the
+HTML page currently needs network access for the interactive UI to render. If
+offline API docs become important, the next step is to vendor those assets or
+replace the page with a tiny local renderer.
+
+## Installing From Source
 
 ```bash
 git clone https://github.com/sugatoray/pptxdiff.git
-cd pptxdiff/src/packages/pptxdiff-cli && npm install
-cd ../pptxdiff-server && npm install
+cd pptxdiff/src/packages/pptxdiff-cli
+npm install
+
+cd ../pptxdiff-server
+npm install
 ```
 
-Each package's dependency on its monorepo siblings (`pptxdiff`, `pptxdiff-cli`) is a local `file:`
-reference for now, not a published version — this is what "not yet published" means in practice.
-Run either binary straight from its `bin/` script:
+Run either binary directly from its package:
 
 ```bash
 node src/packages/pptxdiff-cli/bin/pptxdiff-cli.js diff before.pptx after.pptx
 node src/packages/pptxdiff-server/bin/pptxdiff-server.js
 ```
 
-Both need a real Chrome, Chromium, or Edge available — they'll find one automatically if it's
-already installed in a standard location, or you can point at one explicitly:
+Both packages need a real Chrome, Chromium, or Edge installation. They look in
+standard locations automatically, or you can point at a browser explicitly:
 
 ```bash
 PPTXDIFF_CHROME_PATH=/path/to/chrome pptxdiff-cli diff before.pptx after.pptx
 ```
 
-## Why this exists
+## Why This Exists
 
-Turning a diff result into structured, scriptable data is what makes pptxdiff usable as
-infrastructure rather than only a tool a human operates — as a git `difftool`/`textconv` driver for
-`*.pptx` files (above), or as something an AI agent can call directly to review a deck alongside a
-human reviewer. See [Limitations](limitations.md) for what's not built yet, and the
-[Changelog](changelog.md) for what's shipped so far.
+Structured CLI/API output makes `pptxdiff` useful as infrastructure: CI can gate
+deck changes, Git can diff `.pptx` files, and other tools or agents can request
+deck comparisons without shelling out to the browser UI manually.
+
+See [Limitations](limitations.md) for current gaps and [Changelog](changelog.md)
+for the shipped history.

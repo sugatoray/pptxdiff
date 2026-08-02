@@ -1,23 +1,9 @@
 # Documentation coverage registry — the canonical checklist of features and
-# limitations the docs site is expected to document.
+# limitations this docs site is expected to document.
 #
-# This is NOT a page under docs/ (it's not built by mkdocs) — it's the input
-# to sync_doc_coverage.py, which cross-references every id here against the
-# `doc_coverage:` front matter declared on real pages under docs/, and writes
-# the result into documentation-coverage.md.
-#
-# Curated from docs/.scrolls/SPEC.md (features) and docs/.scrolls/GAP_ANALYSIS.md
-# (limitations) in the repository — those are this project's own authoritative
-# spec/gap tracking, so this registry deliberately doesn't invent a parallel
-# taxonomy. `source` points back to where each item comes from, for anyone
-# reconciling drift between the two later.
-#
-# id: stable, lowercase-kebab-case, referenced by pages' doc_coverage: entries.
-# title: the human-readable label shown in the coverage table (owned here —
-#        pages reference items by id only, so there is exactly one place
-#        that spells out what each row is called).
-# kind: feature | limitation
-# source: pointer into docs/.scrolls/{SPEC,GAP_ANALYSIS}.md for traceability.
+# This is input to sync_doc_coverage.py, which cross-references every id here
+# against the `doc_coverage:` front matter declared on pages under docs/ and
+# writes the result into documentation-coverage.md.
 
 features:
   - id: rendering-fidelity
@@ -83,8 +69,17 @@ features:
   - id: vscode-extension
     title: VS Code extension
     source: SPEC.md (VS Code extension packaging)
-  - id: headless-cli-api
-    title: "Headless CLI (pptxdiff-cli) & Web API (@pptxdiff/server)"
+  - id: headless-cli
+    title: "Headless CLI (@pptxdiff/cli)"
+    source: SPEC.md §30
+  - id: git-integration
+    title: "Git integration for .pptx files (textconv/difftool)"
+    source: SPEC.md §30
+  - id: web-api
+    title: "Web API (@pptxdiff/server)"
+    source: SPEC.md §30
+  - id: openapi-docs
+    title: "OpenAPI docs endpoints (/openapi.json and /docs)"
     source: SPEC.md §30
 
 limitations:
@@ -98,16 +93,16 @@ limitations:
     title: Deck-level comparison limitations (fixed/untuned alignment thresholds)
     source: GAP_ANALYSIS.md "Deck-level comparison"
   - id: reviewer-workflow-limitations
-    title: Reviewer workflow limitations (merge is planning-scope, review state is local)
+    title: Reviewer workflow limitations (merge is planning-scope, review state local)
     source: GAP_ANALYSIS.md "Reviewer workflow"
   - id: batch-limitations
     title: Batch mode limitations (untuned filename-similarity threshold)
     source: GAP_ANALYSIS.md "Batch"
   - id: exports-limitations
-    title: "Export limitations (shareable link is a data: URL, Notion/Confluence live push is CORS-limited)"
+    title: "Export limitations (shareable link is data: URL, Notion/Confluence live push is CORS-limited)"
     source: GAP_ANALYSIS.md "Exports"
   - id: transitions-limitations
-    title: Transition preview is a simplified crossfade, not per-type accurate
+    title: Transition preview is simplified crossfade, not per-type accurate
     source: GAP_ANALYSIS.md "Transitions"
   - id: testing-fixtures-limitations
     title: On-disk sample fixture gaps (no SmartArt/transitions/embedded-fonts/real-media)
@@ -116,7 +111,7 @@ limitations:
     title: Accessibility limitations (English-only UI, no full keyboard-nav audit)
     source: GAP_ANALYSIS.md "Accessibility / i18n"
   - id: packaging-limitations
-    title: Packaging limitations (opens a browser tab, not a native window)
+    title: Packaging limitations (opens browser tab, not native window)
     source: GAP_ANALYSIS.md "Packaging"
   - id: offline-capability-limitations
     title: Offline-capability limitations (pdfjs-dist unvendored, latin-only font subset)
@@ -125,5 +120,5 @@ limitations:
     title: Lite mode is all 5 dependencies at once, no per-dependency mixing
     source: GAP_ANALYSIS.md "PPTXDIFF_LITE_MODE"
   - id: headless-cli-api-limitations
-    title: "Headless CLI/API: not published, Phase 1 only (diff/checksum), no server auth"
+    title: "Headless CLI/API: not published, Phase 1 only, no server auth"
     source: GAP_ANALYSIS.md "Headless CLI / Web API — Phase 1"
