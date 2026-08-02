@@ -3,6 +3,15 @@ title: Changelog
 ---
 
 !!! note
-    This page mirrors the repository's [`CHANGELOG.md`](https://github.com/sugatoray/pptxdiff/blob/master/CHANGELOG.md) directly, so it can never drift out of date with the source of truth.
+    The changelog subpages mirror the repository changelogs directly, so they
+    can never drift out of date with the package-level sources of truth.
 
---8<-- "CHANGELOG.md"
+## NPM Package(s)
+
+- [Changelog: pptxdiff](changelogs/pptxdiff.md)
+- [Changelog: @pptxdiff/cli](changelogs/pptxdiff-cli.md)
+- [Changelog: @pptxdiff/server](changelogs/pptxdiff-server.md)
+
+## VS Code Extension(s)
+
+- [Changelog: pptxdiff-vscode](changelogs/pptxdiff-vscode.md)
