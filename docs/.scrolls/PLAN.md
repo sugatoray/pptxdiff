@@ -296,7 +296,7 @@ shim, not sequentially — that plan is what shipped below.
    error) and `--out`/`--quiet`/`--timeout` flags. `batch`/`report`/`merge` are designed (design doc
    §5) but NOT built — see ticket 7 below.
 3. **[DONE, partial] P1 — `@pptxdiff/server`: stateless Web API.** `POST /v1/diff`, `POST
-   /v1/checksum`, `GET /v1/health` ship (base64-in-JSON file upload, not multipart — see ticket 8).
+   /v1/checksum`, `GET /v1/health`, `GET /openapi.json`, and `GET /docs` ship (base64-in-JSON file upload, not multipart — see ticket 8).
    Binds to `127.0.0.1` by default, matching the existing CLI security hardening's precedent — but
    **the design doc's API-key-for-non-loopback requirement is NOT implemented yet** (see ticket 9);
    don't bind this server to a non-loopback host in practice until that ships. `batch`/`report`/

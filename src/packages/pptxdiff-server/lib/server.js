@@ -2,6 +2,7 @@
 
 const http = require("node:http");
 const { diffDecks, computeChecksum, BrowserUnavailableError, PptxParseError } = require("@pptxdiff/cli/lib/index.js");
+const { buildOpenApiSpec, buildDocsHtml } = require("./openapi.js");
 
 const DEFAULT_MAX_BODY_BYTES = 100 * 1024 * 1024; // 100MB — real decks can be large; still bounded (see readJsonBody) so an unbounded upload can't exhaust memory
 
@@ -9,6 +10,11 @@ function sendJson(res, status, body) {
   const text = JSON.stringify(body);
   res.writeHead(status, { "Content-Type": "application/json; charset=utf-8", "Content-Length": Buffer.byteLength(text) });
   res.end(text);
+}
+
+function sendHtml(res, status, html) {
+  res.writeHead(status, { "Content-Type": "text/html; charset=utf-8", "Content-Length": Buffer.byteLength(html) });
+  res.end(html);
 }
 
 // Reads and JSON-parses a request body, enforcing maxBodyBytes as it
@@ -92,6 +98,16 @@ function createServer({
   return http.createServer(async (req, res) => {
     try {
       const url = new URL(req.url, "http://localhost");
+
+      if (req.method === "GET" && url.pathname === "/openapi.json") {
+        const host = req.headers.host || "127.0.0.1";
+        return sendJson(res, 200, buildOpenApiSpec({ version, serverUrl: `http://${host}` }));
+      }
+
+      if (req.method === "GET" && url.pathname === "/docs") {
+        return sendHtml(res, 200, buildDocsHtml());
+      }
+
 
       if (req.method === "GET" && url.pathname === "/v1/health") {
         return sendJson(res, 200, { status: "ok", version });

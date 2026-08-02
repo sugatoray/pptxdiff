@@ -78,7 +78,7 @@ function runUntilListening() {
   });
 }
 
-console.log("2. real spawn: starts, prints its URL, actually serves /v1/health");
+console.log("2. real spawn: starts, prints its URL, serves health and docs routes");
 {
   const { child, url } = await runUntilListening();
   try {
@@ -86,6 +86,16 @@ console.log("2. real spawn: starts, prints its URL, actually serves /v1/health")
     assert("the real spawned server answers /v1/health with 200", r.status === 200);
     const body = await r.json();
     assert("health body reports ok status", body.status === "ok");
+
+    const specRes = await fetch(`${url}/openapi.json`);
+    assert("the real spawned server answers /openapi.json with 200", specRes.status === 200);
+    const spec = await specRes.json();
+    assert("spawned openapi spec includes /docs", !!(spec.paths && spec.paths["/docs"]));
+
+    const docsRes = await fetch(`${url}/docs`);
+    assert("the real spawned server answers /docs with 200", docsRes.status === 200);
+    const html = await docsRes.text();
+    assert("spawned docs page references /openapi.json", html.includes("/openapi.json"));
   } finally {
     child.kill();
   }

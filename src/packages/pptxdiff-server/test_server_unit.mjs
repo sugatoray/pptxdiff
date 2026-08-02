@@ -51,6 +51,25 @@ await withServer({}, async (base) => {
   assert("health body reports ok status", body.status === "ok");
 });
 
+await withServer({ version: "9.9.9" }, async (base) => {
+  const r = await fetch(`${base}/openapi.json`);
+  assert("GET /openapi.json returns 200", r.status === 200);
+  assert("openapi response is JSON", (r.headers.get("content-type") || "").includes("application/json"));
+  const spec = await r.json();
+  assert("openapi document is version 3.1", spec.openapi === "3.1.0");
+  assert("openapi document reports package version", spec.info && spec.info.version === "9.9.9");
+  assert("openapi document includes health/diff/checksum paths", spec.paths["/v1/health"] && spec.paths["/v1/diff"] && spec.paths["/v1/checksum"]);
+  assert("openapi document includes docs routes", spec.paths["/openapi.json"] && spec.paths["/docs"]);
+});
+
+await withServer({}, async (base) => {
+  const r = await fetch(`${base}/docs`);
+  assert("GET /docs returns 200", r.status === 200);
+  assert("docs response is HTML", (r.headers.get("content-type") || "").includes("text/html"));
+  const html = await r.text();
+  assert("docs HTML points Swagger UI at /openapi.json", html.includes("SwaggerUIBundle") && html.includes("/openapi.json"));
+});
+
 await withServer({ diffDecksFn: async () => REPORT }, async (base) => {
   const r = await fetch(`${base}/v1/diff`, {
     method: "POST",

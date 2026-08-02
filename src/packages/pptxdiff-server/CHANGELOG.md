@@ -17,6 +17,8 @@ intends to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html) onc
   report shape as the GUI export.
 - `POST /v1/checksum` endpoint accepting one base64-encoded JSON file payload and returning the
   parser-independent SHA-256 content checksum.
+- `GET /openapi.json` endpoint serving an OpenAPI 3.1 specification.
+- `GET /docs` endpoint serving browser API documentation backed by `/openapi.json`.
 - `pptxdiff-server` executable bin entrypoint.
 - Unit, spawned-bin, and end-to-end server tests.
 
@@ -30,4 +32,3 @@ intends to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html) onc
 
 - Package depends on local `@pptxdiff/cli` via `"file:../pptxdiff-cli"` while private/unpublished.
 - Server binds to `127.0.0.1` by default. Non-loopback binding remains explicit and unauthenticated.
-

@@ -9,6 +9,12 @@
 - Verified from `src/packages/pptxdiff-server`: `npm test` passed all server tests (`server-unit` 13/13, `server-bin` 15/15, `server-e2e` 11/11). In this sandbox, loopback binding required escalated execution; user-local run should work normally.
 - Docs follow-up: `src/packages/pptxdiff-server/README.md` now explicitly says runtime imports must use the scoped package path `@pptxdiff/cli/lib/index.js`, not the old unscoped path.
 
+## Update (2026-08-02 — `@pptxdiff/server` OpenAPI docs endpoints)
+
+- Added `GET /openapi.json` and `GET /docs` to the stdlib `@pptxdiff/server`, keeping FastAPI-like API discoverability without adding a framework.
+- Implementation lives in `src/packages/pptxdiff-server/lib/openapi.js`; `/docs` serves a small Swagger UI HTML page backed by `/openapi.json`.
+- Tests updated in `test_server_unit.mjs` and `test_server_e2e.mjs` to cover both docs endpoints.
+
 ## Update (2026-08-02 — `pptxdiff-cli difftool` close/hang fix confirmed)
 
 - User reproduced a real git integration bug on macOS/Chrome: `git difftool --tool=pptxdiff --no-index docs/assets/sample_before.pptx docs/assets/sample_after.pptx` opened the visible browser correctly, but closing the window did not return control to the shell.

@@ -46,7 +46,20 @@ try {
     assert("reports ok status", body.status === "ok");
   }
 
-  console.log("2. POST /v1/diff — sample_before vs sample_after (real differences)");
+  console.log("2. GET /openapi.json and /docs");
+  {
+const specRes = await fetch(`${url}/openapi.json`);
+    assert("openapi returns 200", specRes.status === 200);
+    const spec = await specRes.json();
+    assert("openapi includes /v1/diff", !!(spec.paths && spec.paths["/v1/diff"]));
+
+const docsRes = await fetch(`${url}/docs`);
+    assert("docs returns 200", docsRes.status === 200);
+    const html = await docsRes.text();
+    assert("docs references /openapi.json", html.includes("/openapi.json"));
+  }
+
+console.log("3. POST /v1/diff — sample_before sample_after (real differences)");
   {
     const r = await fetch(`${url}/v1/diff`, {
       method: "POST",
@@ -63,7 +76,7 @@ try {
     assert("report shows real differences", changed.length > 0);
   }
 
-  console.log("3. POST /v1/diff — same file both sides (no differences)");
+  console.log("4. POST /v1/diff — same file both sides (no differences)");
   {
     const beforeB64 = b64File(SAMPLE_BEFORE);
     const r = await fetch(`${url}/v1/diff`, {
@@ -80,7 +93,7 @@ try {
     assert("checksums match when before===after", report.contentChecksum.before === report.contentChecksum.after);
   }
 
-  console.log("4. POST /v1/checksum — agrees with the /v1/diff checksum for the same file");
+  console.log("5. POST /v1/checksum — agrees with the /v1/diff checksum for the same file");
   {
     const r = await fetch(`${url}/v1/checksum`, {
       method: "POST",
@@ -92,7 +105,7 @@ try {
     assert("well-formed SHA-256 hash", /^[0-9a-f]{64}$/i.test(body.hash));
   }
 
-  console.log("5. POST /v1/diff — an unparseable file surfaces 422, not a hang");
+  console.log("6. POST /v1/diff — an unparseable file surfaces 422, not a hang");
   {
     const r = await fetch(`${url}/v1/diff`, {
       method: "POST",

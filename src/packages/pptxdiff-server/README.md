@@ -34,6 +34,8 @@ All endpoints accept/return JSON. File content is base64-encoded inline in the r
   -> same JSON report shape as the GUI's "Export -> JSON report" button.
 - `POST /v1/checksum` body: `{ file: { name?, content } }`
   -> `{ algorithm, hash }`
+- `GET /openapi.json` -> OpenAPI 3.1 specification for the implemented API.
+- `GET /docs` -> browser documentation page backed by `/openapi.json`.
 
 Status codes: `200` success, `400` malformed/missing body, `413` request body over configured size
 limit, `422` file could not be parsed as `.pptx`, `503` no browser available, `500` unexpected
