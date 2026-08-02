@@ -2,6 +2,224 @@
 
 **Read `.scrolls/SPEC.md` first for the full feature list.** This file is the "what's the state of things right now" note — update it at the end of every session, keep it short and current (prune stale entries).
 
+## Update (2026-08-02 — `@pptxdiff/server` scoped CLI dependency fix)
+
+- Last commit `452ba63` fixed a server-package break introduced by renaming the CLI package to `@pptxdiff/cli`: `src/packages/pptxdiff-server/lib/server.js` still required old `pptxdiff-cli/lib/index.js`, so fresh `npm install && npm test` failed with `MODULE_NOT_FOUND`.
+- Runtime import now uses `@pptxdiff/cli/lib/index.js`; `src/packages/pptxdiff-server/package-lock.json` also records the linked package name as `@pptxdiff/cli`, and `bin/pptxdiff-server.js` is executable.
+- Verified from `src/packages/pptxdiff-server`: `npm test` passed all server tests (`server-unit` 13/13, `server-bin` 15/15, `server-e2e` 11/11). In this sandbox, loopback binding required escalated execution; user-local run should work normally.
+- Docs follow-up: `src/packages/pptxdiff-server/README.md` now explicitly says runtime imports must use the scoped package path `@pptxdiff/cli/lib/index.js`, not the old unscoped path.
+
+## Update (2026-08-02 — `@pptxdiff/server` OpenAPI docs endpoints)
+
+- Added `GET /openapi.json` and `GET /docs` to the stdlib `@pptxdiff/server`, keeping FastAPI-like API discoverability without adding a framework.
+- Implementation lives in `src/packages/pptxdiff-server/lib/openapi.js`; `/docs` serves a small Swagger UI HTML page backed by `/openapi.json`.
+- Tests updated in `test_server_unit.mjs` and `test_server_e2e.mjs` to cover both docs endpoints.
+
+## Update (2026-08-02 — `pptxdiff-cli difftool` close/hang fix confirmed)
+
+- User reproduced a real git integration bug on macOS/Chrome: `git difftool --tool=pptxdiff --no-index docs/assets/sample_before.pptx docs/assets/sample_after.pptx` opened the visible browser correctly, but closing the window did not return control to the shell.
+- Root cause: `openDifftool()` waited only for Playwright's browser `disconnected` event. Closing the visible page/window does not always immediately disconnect the browser process, so the CLI could wait forever from Git's perspective.
+- Fix: added `waitForDifftoolClose(page, browser)` in `src/packages/pptxdiff-cli/lib/automation.js`, racing page `close` with browser `disconnected`; `openDifftool()` now uses it. User manually confirmed the fix works with the real `git difftool` command.
+- Regression: added `src/packages/pptxdiff-cli/test_difftool_close_wait.mjs` to the normal `npm test` script. It is display-free and covers the exact failure mode by emitting page `close` without browser `disconnected`.
+- Docs updated: `src/packages/pptxdiff-cli/README.md` now documents `git difftool --tool=pptxdiff`, `--no-index`, and that closing the browser window should return control to shell. WISDOM.md has the trap note so future work does not revert to browser-disconnect-only waiting.
+
+## Update (2026-08-01 — rebased `expt/add-pptxdiff-cli-and-api` onto `master`, no code changes)
+- Housekeeping/integration session, not feature work: `git rebase --onto master 6866250 expt/add-pptxdiff-cli-and-api`.
+  `6866250` was the last commit the two histories shared before `master`'s PR #42 squash-merged the same
+  parser-independent-checksum work that the `expt/` branch also carried unsquashed — rebasing dropped that
+  now-duplicated prefix and replayed just the 14 CLI/API/git-integration commits (the entire Phase 1 headless
+  CLI + Web API + git-textconv/difftool/install-git-integration effort documented in the two entries below)
+  on top of `master`'s current tip (`aa54356`, v0.6.0).
+- **Zero merge conflicts** — all 14 commits applied cleanly.
+- **Full regression pass after rebase, all green, nothing broken**: `pptxdiff-cli` 200/200 assertions
+  (`npm test`, `PPTXDIFF_CHROME_PATH=/opt/pw-browsers/chromium`) + 8/8 `npm run test:difftool` (needs
+  `xvfb-run -a` in this sandbox — no display otherwise, per that test file's own header comment);
+  `@pptxdiff/server` 39/39 (`npm test`); root `pptxdiff` package's 7 CLI/security self-test files (loopback
+  bind, path containment, security headers, lite mode, execFile browser-open, offline-capable, plus the
+  Phase-1-added `test_start_server_export_cli.mjs`) all green; `test_gen-sample-pptx.py` (uv + python-pptx)
+  clean. This is the same "re-verify `bin/cli.js`'s hardening after touching it" precedent the CLI/API
+  sessions below already established — the rebase itself touches nothing, so this was confirmation, not new
+  discovery.
+- **One follow-up commit needed**: `src/packages/pptxdiff-cli/package-lock.json` still pinned the root
+  `pptxdiff` `file:../../..` dependency at the pre-rebase `0.5.0` — refreshed to `0.6.0` to match the
+  rebased root `package.json` (committed separately as `chore: refresh pptxdiff-cli lockfile pin...`).
+- Pushed to `claude/rebase-pptxdiff-onto-master-bbpzi2`. No PR opened (not asked for). Next session picking
+  up CLI/API work should treat this branch's tip as the new starting point — it now has master's latest
+  release plus the full CLI/API/git-integration surface in one line of history.
+
+## Update (2026-07-31 — headless CLI git integration: `textconv`/`difftool`/`install-git-integration`)
+- Direct follow-up ask: "continue with git integration next" (PLAN.md ticket 4, the headline
+  motivating use case for this whole headless-CLI/API effort). Shipped all three pieces designed in
+  `CLI_API_DESIGN.md` §7, in three separate commits, each with real RED→GREEN TDD.
+- **`textconv <file.pptx>`**: prints one deck's plain text (real shape text + speaker notes) for
+  `git diff`/`git log -p` to line-diff. No existing UI/export answers "what does one deck say" (every
+  export is diff-shaped), so `lib/automation.js`'s new `extractDeckText()` reaches the LIVE mounted
+  component instance via React-fiber-traversal (`findLogicInstance()` — same technique this session
+  already used once debugging the error-banner detection trap) and calls its real `shapeText()`
+  method + reads its already-parsed `state.slidesA` directly. `lib/textconv.js`'s `formatDeckText()`
+  (pure) renders it. Scope-limited to shapes/notes only — tables/charts/SmartArt text aren't
+  included yet (new GAP_ANALYSIS.md entry).
+- **`difftool <local.pptx> <remote.pptx>`**: opens a real, VISIBLE browser window with both files
+  loaded, blocks until the user closes it (matching git's difftool contract). `launchApp()` gained a
+  `headless` option (default `true`, unused by every other command); `openDifftool()` launches
+  `headless:false` and returns `{browser, waitUntilClosed()}` rather than closing itself. Tests
+  needing a real display live in a separate `npm run test:difftool` script (not the default `npm
+  test`) — `xvfb-run -a` provides one in this sandbox; a real desktop needs nothing extra.
+- **`install-git-integration [--global]`**: writes `*.pptx diff=pptxdiff` to `.gitattributes`
+  (idempotent) + `diff.pptxdiff.textconv`/`difftool.pptxdiff.cmd` via real `git config` calls —
+  local by default, `--global` (the flag IS the consent, no separate TTY prompt) for `~/.gitconfig`.
+  Fails clearly outside a git repo.
+- **Real bug found and fixed via a genuine RED test failure**: `buildGitConfigCommands()` originally
+  produced `git --global config ...` — git rejects this outright ("unknown option: --global");
+  the correct shape is `git config --global ...` (`--global` is a flag TO `config`, not a top-level
+  `git` flag). Only caught by actually invoking real `git` against a real temp repo
+  (`test_git_integration_e2e.mjs`) — the pure unit test written alongside the implementation had
+  encoded the SAME wrong assumption and gave zero warning on its own. Full write-up in WISDOM.md's
+  new trap entry; lesson generalizes to any argv built for an external CLI this project doesn't
+  control — a pure test alone isn't ground truth, only a real invocation is.
+- **Testing**: 82 new assertions across 7 test files (`test_textconv_format.mjs`,
+  `test_git_integration_pure.mjs`, `test_git_integration_e2e.mjs`, `test_difftool_e2e.mjs`,
+  `test_difftool_cli.mjs`, `test_install_git_integration_cli.mjs`, plus additions to 3 existing
+  files) — `pptxdiff-cli` package total now 182 assertions (was 98). `test_git_integration_e2e.mjs`/
+  `test_install_git_integration_cli.mjs` run against real temp git repos, including a fake `HOME`
+  override so `--global` testing never touches this sandbox's real `~/.gitconfig`.
+- **Scrolls updated to match**: SPEC.md §31 (new), PLAN.md ticket 4 flipped to `[DONE]`,
+  GAP_ANALYSIS.md's git-integration bullet closed (`[x]`) with two new narrower gaps added
+  (textconv's shapes/notes-only scope, no global `.gitattributes`), GAP_CONTEXT.md gained four new
+  "why" entries (textconv's fiber-reach approach, difftool's dedicated-browser-per-call design, no
+  global `.gitattributes`, `--global`-as-consent), WISDOM.md gained three new entries (the
+  `--global` ordering trap, testing a headed-browser-only feature, the fiber-instance-reach pattern
+  now used twice and worth remembering before reaching for `page.evaluate()`-from-scratch a third
+  time).
+- **Not done**: `batch`/`report`/`merge` CLI+API subcommands, `@pptxdiff/core` native engine, server
+  auth, multipart upload, MCP server, and (new, narrower) textconv's table/chart/SmartArt text
+  coverage and a true global `.gitattributes` setup — all tracked in PLAN.md/GAP_ANALYSIS.md.
+
+## Update (2026-07-31 — headless CLI + Web API, Phase 1 implementation: `diff`/`checksum` shipped)
+- Follow-up to the design session below: user said "proceed with the implementation, use thorough
+  Red/Green TDD." Implemented Phase 1 per the decided plan (design doc §10) — a shared
+  Playwright-driven automation shim, `pptxdiff-cli`'s `diff`/`checksum` subcommands, and
+  `@pptxdiff/server`'s stateless `/v1/diff`/`/v1/checksum`/`/v1/health` endpoints. `batch`/`report`/
+  `merge`, git integration, the native `@pptxdiff/core` engine, server auth, and an MCP server are
+  all designed but NOT built this session — see PLAN.md's renumbered ticket list.
+- **`bin/cli.js` refactor (first, isolated commit)**: extracted `startServer()` as a new export,
+  behavior-preserving — reran all 6 pre-existing CLI tests (loopback bind, path containment,
+  security headers, lite mode, execFile browser-open, offline-capable) to confirm zero regressions
+  before building anything on top, plus a new `test_start_server_export_cli.mjs` for the export
+  itself. This is what `pptxdiff-cli`/`@pptxdiff/server` both depend on to get the real, hardened
+  static server instead of growing a third copy (see WISDOM.md's pre-existing trap about
+  `pptxdiff-vscode/extension.js` already having grown a second, once-out-of-sync copy).
+- **New package `src/packages/pptxdiff-cli/`**: `lib/browser.js` (pure `resolveBrowserExecutable`
+  — `PPTXDIFF_CHROME_PATH` override, then per-OS well-known paths, else defer to `playwright-core`'s
+  own resolution), `lib/automation.js` (the shared shim — `launchApp`/`uploadDeck`/
+  `exportJsonReport`/`diffDecks`/`computeChecksum`, driving the real unmodified `index.html` via
+  `playwright-core`, reusing the app's own "Export → JSON report" path rather than reimplementing
+  anything), `lib/format.js` (pure `hasDifferences`/`countChangedSlides`/`formatDiffSummary`, keyed
+  off the report's `key` field so an added/removed slide with an empty `differences` array still
+  counts as changed — mirrors `index.html`'s own `!pa || !pb || diffs.length > 0`), `lib/cli-core.js`
+  (argument parsing + `runDiff`/`runChecksum`, injectable automation functions for fast unit
+  testing), `bin/pptxdiff-cli.js` (thin entrypoint). 98 assertions total across 5 test files, 3 of
+  them genuine end-to-end (real browser, real `docs/assets/sample_before.pptx`/`sample_after.pptx`)
+  — including real-spawned-process coverage for every CLI flag (`--json`/`--out`/`--quiet`/
+  `--timeout`), added after an explicit audit found the first pass only proved those via injected
+  I/O (`test_cli_core.mjs`), never against a real process's real filesystem/stdout.
+- **New package `src/packages/pptxdiff-server/`**: `lib/server.js` — stdlib-only `node:http`
+  wrapper (no framework) around `pptxdiff-cli`'s `lib/index.js` public API. `POST /v1/diff`/
+  `POST /v1/checksum` (base64-in-JSON body)/`GET /v1/health`. Binds to `127.0.0.1` by default,
+  matching `bin/cli.js`'s existing hardening precedent — **no authentication yet**, documented
+  explicitly in the README as a real gap, not a silent one. 39 assertions across 3 test files (one
+  injected/fast, two real — including `test_server_bin.mjs`, added after the same audit found
+  `bin/pptxdiff-server.js` itself, the actual entrypoint a user runs, had ZERO test coverage; only
+  `lib/server.js` had ever been imported directly by a test).
+- **Three real bugs found and fixed via genuine RED test failures during development** (all have
+  full write-ups in WISDOM.md's new Trap entries this session — read those before touching
+  `lib/automation.js` or `lib/server.js` again):
+  1. The app boots with a default sample deck already auto-loading on both sides; the
+     "Differences (N)" panel text can render from the constructor's initial empty state before
+     that load even starts, so waiting on it alone raced a real upload against the default load's
+     own `setState`. Fixed by waiting on each side's content checksum (SPEC.md §29) settling to a
+     NEW 64-hex value instead — an atomic signal since it's set in the same `setState` as
+     everything else about that side, as the last step of `ingest()`.
+  2. React sets inline styles via the DOM `style` PROPERTY, not an HTML `style="..."` ATTRIBUTE —
+     `element.getAttribute('style')` on the app's own error banner returns `null` despite the
+     template literally saying `style="background:#FBEFEC"`, so a `div[style*="#FBEFEC"]` CSS
+     selector could never match, for any inline-styled element in this app. Fixed with
+     `getComputedStyle(el).backgroundColor === 'rgb(251, 239, 236)'`.
+  3. (Found in `@pptxdiff/server`, smaller): the first request-body-size-limit implementation
+     called `req.destroy()` on overflow, which tears down the shared request/response socket before
+     the intended 413 JSON response could ever be written — client saw a raw connection reset
+     instead. Fixed by draining-but-not-accumulating past the limit instead of destroying the
+     connection.
+- **Also fixed**: `src/packages/pptxdiff-cli/lib/` and `src/packages/pptxdiff-server/lib/` were
+  being silently swallowed by the repo's generated `.gitignore` (`py.gitignore`'s generic `lib/`
+  rule, meant for Python virtualenvs, collided with these real Node source directories) — added a
+  scoped double-negation to `.gitignores/user.gitignore` and regenerated. See WISDOM.md.
+- **Local-dev-only `file:` dependencies**: both new packages depend on their monorepo siblings via
+  `file:../...` rather than a published semver range (documented in each README and in
+  GAP_CONTEXT.md's new entry) — `pptxdiff-cli` needs `bin/cli.js`'s `startServer()` export, which
+  doesn't exist in the currently-published `pptxdiff@0.5.0`. Must be swapped to a real semver range
+  before either package is actually published to npm.
+- **Verification note for the next session**: all Playwright-driven tests need a real
+  Chrome/Chromium/Edge. This sandbox has none on `PATH`, but has a Playwright-managed Chromium at
+  `/opt/pw-browsers/chromium-1194/chrome-linux/chrome` (per this environment's own setup) — run
+  tests with `PPTXDIFF_CHROME_PATH=/opt/pw-browsers/chromium-1194/chrome-linux/chrome npm test`
+  from either new package's directory (or `node <test file>.mjs` individually).
+- Next natural ticket: git `textconv`/`difftool` integration (PLAN.md ticket 4) — the literal
+  headline motivating use case ("use pptxdiff as the diffing tool for `*.pptx` in git") — now
+  unblocked since `pptxdiff-cli diff` exists with the right exit-code contract already.
+- **Follow-up same session, prompted by an explicit user question** ("did you add all the tests
+  you ran as regression tests?"): audited what was actually committed vs. what was only verified
+  ad-hoc (`node -e '...'`) while debugging the two automation-layer bugs above. Most ad-hoc scripts
+  were correctly NOT persisted — they were probing Playwright/React/JSZip internals to find root
+  causes (React fiber traversal, JSZip.loadAsync call tracing), not testing pptxdiff's own
+  behavior, and the bugs they found ARE covered by the committed tests. But the audit found two
+  real, genuine gaps and both are now closed: `bin/pptxdiff-server.js` (the actual entrypoint a
+  user runs) had zero test coverage of its own — only `lib/server.js` was ever imported directly by
+  a test — closed by new `test_server_bin.mjs` (15 assertions: pure `parseArgs()` plus a real
+  spawn-and-curl smoke test); and `pptxdiff-cli`'s `--out`/`--quiet`/`--timeout` flags were only
+  ever proven against INJECTED I/O in `test_cli_core.mjs`, never a real spawned process's real
+  filesystem/stdout — closed by extending `test_diff_checksum_cli.mjs` with 10 new real-process
+  assertions for all three. Final counts: 98 assertions in `pptxdiff-cli` (was 88), 39 in
+  `@pptxdiff/server` (was 24). Both new/extended test files demonstrated genuine RED before GREEN
+  (a deliberate one-line break of `bin/pptxdiff-server.js`'s printed URL, confirmed the new spawn
+  test caught it, restored).
+
+## Update (2026-07-31 — headless CLI + Web API design proposal, no code changes)
+- User asked for a design (not implementation) of two new surfaces: a headless CLI exposing every
+  pptxdiff feature scriptably, and a Web API exposing the same over HTTP — motivated by wanting
+  pptxdiff usable as a git `difftool`/`textconv` driver for `*.pptx` and as something an AI agent
+  can call directly, not just a human-operated browser app.
+- Read WISDOM.md's Constraints first (`No backend` — client-side only) and confirmed what it does
+  and doesn't rule out: the shipped `index.html` must keep working with zero server dependency, but
+  that doesn't forbid a separate, opt-in Node-side surface that runs the same logic headlessly.
+- **Key finding, checked directly against `index.html`'s source, not assumed**: the parse/align/
+  diff/checksum/report-building engine (`parseBuffer`, `alignSlides`, `refineMoves`,
+  `computeContentChecksum`, `buildJsonReport`, etc.) is already written in this project's own
+  documented "pure-core" style — argument-in/value-out, no `this.state`/DOM coupling — with a
+  direct existing precedent (`sample-pptx.js` running under Node via a two-global shim, per
+  WISDOM.md) that the same shimming approach scales to the rest of the engine. This means
+  extracting a Node+browser dual-target `@pptxdiff/core` module is a scoped refactor, not a
+  rewrite — changed the recommended architecture from "wrap a headless browser for everything" to
+  "extract the engine, keep a real browser only for the 3 genuinely browser-only export/render
+  features (fidelity render, PDF via `window.print()`, SVG screenshot capture)."
+- **Deliverable**: `docs/.scrolls/CLI_API_DESIGN.md` (new) — layered architecture
+  (`pptxdiff`/`@pptxdiff/core`/`pptxdiff-cli`/`@pptxdiff/server`, four packages so the GUI
+  launcher's zero-runtime-deps claim survives), a phased execution strategy (Phase 1:
+  Playwright-driven, ships the full command/endpoint surface fast and de-risks the design; Phase 2:
+  move everything except `pdf`/`screenshot` onto the native `@pptxdiff/core` path — the shape that
+  actually works for a git-driver invoked on every `git log -p`), full CLI command table with a
+  `diff`-style exit-code contract (0/1/2) and `--json` on every subcommand, git `textconv`/
+  `difftool` integration mechanics, a Web API endpoint table (stateless diff/checksum/batch/report/
+  merge + stateful review sessions mirroring the GUI's reviewer-workflow state), a security-posture
+  section explicitly carrying forward (not relitigating) the existing loopback-bind/path-containment
+  hardening precedent, and an MCP-server angle for direct AI-agent tool-calling.
+- **PLAN.md**: added 6 new "proposed, not started" tickets under a new "Design proposal added this
+  session" section, cross-referencing the design doc's sections; flagged the package-split and
+  phasing choices as open decisions needing an explicit user call before implementation starts.
+- **No code changed this session** — design/planning only, per the explicit ask. Next session
+  should get the user's call on PLAN.md ticket 6 (package split) and the Phase 1-vs-2/CLI-vs-API
+  ordering question before writing any of `@pptxdiff/core`/`pptxdiff-cli`/`@pptxdiff/server`.
+
 ## Update (2026-07-31 — parser-independent SHA-256 content checksum in every diff export)
 - User asked for the diff exports (all formats) to include a checksum of the .pptx CONTENT, explicitly not a raw file hash (flagged timestamp info as the reason). Agreed and recommended hashing this app's own parsed slide structure instead — a genuinely nice property (same hash ⟺ diff engine finds zero differences) for zero new zip-reading code. User read it over and explicitly redirected: "I would prefer the parser independent path. Can you use something like OpenSSL?"
 - **Answered the OpenSSL question directly before implementing**: this app has no backend/shell access by design (WISDOM.md Constraints), so literally invoking the `openssl` binary isn't possible from the client-side code path — but SHA-256 is a standardized algorithm, so `crypto.subtle.digest('SHA-256', ...)` and `openssl dgst -sha256` produce byte-identical output for the same bytes, preserving the actual property wanted (standard, tool-independent, externally verifiable).
@@ -260,4 +478,3 @@ See `.scrolls/SPEC.md` for the full feature spec, `.scrolls/GAP_ANALYSIS.md` + `
 - `findCrossDeckDuplicates` signature changed: `(slidesA, slidesB, alignment, threshold, maxPairs, force)` — all four new params are optional with sane defaults (0.92 threshold, 6000-comparison cap, force=false), and it now returns `{pairs, skipped, totalComparisons}` instead of a bare array. Any code still expecting a bare array from this function (there shouldn't be any left, but check if you're reading old context) needs `.pairs`.
 - New state: `crossDupThreshold` (0.92), `crossDupForceLarge` (false), `ignoredCrossDupKeys` ({}), `mergeDuplicateSlides` (false). New pure helper: `sectionForSlideIndex(sections, idx)`.
 - `mergePreviewRows()` and `exportMergedPptx()` both independently recompute cross-dup pairs (gated by `mergeDuplicateSlides`) — kept as two separate computations rather than a shared cached value, consistent with this file's existing pattern of recomputing alignment/derived data per call site rather than threading it through many function signatures.
-

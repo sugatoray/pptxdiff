@@ -66,7 +66,7 @@ markdown_extensions:
       anchor_linenums: true
   - pymdownx.inlinehilite
   - pymdownx.snippets:
-      base_path: ["."]
+      base_path: [".", "../../.."]
       check_paths: true
   - pymdownx.emoji:
       emoji_index: !!python/name:material.extensions.emoji.twemoji
@@ -76,14 +76,15 @@ markdown_extensions:
 
 plugins:
   - search
+  - git-revision-date-localized:
+      enable_creation_date: true
+      type: date
+  - git-authors
   - macros:
       module_name: main
       # Opt-in Jinja rendering, not opt-out: without this, the plugin would try
-      # to Jinja-evaluate any literal {{ }} appearing anywhere in the docs --
-      # and this app's OWN template syntax (index.html) literally is
-      # {{ theme.border }}-style, so a future page quoting it must stay inert.
-      # Only documentation-coverage.md opts in, via its own `render_macros: true`
-      # front matter.
+      # to Jinja-evaluate any literal {{ }} appearing anywhere in docs.
+      # Only documentation-coverage.md opts in via `render_macros: true`.
       render_by_default: false
 
 extra:
@@ -111,9 +112,17 @@ nav:
       - UI, Shortcuts & Themes: features/ui-shortcuts.md
       - Self-Tests: features/self-tests.md
   - CLI Reference: cli.md
+  - Headless CLI & Web API: headless-cli-api.md
   - VS Code Extension: vscode-extension.md
   - Architecture: architecture.md
   - Limitations: limitations.md
   - FAQ: faq.md
-  - Changelog: changelog.md
+  - Changelog:
+      - Overview: changelog.md
+      - NPM Package(s):
+          - "Changelog: pptxdiff": changelogs/pptxdiff.md
+          - "Changelog: @pptxdiff/cli": changelogs/pptxdiff-cli.md
+          - "Changelog: @pptxdiff/server": changelogs/pptxdiff-server.md
+      - VS Code Extension(s):
+          - "Changelog: pptxdiff-vscode": changelogs/pptxdiff-vscode.md
   - Documentation Coverage: documentation-coverage.md

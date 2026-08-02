@@ -1,0 +1,42 @@
+{
+  "name": "@pptxdiff/server",
+  "version": "0.1.0",
+  "description": "Web API for pptxdiff — diff two PowerPoint decks over HTTP, so other tools and AI agents can use pptxdiff without shelling out to a CLI. Loopback-bound by default.",
+  "license": "Apache-2.0",
+  "private": true,
+  "author": {
+    "name": "Sugato Ray",
+    "email": "sugatoray.dev@gmail.com",
+    "url": "https://github.com/sugatoray"
+  },
+  "bin": {
+    "pptxdiff-server": "./bin/pptxdiff-server.js"
+  },
+  "main": "./lib/server.js",
+  "files": [
+    "bin",
+    "lib"
+  ],
+  "scripts": {
+    "test": "node test_server_unit.mjs && node test_server_bin.mjs && node test_server_e2e.mjs"
+  },
+  "dependencies": {
+    "@pptxdiff/cli": "file:../pptxdiff-cli"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sugatoray/pptxdiff.git",
+    "directory": "src/packages/pptxdiff-server"
+  },
+  "homepage": "https://github.com/sugatoray/pptxdiff#readme",
+  "keywords": [
+    "pptx",
+    "powerpoint",
+    "diff",
+    "api",
+    "server"
+  ]
+}

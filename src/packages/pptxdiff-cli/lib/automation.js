@@ -1,0 +1,316 @@
+"use strict";
+
+const fs = require("node:fs");
+const { chromium } = require("playwright-core");
+const { startServer } = require("pptxdiff/bin/cli.js");
+const { resolveBrowserExecutable } = require("./browser.js");
+
+// The app's error banner (index.html's errorMsg panel) is written as
+// `style="background:#FBEFEC;..."` in the template source, but React
+// applies inline styles via the DOM `style` PROPERTY (CSSStyleDeclaration),
+// not by writing an HTML `style="..."` ATTRIBUTE string — confirmed
+// directly: `element.getAttribute('style')` on the rendered banner returns
+// null. That means a `div[style*="#FBEFEC"]` CSS attribute selector can
+// NEVER match anything in this app, for any inline-styled element, not
+// just this one — found the hard way debugging a false "no error banner"
+// result that turned out to be a broken detector, not a real app bug (the
+// error WAS being set correctly the whole time — see git history for the
+// full trace). getComputedStyle().backgroundColor is the reliable check;
+// browsers normalize it to `rgb(r, g, b)` regardless of how the color was
+// specified, so this function (used inside page.evaluate/waitForFunction,
+// hence written as a plain in-page function rather than a Node-side
+// constant) is the one true way to find this banner.
+function findErrorBannerText() {
+  const el = Array.from(document.querySelectorAll("div")).find(
+    (d) => getComputedStyle(d).backgroundColor === "rgb(251, 239, 236)"
+  );
+  return el ? el.textContent : null;
+}
+const FIND_ERROR_BANNER_TEXT_SRC = findErrorBannerText.toString();
+
+// Finds the live DCLogic component instance (this app's actual logic class
+// — see index.html's `class Component extends DCLogic`) so extractDeckText
+// can read its already-parsed `state.slidesA`/`slidesB` and call its real
+// `shapeText()` method directly, rather than re-parsing or reimplementing
+// text extraction. There's no existing UI/export feature for "just show me
+// one deck's text" (every export is diff-shaped, comparing two decks — see
+// buildJsonReport()), so this reaches the instance the same way it was
+// found while debugging this file's other two traps (see WISDOM.md): the
+// DC runtime (support.js) wraps the logic instance in a `StreamableComponent`
+// React wrapper and stores it at `stateNode.logic`, not `stateNode` itself;
+// fiber keys are non-enumerable, so `Object.getOwnPropertyNames()` is
+// required (`Object.keys()` won't find them).
+function findLogicInstance() {
+  for (const el of document.querySelectorAll("*")) {
+    const key = Object.getOwnPropertyNames(el).find((k) => k.startsWith("__reactFiber$"));
+    if (!key) continue;
+    let fiber = el[key];
+    while (fiber) {
+      if (fiber.stateNode && fiber.stateNode.logic && typeof fiber.stateNode.logic.shapeText === "function") {
+        return fiber.stateNode.logic;
+      }
+      fiber = fiber.return;
+    }
+  }
+  return null;
+}
+const FIND_LOGIC_INSTANCE_SRC = findLogicInstance.toString();
+
+const DEFAULT_TIMEOUT_MS = 30000;
+const HASH_RE = "[0-9a-f]{64}";
+
+class BrowserUnavailableError extends Error {}
+class PptxParseError extends Error {}
+
+function waitForDifftoolClose(page, browser) {
+  return Promise.race([
+    page.waitForEvent("close").catch(() => {}),
+    new Promise((resolve) => browser.on("disconnected", resolve)),
+  ]);
+}
+
+// Pure: extracts the "Before"/"After" content-checksum hex string (SPEC.md
+// §29) from the app's own rendered page text, or null if it's not a
+// settled hash yet (still "computing…", or "unavailable"). Exported mainly
+// so it's independently testable without a real browser.
+function extractChecksumLabel(bodyText, prefix) {
+  const m = bodyText.match(new RegExp(`${prefix}:\\s*(${HASH_RE})`, "i"));
+  return m ? m[1] : null;
+}
+
+// Impure: launches a real headless browser against a freshly-started local
+// copy of the pptxdiff app, and returns a handle to drive it. This is the
+// ONE place browser/server lifecycle is managed — every automation function
+// below goes through this, per CLI_API_DESIGN.md's "shared automation shim"
+// decision (built once, reused by both the CLI and the Web API).
+//
+// The app boots with a default sample deck already loading on BOTH sides
+// (componentDidMount()'s buildSample() call — see index.html), and the
+// "Differences (N)" panel header can render from the constructor's initial
+// EMPTY state before that load even starts (found via a genuine RED test
+// failure — see test_automation_e2e.mjs's history and WISDOM.md — waiting
+// on that text alone was not a reliable "finished loading" signal). The
+// content-checksum labels are: each side's checksum is computed as the
+// LAST step of that side's own ingest() call and lands in the SAME setState
+// as everything else about that side (name, slides, decision-reset — see
+// ingest() in index.html), so "both checksum labels show a real 64-hex
+// value" is an atomic, race-proof "this side's data is fully settled"
+// signal — used both here (initial boot) and in uploadDeck (a new file).
+async function launchApp({ env = process.env, platform = process.platform, timeoutMs = DEFAULT_TIMEOUT_MS, headless = true } = {}) {
+  const { server, url } = await startServer();
+  const executablePath = resolveBrowserExecutable({ env, platform }) || undefined;
+
+  let browser;
+  try {
+    browser = await chromium.launch({ executablePath, headless });
+  } catch (e) {
+    server.close();
+    throw new BrowserUnavailableError(
+      "Could not launch a browser to drive pptxdiff.\n" +
+      "Set PPTXDIFF_CHROME_PATH to a Chrome/Chromium/Edge executable, or run `npx playwright install chromium`.\n" +
+      "Underlying error: " + (e && e.message ? e.message : String(e))
+    );
+  }
+
+  const page = await browser.newPage();
+  // Installed before any navigation (and re-installed automatically on any
+  // future one) so window.__pptxdiffFindErrorBanner/__pptxdiffFindLogicInstance
+  // are available for every waitForFunction/evaluate call below — see
+  // findErrorBannerText's/findLogicInstance's own comments for why each
+  // specific approach is necessary.
+  await page.addInitScript(`window.__pptxdiffFindErrorBanner = ${FIND_ERROR_BANNER_TEXT_SRC};`);
+  await page.addInitScript(`window.__pptxdiffFindLogicInstance = ${FIND_LOGIC_INSTANCE_SRC};`);
+  await page.goto(url);
+
+  try {
+    await page.waitForFunction(
+      (hashRe) => new RegExp(`Before:\\s*${hashRe}`, "i").test(document.body.innerText) && new RegExp(`After:\\s*${hashRe}`, "i").test(document.body.innerText),
+      HASH_RE,
+      { timeout: timeoutMs }
+    );
+  } catch (e) {
+    await browser.close().catch(() => {});
+    server.close();
+    throw new Error(`Timed out after ${timeoutMs}ms waiting for pptxdiff's own default sample deck to finish loading.`);
+  }
+
+  return {
+    page,
+    browser,
+    timeoutMs,
+    async close() {
+      await browser.close().catch(() => {});
+      server.close();
+    },
+  };
+}
+
+// Impure: sets one side's file input and waits until that side has fully
+// re-settled — either its own content checksum changes to a new value
+// (proving a brand new ingest() completed end-to-end for this file, not
+// just that the name updated — see launchApp's comment on why the
+// checksum label specifically is the reliable signal), or the app's error
+// banner appears (the file couldn't be parsed at all, so no new checksum
+// will ever land). `input` is either a file path (string) or
+// `{ name, buffer }` for in-memory content (used by @pptxdiff/server,
+// which receives uploaded bytes, not a path on disk). The two upload-bar
+// file inputs are always rendered in this fixed order (Before, then After
+// — see index.html's `uploaders` array in renderVals()), so index 0/1 is a
+// stable way to target them without relying on visible label text.
+async function uploadDeck(page, side, input, { timeoutMs = DEFAULT_TIMEOUT_MS } = {}) {
+  const idx = side === "before" ? 0 : 1;
+  const prefix = side === "before" ? "Before" : "After";
+  const locator = page.locator('input[type="file"][accept=".pptx"]:not([multiple])').nth(idx);
+
+  const priorText = await page.locator("body").innerText();
+  const priorHash = extractChecksumLabel(priorText, prefix);
+
+  if (typeof input === "string") {
+    await locator.setInputFiles(input);
+  } else {
+    await locator.setInputFiles({
+      name: input.name || (side === "before" ? "before.pptx" : "after.pptx"),
+      mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      buffer: input.buffer,
+    });
+  }
+
+  try {
+    await page.waitForFunction(
+      ({ hashRe, prefix, priorHash }) => {
+        if (window.__pptxdiffFindErrorBanner()) return true;
+        const m = document.body.innerText.match(new RegExp(`${prefix}:\\s*(${hashRe})`, "i"));
+        return !!m && m[1] !== priorHash;
+      },
+      { hashRe: HASH_RE, prefix, priorHash },
+      { timeout: timeoutMs }
+    );
+  } catch (e) {
+    throw new Error(`Timed out after ${timeoutMs}ms waiting for the ${side} file to finish uploading.`);
+  }
+
+  const bannerText = await page.evaluate(() => window.__pptxdiffFindErrorBanner());
+  if (bannerText) {
+    throw new PptxParseError(`pptxdiff could not read the ${side} file: ${bannerText.trim()}`);
+  }
+}
+
+// Impure: drives the real "Export ▾ → JSON report" menu path and captures
+// the resulting download — the exact same code path a human clicking the
+// button exercises (buildJsonReport()/downloadBlob()), so the CLI/API can
+// never silently disagree with what the GUI would show for the same files.
+async function exportJsonReport(page) {
+  await page.locator('summary:has-text("Export")').click();
+  const downloadPromise = page.waitForEvent("download");
+  await page.locator('button:has-text("JSON report")').click();
+  const download = await downloadPromise;
+  const filePath = await download.path();
+  return JSON.parse(fs.readFileSync(filePath, "utf8"));
+}
+
+// Opens a REAL, VISIBLE browser window pre-loaded with both files, for a
+// human to review — this is what `pptxdiff-cli difftool <local> <remote>`
+// (git's `difftool.pptxdiff.cmd`) drives. Unlike every other function in
+// this file, the point isn't to read a result back programmatically; it's
+// to hand off to a person and then get out of the way. Deliberately does
+// NOT close the browser itself (that would defeat the point) — instead
+// returns a handle whose `waitUntilClosed()` resolves once the user closes
+// the window, matching git's difftool contract of waiting for the
+// configured command to exit before moving to the next changed file. A
+// fresh, dedicated browser instance is launched per call (same as every
+// other function here), so closing its only window closes the whole
+// browser process and fires Playwright's `disconnected` event reliably —
+// this would NOT be true if it reused the user's own everyday browser
+// window/profile, which is why it doesn't.
+async function openDifftool(localInput, remoteInput, opts = {}) {
+  const app = await launchApp({ ...opts, headless: false });
+  await uploadDeck(app.page, "before", localInput, { timeoutMs: app.timeoutMs });
+  await uploadDeck(app.page, "after", remoteInput, { timeoutMs: app.timeoutMs });
+  const closed = waitForDifftoolClose(app.page, app.browser);
+  return {
+    browser: app.browser,
+    page: app.page,
+    async waitUntilClosed() {
+      await closed;
+      await app.close(); // browser is already closed; this stops the static file server
+    },
+  };
+}
+
+// Diffs two decks end-to-end and returns the same JSON report shape the
+// GUI's "Export → JSON report" button produces (see buildJsonReport() in
+// index.html): { deckBefore, deckAfter, contentChecksum, presentationDiffs,
+// slides: [{ key, label, decision, reviewerVotes, comments, differences }],
+// history, uiState }.
+async function diffDecks(beforeInput, afterInput, opts = {}) {
+  const app = await launchApp(opts);
+  try {
+    await uploadDeck(app.page, "before", beforeInput, { timeoutMs: app.timeoutMs });
+    await uploadDeck(app.page, "after", afterInput, { timeoutMs: app.timeoutMs });
+    return await exportJsonReport(app.page);
+  } finally {
+    await app.close();
+  }
+}
+
+// Computes just one deck's parser-independent SHA-256 content checksum
+// (SPEC.md §29) without needing a second file — the app already boots with
+// a default deck loaded on the other side, so only the "before" slot needs
+// replacing.
+async function computeChecksum(input, opts = {}) {
+  const app = await launchApp(opts);
+  try {
+    await uploadDeck(app.page, "before", input, { timeoutMs: app.timeoutMs });
+    const bodyText = await app.page.locator("body").innerText();
+    const hash = extractChecksumLabel(bodyText, "Before");
+    if (!hash) throw new Error('Could not read the "Before" content checksum from the app.');
+    return { algorithm: "SHA-256", hash };
+  } finally {
+    await app.close();
+  }
+}
+
+// Extracts one deck's plain-text content — real shape text (via the app's
+// own `shapeText()` method, called on the live component instance found by
+// findLogicInstance) plus speaker notes, per slide — for a git `textconv`
+// driver, which needs ONE file's comparable text representation, not a
+// diff between two (the diffDecks()/buildJsonReport() shape structurally
+// can't answer this: it only ever reports what CHANGED). Returns the raw
+// per-slide data; lib/textconv.js's formatDeckText() (pure) renders it.
+// Scope note: only text boxes/placeholders are covered, not table cells,
+// chart data labels, or SmartArt text — narrower than the app's own diff
+// engine (see GAP_ANALYSIS.md).
+async function extractDeckText(input, opts = {}) {
+  const app = await launchApp(opts);
+  try {
+    await uploadDeck(app.page, "before", input, { timeoutMs: app.timeoutMs });
+    const slides = await app.page.evaluate(() => {
+      const instance = window.__pptxdiffFindLogicInstance();
+      if (!instance) return null;
+      const slidesA = instance.state.slidesA || [];
+      return slidesA.map((slide, idx) => ({
+        index: idx + 1,
+        shapeTexts: (slide.shapes || []).map((s) => instance.shapeText(s)),
+        notes: (slide.notes && slide.notes.text) || "",
+      }));
+    });
+    if (!slides) throw new Error("Could not locate the live pptxdiff component instance to extract text from.");
+    return slides;
+  } finally {
+    await app.close();
+  }
+}
+
+module.exports = {
+  BrowserUnavailableError,
+  PptxParseError,
+  waitForDifftoolClose,
+  extractChecksumLabel,
+  launchApp,
+  uploadDeck,
+  exportJsonReport,
+  diffDecks,
+  computeChecksum,
+  extractDeckText,
+  openDifftool,
+};
