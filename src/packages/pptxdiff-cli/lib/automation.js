@@ -62,6 +62,13 @@ const HASH_RE = "[0-9a-f]{64}";
 class BrowserUnavailableError extends Error {}
 class PptxParseError extends Error {}
 
+function waitForDifftoolClose(page, browser) {
+  return Promise.race([
+    page.waitForEvent("close").catch(() => {}),
+    new Promise((resolve) => browser.on("disconnected", resolve)),
+  ]);
+}
+
 // Pure: extracts the "Before"/"After" content-checksum hex string (SPEC.md
 // §29) from the app's own rendered page text, or null if it's not a
 // settled hash yet (still "computing…", or "unavailable"). Exported mainly
@@ -219,9 +226,10 @@ async function openDifftool(localInput, remoteInput, opts = {}) {
   const app = await launchApp({ ...opts, headless: false });
   await uploadDeck(app.page, "before", localInput, { timeoutMs: app.timeoutMs });
   await uploadDeck(app.page, "after", remoteInput, { timeoutMs: app.timeoutMs });
-  const closed = new Promise((resolve) => app.browser.on("disconnected", resolve));
+  const closed = waitForDifftoolClose(app.page, app.browser);
   return {
     browser: app.browser,
+    page: app.page,
     async waitUntilClosed() {
       await closed;
       await app.close(); // browser is already closed; this stops the static file server
@@ -296,6 +304,7 @@ async function extractDeckText(input, opts = {}) {
 module.exports = {
   BrowserUnavailableError,
   PptxParseError,
+  waitForDifftoolClose,
   extractChecksumLabel,
   launchApp,
   uploadDeck,

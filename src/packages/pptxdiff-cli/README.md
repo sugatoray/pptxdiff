@@ -16,8 +16,8 @@ the shell command `pptxdiff-cli`.
 
 ## Development note: `pptxdiff` dependency
 
-`package.json` currently depends on `pptxdiff` via `"file:../../.."`, a relative path back to
-the repo root, rather than a published npm semver range. This is intentional for local development:
+`package.json` currently depends on `pptxdiff` via `"file:../../.."`, a relative path back to the
+repo root, rather than a published npm semver range. This is intentional for local development:
 the CLI package needs the root package's `bin/cli.js` `startServer()` export from the current
 checkout.
 
@@ -44,10 +44,10 @@ fix it.
 
 - `pptxdiff-cli diff <before.pptx> <after.pptx>` — `diff(1)`-style exit codes (0/1/2), with
   `--json` available.
-- `pptxdiff-cli checksum <file.pptx>` — the file's parser-independent SHA-256 content checksum.
+- `pptxdiff-cli checksum <file.pptx>` — file's parser-independent SHA-256 content checksum.
 - `pptxdiff-cli textconv <file.pptx>` — one deck's plain-text content, for git's `textconv`.
 - `pptxdiff-cli difftool <local.pptx> <remote.pptx>` — opens a visible browser window with both
-  files loaded and blocks until you close it, for git's `difftool`.
+  files loaded, then blocks until you close that window; for git's `difftool`.
 - `pptxdiff-cli install-git-integration [--global]` — wires `textconv` and `difftool` into git for
   `*.pptx` files.
 
@@ -68,9 +68,20 @@ This does two idempotent things:
 2. Sets `diff.pptxdiff.textconv` and `difftool.pptxdiff.cmd` in local `.git/config` by default.
    With `--global`, it writes `~/.gitconfig` instead.
 
-After that, `git diff` / `git log -p` line-diff the deck's extracted text, and `git difftool`
-opens the real pptxdiff GUI pre-loaded with both versions. The installer must run inside a git
-repository (`git rev-parse --show-toplevel`).
+After that, `git diff` / `git log -p` line-diff the deck's extracted text. For visual review, run:
+
+```sh
+git difftool --tool=pptxdiff -- path/to/deck.pptx
+```
+
+For two arbitrary files outside normal git history, use:
+
+```sh
+git difftool --tool=pptxdiff --no-index before.pptx after.pptx
+```
+
+Close the browser window when finished; the command should then return control to the shell. The
+installer must run inside a git repository (`git rev-parse --show-toplevel`).
 
 ## Running tests
 
@@ -111,7 +122,7 @@ PPTXDIFF_CHROME_PATH=/path/to/chrome xvfb-run -a npm run test:difftool
 
 ## Implementation notes (`lib/automation.js`)
 
-Two non-obvious automation details are intentional and covered by regression tests:
+Three non-obvious automation details are intentional and covered by regression tests:
 
 - The app boots with default sample decks loading asynchronously on both sides. Waiting on visible
   "Differences (N)" text alone is not a reliable "finished loading" signal; the automation waits on
@@ -119,3 +130,6 @@ Two non-obvious automation details are intentional and covered by regression tes
 - React applies inline styles through the DOM `style` property, not necessarily as an HTML
   `style="..."` attribute. Error-banner detection therefore uses computed styles instead of CSS
   attribute selectors.
+- `difftool` waits for either the visible page's `close` event or the browser's `disconnected`
+  event. On macOS/Chrome, closing the visible window may not immediately disconnect the browser
+  process, so page-close detection is required for Git to regain control promptly.

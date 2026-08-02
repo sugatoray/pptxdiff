@@ -83,7 +83,7 @@ Note: the app is fully offline-capable — React, ReactDOM, Babel, JSZip, `@aide
 
 Two additional packages under `src/packages/` let another program — a script, a CI job, an AI agent — get a diff result as data instead of a human clicking through the browser app: `@pptxdiff/cli` (exposing the `pptxdiff-cli` command with `diff`/`checksum`/`textconv`/`difftool`/`install-git-integration` subcommands and `diff(1)`-style exit codes) and `@pptxdiff/server` (`POST /v1/diff`, `POST /v1/checksum`, `GET /v1/health`). Both drive the same unmodified `index.html` headlessly via Playwright, so their answers can't disagree with what you'd see in the browser.
 
-`pptxdiff-cli install-git-integration` wires `*.pptx` into `git diff`/`git difftool` in one command — `git diff`/`git log -p` line-diff a deck's text content instead of showing "Binary files differ," and `git difftool` opens the real GUI pre-loaded with both versions.
+`pptxdiff-cli install-git-integration` wires `*.pptx` into `git diff`/`git difftool` in one command — `git diff`/`git log -p` line-diff a deck's text content instead of showing "Binary files differ," and `git difftool --tool=pptxdiff` opens the real GUI pre-loaded with both versions and returns to the shell after the browser window is closed.
 
 Not published to npm yet — install from a checkout (see each package's own README under `src/packages/`). Full docs: [Headless CLI & Web API](https://sugatoray.github.io/pptxdiff/headless-cli-api/). Design/rationale: `docs/.scrolls/CLI_API_DESIGN.md`.
 

@@ -2,6 +2,14 @@
 
 **Read `.scrolls/SPEC.md` first for the full feature list.** This file is the "what's the state of things right now" note — update it at the end of every session, keep it short and current (prune stale entries).
 
+## Update (2026-08-02 — `pptxdiff-cli difftool` close/hang fix confirmed)
+
+- User reproduced a real git integration bug on macOS/Chrome: `git difftool --tool=pptxdiff --no-index docs/assets/sample_before.pptx docs/assets/sample_after.pptx` opened the visible browser correctly, but closing the window did not return control to the shell.
+- Root cause: `openDifftool()` waited only for Playwright's browser `disconnected` event. Closing the visible page/window does not always immediately disconnect the browser process, so the CLI could wait forever from Git's perspective.
+- Fix: added `waitForDifftoolClose(page, browser)` in `src/packages/pptxdiff-cli/lib/automation.js`, racing page `close` with browser `disconnected`; `openDifftool()` now uses it. User manually confirmed the fix works with the real `git difftool` command.
+- Regression: added `src/packages/pptxdiff-cli/test_difftool_close_wait.mjs` to the normal `npm test` script. It is display-free and covers the exact failure mode by emitting page `close` without browser `disconnected`.
+- Docs updated: `src/packages/pptxdiff-cli/README.md` now documents `git difftool --tool=pptxdiff`, `--no-index`, and that closing the browser window should return control to shell. WISDOM.md has the trap note so future work does not revert to browser-disconnect-only waiting.
+
 ## Update (2026-08-01 — rebased `expt/add-pptxdiff-cli-and-api` onto `master`, no code changes)
 - Housekeeping/integration session, not feature work: `git rebase --onto master 6866250 expt/add-pptxdiff-cli-and-api`.
   `6866250` was the last commit the two histories shared before `master`'s PR #42 squash-merged the same
