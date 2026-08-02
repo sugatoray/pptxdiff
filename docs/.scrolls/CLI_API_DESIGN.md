@@ -68,7 +68,7 @@ need a real browser (or a from-scratch reimplementation, out of scope). Everythi
 ┌─────────────────────────────────────────────────────────────────┐
 │  Layer 3 — Surfaces (what a user/agent/git actually invokes)     │
 │  ┌───────────────┐  ┌────────────────────┐  ┌─────────────────┐ │
-│  │ pptxdiff (GUI) │  │ pptxdiff-cli       │  │ @pptxdiff/server │ │
+│  │ pptxdiff (GUI) │  │ @pptxdiff/cli │  │ @pptxdiff/server │ │
 │  │ existing        │  │ new headless CLI  │  │ new Web API      │ │
 │  │ bin/cli.js      │  │ subcommands       │  │ HTTP/REST        │ │
 │  └───────┬────────┘  └─────────┬──────────┘  └────────┬─────────┘ │
@@ -90,7 +90,7 @@ currently makes stays true for exactly the users who only want the GUI:
 |---|---|---|
 | `pptxdiff` (existing) | — | none (unchanged — stdlib-only static server) |
 | `@pptxdiff/core` (new) | — | `jszip`, a `DOMParser` polyfill (~2 small deps) |
-| `pptxdiff-cli` (new) | `@pptxdiff/core`, optionally Playwright | none required for `diff`/`checksum`/`batch`/`merge`; Playwright only if a browser-only export (`report --format pdf`, `screenshot`) is invoked — install on demand, don't force it on everyone |
+| `@pptxdiff/cli` (new) | `@pptxdiff/core`, optionally Playwright | none required for `diff`/`checksum`/`batch`/`merge`; Playwright only if a browser-only export (`report --format pdf`, `screenshot`) is invoked — install on demand, don't force it on everyone |
 | `@pptxdiff/server` (new) | `@pptxdiff/core`, stdlib `http` (matches `bin/cli.js`'s existing no-framework style) | same optional-Playwright story as the CLI |
 
 `index.html` itself changes to `import` `@pptxdiff/core` as a local ES module (served by the
@@ -98,7 +98,7 @@ existing static server, which already has a `.mjs` MIME type from §24) instead 
 copy of the parse/diff functions inline — this is what guarantees the CLI/API can never silently
 drift from what a human sees in the GUI: there is exactly one engine, imported three ways.
 
-## 5. CLI design (`pptxdiff-cli`)
+## 5. CLI design (`@pptxdiff/cli`, binary `pptxdiff-cli`)
 
 ### Command surface
 
@@ -242,7 +242,7 @@ usable by anyone." Two concrete mechanisms, complementary:
 ## 10. Decisions (resolved 2026-07-31)
 
 - **Package split: four packages**, as proposed in §4 (`pptxdiff` / `@pptxdiff/core` /
-  `pptxdiff-cli` / `@pptxdiff/server`) — the GUI launcher keeps its zero-runtime-dependency claim.
+  `@pptxdiff/cli` / `@pptxdiff/server`) — the GUI launcher keeps its zero-runtime-dependency claim.
 - **Execution strategy: Phase 1 (Playwright-driven) first.** Ship the full CLI+API command/endpoint
   surface reusing the existing browser engine as-is; defer the `@pptxdiff/core` native extraction
   (Phase 2) until the surface design is validated against real usage.
@@ -250,6 +250,41 @@ usable by anyone." Two concrete mechanisms, complementary:
   are thin wrappers around the same Playwright-driven automation shim, build that shim once and
   stand up both the CLI subcommands (§5) and the API endpoints (§8) on top of it in the same pass,
   rather than building one first and duplicating the wrapper logic for the other later.
+
+## 10a. Package-family naming direction (resolved 2026-08-02)
+
+Owner note: the npm org/scope `@pptxdiff` is available because project owner owns the npm org `pptxdiff`. Future published package naming should therefore prefer:
+
+| Package | Role |
+|---|---|
+| `pptxdiff` | Main user-facing GUI launcher / shortest `npx pptxdiff` entry point. |
+| `@pptxdiff/cli` | Headless CLI package (`diff`, `checksum`, `textconv`, `difftool`, `install-git-integration`). Supersedes the earlier unscoped `pptxdiff-cli` naming direction for eventual publication. |
+| `@pptxdiff/server` | Loopback HTTP API package (`/v1/diff`, `/v1/checksum`, `/v1/health`, later sessions/jobs). |
+| `@pptxdiff/core` | Future extracted shared engine: parse / align / diff / checksum / report helpers, with browser-only rendering/export paths remaining outside native core per §6. |
+
+Important npm detail: package name and binary name do not need to match. `@pptxdiff/cli` can still expose a `pptxdiff-cli` binary, and `@pptxdiff/server` can still expose a `pptxdiff-server` binary, preserving ergonomic shell commands while keeping package names in the scoped family.
+
+Pros of the `@pptxdiff/*` scoped family:
+- Clear ownership/branding signal: all modular packages visibly belong to the same project.
+- Lower name-collision risk than unscoped names such as `pptxdiff-server` or `pptxdiff-core`.
+- Better monorepo organization as the package family grows (`@pptxdiff/cli`, `@pptxdiff/server`, `@pptxdiff/core`, possibly `@pptxdiff/mcp` later).
+- Cleaner collaborator/access control through npm org permissions.
+- More consistent internal dependency graph once `@pptxdiff/core` exists.
+
+Cons / costs:
+- Slightly more publish ceremony: public scoped packages generally need `npm publish --access public`.
+- Longer install names (`npm install @pptxdiff/server`) than unscoped equivalents.
+- Users may initially wonder how root `pptxdiff` relates to scoped `@pptxdiff/*` packages; README/package docs should state that `pptxdiff` is the public GUI entry point and `@pptxdiff/*` are companion packages.
+- Rename cost is now mostly paid in package metadata: current local package name is `@pptxdiff/cli`, while the exposed shell binary remains `pptxdiff-cli`. Keep docs/tests clear about package name vs. binary name.
+
+Recommended dependency direction remains:
+
+```text
+pptxdiff
+@pptxdiff/core
+@pptxdiff/cli -> pptxdiff + @pptxdiff/core
+@pptxdiff/server -> @pptxdiff/cli and/or @pptxdiff/core
+```
 
 ## 11. What this does NOT change
 

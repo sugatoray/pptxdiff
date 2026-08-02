@@ -5,7 +5,7 @@ HTTP, so other tools and AI agents can use pptxdiff without shelling out to a CL
 
 This package is Phase 1 of the design proposal in the root repo's
 `docs/.scrolls/CLI_API_DESIGN.md` §8. It's a thin stdlib-only (`node:http`, no framework) HTTP
-wrapper around `pptxdiff-cli`'s automation layer (`diffDecks`/`computeChecksum`) — the same
+wrapper around `@pptxdiff/cli`'s automation layer (`diffDecks`/`computeChecksum`) — the same
 Playwright-driven engine the CLI uses, so this API's answers can never silently disagree with
 either the CLI's or the GUI's for the same two files.
 
@@ -15,10 +15,10 @@ Not yet published to npm. Stateless endpoints only (`/v1/diff`, `/v1/checksum`, 
 the stateful review-session endpoints described in the design doc (mirroring the GUI's reviewer
 workflow) are a documented next step, not built yet. See PLAN.md.
 
-## Development note: the `pptxdiff-cli` dependency
+## Development note: the `@pptxdiff/cli` dependency
 
-`package.json` depends on `pptxdiff-cli` via `"file:../pptxdiff-cli"` — a monorepo-local
-development convenience, same reasoning as `pptxdiff-cli`'s own dependency on `pptxdiff` (see that
+`package.json` depends on `@pptxdiff/cli` via `"file:../pptxdiff-cli"` — a monorepo-local
+development convenience, same reasoning as `@pptxdiff/cli`'s own dependency on `pptxdiff` (see that
 package's README). Swap to a real published semver range before this package is actually published.
 
 ## API
@@ -51,7 +51,7 @@ auth/reverse proxy if you need non-local access before that gap closes.
 ## Running the tests
 
 `test_server_e2e.mjs` starts a real server and genuinely launches a headless browser — needs a
-real Chrome/Chromium/Edge available (see `pptxdiff-cli`'s README for the three resolution
+real Chrome/Chromium/Edge available (see `@pptxdiff/cli`'s README for the three resolution
 mechanisms). In a sandbox with no system browser installed:
 
 ```sh

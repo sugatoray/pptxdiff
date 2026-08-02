@@ -21,7 +21,7 @@
     "test": "node test_server_unit.mjs && node test_server_bin.mjs && node test_server_e2e.mjs"
   },
   "dependencies": {
-    "pptxdiff-cli": "file:../pptxdiff-cli"
+    "@pptxdiff/cli": "file:../pptxdiff-cli"
   },
   "engines": {
     "node": ">=18"

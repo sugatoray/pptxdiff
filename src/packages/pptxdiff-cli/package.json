@@ -1,5 +1,5 @@
 {
-  "name": "pptxdiff-cli",
+  "name": "@pptxdiff/cli",
   "version": "0.1.0",
   "description": "Headless CLI for pptxdiff — diff two PowerPoint decks from a script, CI job, or git driver, with JSON output and diff(1)-style exit codes. No browser tab, no manual clicking.",
   "license": "Apache-2.0",
