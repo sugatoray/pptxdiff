@@ -2,6 +2,13 @@
 
 **Read `.scrolls/SPEC.md` first for the full feature list.** This file is the "what's the state of things right now" note — update it at the end of every session, keep it short and current (prune stale entries).
 
+## Update (2026-08-02 — `@pptxdiff/server` scoped CLI dependency fix)
+
+- Last commit `452ba63` fixed a server-package break introduced by renaming the CLI package to `@pptxdiff/cli`: `src/packages/pptxdiff-server/lib/server.js` still required old `pptxdiff-cli/lib/index.js`, so fresh `npm install && npm test` failed with `MODULE_NOT_FOUND`.
+- Runtime import now uses `@pptxdiff/cli/lib/index.js`; `src/packages/pptxdiff-server/package-lock.json` also records the linked package name as `@pptxdiff/cli`, and `bin/pptxdiff-server.js` is executable.
+- Verified from `src/packages/pptxdiff-server`: `npm test` passed all server tests (`server-unit` 13/13, `server-bin` 15/15, `server-e2e` 11/11). In this sandbox, loopback binding required escalated execution; user-local run should work normally.
+- Docs follow-up: `src/packages/pptxdiff-server/README.md` now explicitly says runtime imports must use the scoped package path `@pptxdiff/cli/lib/index.js`, not the old unscoped path.
+
 ## Update (2026-08-02 — `pptxdiff-cli difftool` close/hang fix confirmed)
 
 - User reproduced a real git integration bug on macOS/Chrome: `git difftool --tool=pptxdiff --no-index docs/assets/sample_before.pptx docs/assets/sample_after.pptx` opened the visible browser correctly, but closing the window did not return control to the shell.
@@ -465,4 +472,3 @@ See `.scrolls/SPEC.md` for the full feature spec, `.scrolls/GAP_ANALYSIS.md` + `
 - `findCrossDeckDuplicates` signature changed: `(slidesA, slidesB, alignment, threshold, maxPairs, force)` — all four new params are optional with sane defaults (0.92 threshold, 6000-comparison cap, force=false), and it now returns `{pairs, skipped, totalComparisons}` instead of a bare array. Any code still expecting a bare array from this function (there shouldn't be any left, but check if you're reading old context) needs `.pairs`.
 - New state: `crossDupThreshold` (0.92), `crossDupForceLarge` (false), `ignoredCrossDupKeys` ({}), `mergeDuplicateSlides` (false). New pure helper: `sectionForSlideIndex(sections, idx)`.
 - `mergePreviewRows()` and `exportMergedPptx()` both independently recompute cross-dup pairs (gated by `mergeDuplicateSlides`) — kept as two separate computations rather than a shared cached value, consistent with this file's existing pattern of recomputing alignment/derived data per call site rather than threading it through many function signatures.
-
