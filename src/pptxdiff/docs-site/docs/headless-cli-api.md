@@ -26,6 +26,12 @@ through the same file inputs, wait for the same diff engine, and read the same
 JSON report export the UI produces. That keeps CLI/API results aligned with what
 a human reviewer sees in the browser.
 
+!!! warning "Early-stage packages"
+    `@pptxdiff/cli` and `@pptxdiff/server` are in very early stages of
+    development. Their current commands, API shape, package layout, and local
+    dependency wiring may change before the packages are published for general
+    npm use. Treat them as experimental source-checkout tools for now.
+
 ## Status
 
 The packages are not published to npm yet. They are usable from a source checkout

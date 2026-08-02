@@ -76,14 +76,15 @@ markdown_extensions:
 
 plugins:
   - search
+  - git-revision-date-localized:
+      enable_creation_date: true
+      type: date
+  - git-authors
   - macros:
       module_name: main
       # Opt-in Jinja rendering, not opt-out: without this, the plugin would try
-      # to Jinja-evaluate any literal {{ }} appearing anywhere in the docs --
-      # and this app's OWN template syntax (index.html) literally is
-      # {{ theme.border }}-style, so a future page quoting it must stay inert.
-      # Only documentation-coverage.md opts in, via its own `render_macros: true`
-      # front matter.
+      # to Jinja-evaluate any literal {{ }} appearing anywhere in docs.
+      # Only documentation-coverage.md opts in via `render_macros: true`.
       render_by_default: false
 
 extra:
