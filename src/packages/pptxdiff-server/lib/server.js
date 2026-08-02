@@ -1,7 +1,7 @@
 "use strict";
 
 const http = require("node:http");
-const { diffDecks, computeChecksum, BrowserUnavailableError, PptxParseError } = require("pptxdiff-cli/lib/index.js");
+const { diffDecks, computeChecksum, BrowserUnavailableError, PptxParseError } = require("@pptxdiff/cli/lib/index.js");
 
 const DEFAULT_MAX_BODY_BYTES = 100 * 1024 * 1024; // 100MB — real decks can be large; still bounded (see readJsonBody) so an unbounded upload can't exhaust memory
 
