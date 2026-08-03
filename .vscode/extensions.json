@@ -39,6 +39,7 @@
         "google.gemini-cli-vscode-ide-companion",
         "google.geminicodeassist",
         "sst-dev.opencode",
-        "redhat.vscode-xml"
+        "redhat.vscode-xml",
+        "bierner.emojisense"
     ]
 }

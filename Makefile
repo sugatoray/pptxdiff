@@ -22,6 +22,7 @@ PYTHON := python3
 NPM_PKG_DIR_RELPATH := .
 VSCE_PKG_DIR_RELPATH := ./src/packages/pptxdiff-vscode
 MKDOCS_YML_RELPATH := ./src/pptxdiff/docs-site/mkdocs.yml
+CLOC_BASE_DIR ?= . ## Optionally set here or via command line: make info.cloc.base CLOC_BASE_DIR=./src
 
 ########################## DONOT CHANGE PARAMETERS BELOW ###############################
 
@@ -281,6 +282,70 @@ py.clear: # Clear off various python artifacts (files/folders)
 chore.update.gitignore:
 	@echo -e "\n✨ Update .gitignore file... ⏳\n"
 	@source "$(ROOT_DIR)/.gitignores/combine.sh"
+
+
+############################### ..: COMMANDS info.cloc.*:.. ############################
+
+## INFO: Counting Lines of Code
+## Source:
+## - https://github.com/pajecawav/ghloc-web
+## - https://ghloc.vercel.app/sugatoray/pptxdiff?branch=master
+## - https://shields.io/badges/endpoint-badge
+## - ![Endpoint Badge](https://img.shields.io/endpoint?url=https%3A%2F%2Fghloc.vercel.app%2Fapi%2Fsugatoray%2Fpptxdiff%2Fbadge)
+## - https://ghloc.vercel.app/api/sugatoray/pptxdiff/badge
+## - https://img.shields.io/endpoint?url=https%3A%2F%2Fghloc.vercel.app%2Fapi%2Fsugatoray%2Fpptxdiff%2Fbadge
+## - https://img.shields.io/endpoint?url=https://ghloc.vercel.app/api/sugatoray/pptxdiff/badge
+
+## NOTE: CLOC (Count Lines of Code) is a command line tool that counts blank lines, comment lines, and physical lines of source code in many programming languages.
+
+.PHONY: info.cloc.base
+info.cloc.base:
+	@echo -e "\n💡 Install CLOC as: ... ⏳\n\n    ⚙️  brew install cloc \n"
+	@echo -e "\n✨ Show CLOC Info | Folder: $(CLOC_BASE_DIR) ... ⏳\n"
+	@cloc $(CLOC_BASE_DIR) \
+		--not-match-d='src/pptxdiff/vendor' \
+		--exclude-dir=.git,node_modules,dist,build,site,__pycache__
+
+.PHONY: info.cloc.src
+info.cloc.src:
+	@## Cloc Report from: ./src
+	@$(MAKE) info.cloc.base CLOC_BASE_DIR=./src
+
+.PHONY: info.cloc.all
+info.cloc.all:
+	@## Cloc Report from: REPO_ROOT
+	@$(MAKE) info.cloc.base CLOC_BASE_DIR=.
+
+## Example Output:
+## ❯ make info.cloc.src
+## 
+## 💡 Install CLOC as: ... ⏳
+## 
+##     ⚙️  brew install cloc 
+## 
+## 
+## ✨ Show CLOC Info | Folder: ./src ... ⏳
+## 
+##      114 text files.
+##      103 unique files.                                          
+##       43 files ignored.
+## 
+## github.com/AlDanial/cloc v 2.10  T=0.41 s (251.6 files/s, 189264.2 lines/s)
+## -------------------------------------------------------------------------------
+## Language                     files          blank        comment           code
+## -------------------------------------------------------------------------------
+## JavaScript                      47            548           2388          65682
+## HTML                             1            115             23           4216
+## Markdown                        36            680             12           2203
+## Python                           7            145            146            517
+## JSON                             7              0              0            414
+## YAML                             2              8              9            235
+## Text                             1             18              0             75
+## CSS                              1              0              9             28
+## Bourne Shell                     1              1              0              5
+## -------------------------------------------------------------------------------
+## SUM:                           103           1515           2587          73375
+## -------------------------------------------------------------------------------
 
 ############################## ..: COMMANDS docs.*:.. ############################
 
