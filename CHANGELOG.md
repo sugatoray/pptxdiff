@@ -7,36 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+...
+
+## [0.7.0] - 2026-08-02
+
 ### Added
 
-- New `pptxdiff-cli` package (`src/packages/pptxdiff-cli/`): a headless CLI —
-  `pptxdiff-cli diff <before.pptx> <after.pptx>` (`diff(1)`-style exit codes:
-  0 = no differences, 1 = differences found, 2 = tool error; `--json`,
-  `--out`, `--quiet`, `--timeout`) and `pptxdiff-cli checksum <file.pptx>`.
-  Drives the existing browser app headlessly via `playwright-core` — uploads
-  through the real file inputs, reads the real "Export → JSON report" —
-  rather than reimplementing the diff engine, so results can't disagree
-  with the GUI. Not yet published to npm (installs from source).
-- New `@pptxdiff/server` package (`src/packages/pptxdiff-server/`): a
-  stdlib-only (`node:http`) Web API over the same engine — `POST /v1/diff`,
-  `POST /v1/checksum`, `GET /v1/health`. Binds to `127.0.0.1` by default;
-  no authentication yet for a non-loopback bind (documented, not silent).
-  Not yet published to npm.
-- `bin/cli.js` now exports `startServer()` for reuse by the two packages
-  above, alongside its existing CLI entrypoint behavior (unchanged).
-- New docs site page: [Headless CLI & Web API](https://sugatoray.github.io/pptxdiff/headless-cli-api/).
-- `pptxdiff-cli` gained git integration: `pptxdiff-cli textconv <file.pptx>`
-  (a git `textconv` driver — prints one deck's plain text so `git diff`/
-  `git log -p` can line-diff it), `pptxdiff-cli difftool <local> <remote>`
-  (a git `difftool` driver — opens a real, visible browser window with both
-  files loaded, blocks until you close it), and `pptxdiff-cli
-  install-git-integration [--global]` (wires both into a repo's
-  `.gitattributes` + git config in one idempotent command; local by
-  default, `--global` for `~/.gitconfig`).
+- New private `@pptxdiff/cli` package (`src/packages/pptxdiff-cli/`) with the `pptxdiff-cli` executable for headless deck automation.
+- `pptxdiff-cli diff <before.pptx> <after.pptx>` with `diff(1)`-style exit codes: `0` for no differences, `1` for differences found, and `2` for tool/runtime errors.
+- `pptxdiff-cli diff` options for script and CI usage: `--json`, `--out`, `--quiet`, and `--timeout`.
+- `pptxdiff-cli checksum <file.pptx>` for parser-independent SHA-256 deck checksums.
+- Browser resolution for headless automation through `PPTXDIFF_CHROME_PATH`, well-known Chrome/Chromium/Edge install paths, and Playwright fallback behavior.
+- Git integration commands in `@pptxdiff/cli`: `textconv <file.pptx>`, `difftool <before.pptx> <after.pptx>`, and `install-git-integration [--global]`.
+- New private `@pptxdiff/server` package (`src/packages/pptxdiff-server/`) exposing a stdlib-only local HTTP API over the same headless engine.
+- `@pptxdiff/server` endpoints: `GET /v1/health`, `POST /v1/diff`, `POST /v1/checksum`, `GET /openapi.json`, and `GET /docs`.
+- `bin/cli.js` now exports `startServer()` for reuse by the headless CLI/API packages while preserving the existing browser app launch behavior.
+- Docs-site coverage for the headless CLI/API work, including package-specific sections for `@pptxdiff/cli`, Git integration, `@pptxdiff/server`, and OpenAPI docs endpoints.
+- Dedicated docs-site changelog subpages for the root `pptxdiff` npm package, `@pptxdiff/cli`, `@pptxdiff/server`, and `pptxdiff-vscode`.
+- MkDocs page revision metadata showing page creation date, last update date, and authors.
+- Repository `.mailmap` support so Git/MkDocs collapse multiple GitHub noreply identities for the same author.
+- Makefile CLOC helpers for counting lines of code while excluding vendored dependencies such as `src/pptxdiff/vendor`.
 
-This is Phase 1 of a larger design (`docs/.scrolls/CLI_API_DESIGN.md`) —
-`batch`/`report`/`merge` subcommands, server authentication, and a native
-(browser-free) engine are designed but not yet built.
+### Changed
+
+- Renamed the new CLI package metadata to scoped npm package name `@pptxdiff/cli` while keeping the executable name `pptxdiff-cli`.
+- Updated package docs and scrolls to capture scoped npm package tradeoffs, the owned `@pptxdiff` org direction, and the future `@pptxdiff/core` extraction plan.
+- Updated docs-site navigation so changelogs appear under grouped `NPM Package(s)` and `VS Code Extension(s)` sections.
+
+### Fixed
+
+- `pptxdiff-cli difftool` now returns control to Git/the shell when the visible browser window is closed.
+- `@pptxdiff/server` now imports the scoped CLI package path (`@pptxdiff/cli/lib/index.js`) instead of the old unscoped `pptxdiff-cli` package path.
+- Docs-site snippet resolution now works from both direct MkDocs commands and the Makefile docs targets.
 
 ## [0.6.0] - 2026-07-31
 

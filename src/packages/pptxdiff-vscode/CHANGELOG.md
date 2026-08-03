@@ -2,6 +2,19 @@
 
 All notable changes to the pptxdiff VS Code extension will be documented in this file.
 
+## [0.3.0] - 2026-08-02
+
+### Added
+
+- Bundled upstream `pptxdiff` app `0.7.0` into the extension package.
+- Added upstream package-family documentation updates, including dedicated docs-site changelog pages for `pptxdiff`, `@pptxdiff/cli`, `@pptxdiff/server`, and `pptxdiff-vscode`.
+- Added upstream docs-site page revision metadata support for creation date, last update date, and authors.
+- Added upstream `.mailmap` support so docs authors collapse multiple GitHub noreply identities for the same person.
+
+### Changed
+
+- Updated upstream docs-site navigation so changelogs appear under grouped `NPM Package(s)` and `VS Code Extension(s)` sections.
+
 ## [0.2.0] - 2026-07-31
 
 ### Added
