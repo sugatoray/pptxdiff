@@ -1,0 +1,37 @@
+{
+  "name": "@pptxdiff/binaries",
+  "version": "0.1.0",
+  "description": "Build script producing standalone native pptxdiff executables (Node Single Executable Applications) for Windows, macOS, and Linux — no separate Node.js install required to run them.",
+  "license": "Apache-2.0",
+  "private": true,
+  "author": {
+    "name": "Sugato Ray",
+    "email": "sugatoray.dev@gmail.com",
+    "url": "https://github.com/sugatoray"
+  },
+  "scripts": {
+    "build": "node build.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "jszip": "^3.10.1",
+    "postject": "^1.0.0-alpha.6"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sugatoray/pptxdiff.git",
+    "directory": "src/packages/binaries"
+  },
+  "homepage": "https://github.com/sugatoray/pptxdiff#readme",
+  "keywords": [
+    "pptx",
+    "powerpoint",
+    "diff",
+    "sea",
+    "single-executable-application",
+    "native-binary"
+  ]
+}
