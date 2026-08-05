@@ -391,3 +391,35 @@ shim, not sequentially — that plan is what shipped below.
 ## Done this session (Red/Green regression test for the Chocolatey package)
 - [x] **P2 — `test_chocolatey_package.mjs`**: pure-Node static-analysis regression test for `src/packages/pptxdiff-chocolatey/` (no `choco`/`pwsh` needed). 21 assertions covering version-sync across `pptxdiff.nuspec`/root `package.json`/the install script's fallback pin, the nuspec's `nodejs` dependency version, both `.ps1` scripts' npm commands, the cmdlet-argument-mode `+`-concatenation bug staying absent, `tools/LICENSE.txt` staying byte-identical to root `LICENSE`, and required companion files existing. Genuinely demonstrated RED (18/21, 3 real failures) before GREEN (21/21) by temporarily reintroducing a version mismatch and the PowerShell bug, then restoring both.
 - [x] Ticket 2 above ("Automate version sync") is now PARTIALLY addressed: still a manual bump, but drift is caught automatically by the new test instead of shipping silently — see GAP_ANALYSIS.md's updated entry.
+## Done this session (standalone native binaries for Windows/macOS/Linux)
+- [x] **P2 — `src/packages/binaries/`: standalone native `pptxdiff` executables via Node SEA.**
+  Explicit ask, with an explicit up-front choice (asked directly): standalone binaries vs. real
+  signed OS installers — user picked standalone binaries, consistent with the prior explicit
+  Electron/Tauri-vs-CLI+browser decision (see GAP_CONTEXT.md). `build.mjs` bundles a small SEA entry
+  point (reusing `bin/cli.js`'s `startServer()`/`buildBrowserOpenCommand()` — `startServer()` gained
+  a backward-compatible optional `root` param for this) via esbuild, generates the Node SEA blob,
+  injects it into a copy of the current `node` binary via `postject`, and copies the static app
+  files into an `assets/` folder next to it. Output lands in
+  `src/packages/binaries/pptxdiff-{win,mac,linux}/` (gitignored — build artifacts, one tracked
+  `README.md` each) as a `pptxdiff-<os>-<version>.zip`. `.github/workflows/binaries.yml` runs the
+  build on a 3-OS CI matrix (SEA has no cross-compile mode — each OS's binary can only be built ON
+  that OS) and uploads each as a workflow artifact. `make pkg.binaries.build` / `npm run
+  build:binary` build for the current host only. Verified for real on Linux (this sandbox): built,
+  ran the actual packaged binary (not just `bin/cli.js`), confirmed it serves `index.html`/
+  `support.js`/`vendor/*` correctly via real HTTP requests. macOS/Windows are structurally identical
+  but unverified until CI runs them (no non-Linux host in this sandbox) — see GAP_ANALYSIS.md.
+
+## New tickets opened this session
+1. **P2 — Attach the built binaries to GitHub Releases**, not just CI workflow artifacts. Needs a
+   `release: types: [published]`-triggered job (or similar) that re-runs the 3-OS build matrix and
+   uploads the zips to the release — not built this session, current CI only produces downloadable
+   workflow artifacts on push/dispatch.
+2. **P3 — Code signing for the Windows `.exe` and a real Apple Developer ID for macOS.** Needs a
+   purchased/managed certificate (real ongoing cost, not a code change) — until then, both binaries
+   trigger their OS's "unidentified/unsigned" security warning on first run. Documented per-OS in
+   each `pptxdiff-<os>/README.md`.
+3. **P4 — True single-file binaries via Node SEA's embedded-asset store** (`node:sea`'s
+   `getAsset()`), instead of shipping a `binary + assets/ folder`, zipped together. Would need
+   `bin/cli.js`'s static server to read from `sea.getAsset()` when running under SEA instead of
+   `fs.readFile()` — a real behavior change to already-hardened code, deliberately not made for this
+   first pass (see GAP_CONTEXT.md).

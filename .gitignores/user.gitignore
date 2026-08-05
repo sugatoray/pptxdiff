@@ -29,3 +29,16 @@ src/pptxdiff/docs-site/site/
 ## Covers pptxdiff-cli, @pptxdiff/server, and any future src/packages/*/lib/.
 !src/packages/*/lib/
 !src/packages/*/lib/**
+
+## Native-binary build output (src/packages/binaries/build.mjs) — the
+## executable, the copied "assets" folder, and the zipped artifact are all
+## generated per-OS, not source; keep each OS folder's own README.md tracked
+## (it documents the folder before a build has ever run there) but ignore
+## everything else build.mjs writes into it.
+src/packages/binaries/pptxdiff-win/*
+src/packages/binaries/pptxdiff-mac/*
+src/packages/binaries/pptxdiff-linux/*
+!src/packages/binaries/pptxdiff-win/README.md
+!src/packages/binaries/pptxdiff-mac/README.md
+!src/packages/binaries/pptxdiff-linux/README.md
+src/packages/binaries/.build/

@@ -97,15 +97,19 @@ function isPathContained(root, candidate) {
 // existing trap about `pptxdiff-vscode/extension.js` carrying its own
 // independent (and once out-of-sync) copy of this same server; new
 // consumers should import this function rather than repeat that mistake.
+// `root` defaults to this package's own bundled `src/pptxdiff` (the normal
+// npm-install case); `src/packages/binaries`'s Node SEA entry point passes
+// an explicit `root` instead, since a packaged single-executable binary has
+// no `__dirname`-relative sibling files to find the assets from.
 // Resolves to { server, port, url } once listening; the caller decides
 // what to do with the URL (print it, open a browser, hand it to Playwright).
-function startServer() {
+function startServer(root = ROOT) {
   return new Promise((resolve, reject) => {
     const server = http.createServer((req, res) => {
       const reqPath = decodeURIComponent(req.url.split("?")[0]);
-      const filePath = path.join(ROOT, path.normalize(reqPath === "/" ? "/index.html" : reqPath));
+      const filePath = path.join(root, path.normalize(reqPath === "/" ? "/index.html" : reqPath));
 
-      if (!isPathContained(ROOT, filePath)) {
+      if (!isPathContained(root, filePath)) {
         res.writeHead(403, SECURITY_HEADERS);
         res.end("Forbidden");
         return;
