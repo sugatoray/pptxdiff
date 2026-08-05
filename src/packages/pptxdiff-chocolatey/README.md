@@ -33,6 +33,30 @@ rationale (this is a documented Chocolatey convention for packages that don't em
 - `tools/VERIFICATION.txt` — Chocolatey moderation requirement explaining how to verify this
   package's contents, since it has no binary payload of its own.
 - `tools/LICENSE.txt` — a copy of the project's Apache-2.0 `LICENSE`, for offline reference.
+- `test_chocolatey_package.mjs` — a plain-Node Red/Green regression test (no `choco`/`pwsh`
+  required). See "Regression testing" below.
+
+## Regression testing
+
+This repo's dev/CI environment is Linux, so there's no `choco`/`pwsh` here to actually run
+`choco pack`/`choco install` (see "Building and testing locally" below for how to do that on a
+real Windows machine). What *can* run anywhere is a static-analysis regression test, in the same
+spirit as the root project's `src/pptxdiff/test_offline_capable.mjs`:
+
+```sh
+node src/packages/pptxdiff-chocolatey/test_chocolatey_package.mjs
+```
+
+It checks the things most likely to silently drift or break without an interpreter to catch them:
+`pptxdiff.nuspec`'s `<version>` staying in sync with the root `package.json` version and with
+`tools/chocolateyinstall.ps1`'s fallback version pin; the nuspec's `nodejs` dependency version
+staying in sync with root `package.json`'s `engines.node`; both `.ps1` scripts calling the correct
+`npm install --global` / `npm uninstall --global` commands; neither script reintroducing the
+PowerShell cmdlet-argument-mode `+`-string-concatenation bug documented in the root project's
+`docs/.scrolls/WISDOM.md` (it looks like valid string concatenation but isn't, and throws only the
+first time that code path actually runs); `tools/LICENSE.txt` staying byte-identical to the root
+`LICENSE`; and every required companion file existing and non-empty. Run it after editing anything
+in this package, especially before bumping `<version>` for a release.
 
 ## Building and testing locally (on Windows, with Chocolatey installed)
 
