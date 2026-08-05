@@ -1,208 +1,143 @@
 #!/usr/bin/env node
 "use strict";
 
-// Builds a standalone native pptxdiff executable for the CURRENT host OS
-// using Node's Single Executable Applications (SEA) feature, and drops it
-// (plus the static app files it serves, plus a zip of both) into
-// src/packages/binaries/pptxdiff-<win|mac|linux>/.
+// Builds standalone native pptxdiff executables using @yao-pkg/pkg (the
+// actively-maintained fork of the Vercel-archived `pkg` — see
+// docs/.scrolls/GAP_CONTEXT.md for why this was chosen over Node's own
+// Single Executable Applications feature, which this package originally
+// used).
 //
-// Node SEA has no supported cross-platform mode: a SEA binary is built by
-// injecting a JS blob into a COPY OF THE CURRENTLY RUNNING node executable
-// (process.execPath). Building all three platforms' binaries therefore
-// means running this script once per OS — see .github/workflows/binaries.yml
-// for a CI matrix (ubuntu-latest/macos-latest/windows-latest) that does
-// exactly that. There is no attempt here to fake cross-compilation.
+// Unlike Node SEA, pkg genuinely cross-compiles: it downloads a prebuilt
+// "base" node binary for each TARGET platform and injects the bundled app
+// into it, so a single Linux (or any) host can build the Windows and Linux
+// binaries. macOS is the one exception in THIS build — see below.
 //
-// No code-signing certificate is available (or in scope — see
-// docs/.scrolls/GAP_CONTEXT.md), so the macOS binary is only ad-hoc signed
-// (runs locally, still triggers Gatekeeper's "unidentified developer"
-// warning on a freshly-downloaded copy) and the Windows .exe is unsigned
-// (triggers a SmartScreen warning). Documented, not silently hidden.
+// Points bin/cli.js's UNMODIFIED entry point directly at pkg, and embeds
+// the same static app files (index.html/support.js/sample-pptx.js/
+// vendor/**) as pkg "assets" — pkg's snapshot filesystem preserves the
+// real relative directory structure (entry at snapshot `/bin/cli.js`,
+// assets at snapshot `/src/pptxdiff/...`), so `bin/cli.js`'s own
+// `ROOT = path.join(__dirname, "..", "src", "pptxdiff")` resolves
+// correctly with ZERO code changes — no assets-folder-next-to-the-binary
+// workaround needed the way Node SEA required.
 //
-// PLATFORM_MAP/ASSET_ENTRIES/resolveTarget are exported (pure, no side
-// effects) so test_build_config.mjs can assert on them without triggering
-// a real build; buildBinary() is exported so test_build_e2e.mjs can run a
-// real build for the current platform and drive the actual output binary.
-// The entrypoint guard below (same pattern as capture_screenshots.mjs —
-// see WISDOM.md) means importing this module never runs a build as a side
-// effect — only `node build.mjs` (or an explicit buildBinary() call) does.
+// IMPORTANT, hard-won gotcha (see WISDOM.md): pkg's "assets" glob paths in
+// a config file resolve relative to WHATEVER DIRECTORY THAT CONFIG FILE
+// ITSELF LIVES IN — not the process's cwd, not the entry file's directory.
+// Silently: no error, no warning, it just embeds nothing if the globs
+// don't match from the config's own location. The config therefore has to
+// be written to REPO_ROOT (next to the real package.json) for
+// "src/pptxdiff/**" to resolve — written fresh before each build and
+// removed in a `finally`, since it isn't a real project file.
+//
+// **macOS is NOT cross-compiled from this build.** pkg can produce a
+// macOS binary from Linux/Windows, but it cannot codesign it (`codesign`
+// only exists on macOS) — and an entirely unsigned binary is a real
+// functional problem on Apple Silicon (arm64 requires at least an ad-hoc
+// signature to launch at all under AMFI, not just a Gatekeeper warning
+// like on Intel). So `buildOne('mac', ...)` only runs its codesign step
+// when `process.platform === 'darwin'`; on any other host it still
+// produces a binary (for local experimentation) but loudly warns it's
+// unsigned rather than silently shipping something that may not launch.
+// .github/workflows/binaries.yml reflects this: linux+win build together
+// on ubuntu-latest, mac builds separately on macos-latest.
 
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import JSZip from "jszip";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..", "..", "..");
 
-export const PLATFORM_MAP = {
-  win32: { osKey: "win", binName: "pptxdiff-win.exe", isWin: true, isMac: false },
-  darwin: { osKey: "mac", binName: "pptxdiff-mac", isWin: false, isMac: true },
-  linux: { osKey: "linux", binName: "pptxdiff-linux", isWin: false, isMac: false },
+export const TARGET_MAP = {
+  linux: { pkgTarget: "node22-linux-x64", binName: "pptxdiff-linux", needsMacSign: false },
+  win: { pkgTarget: "node22-win-x64", binName: "pptxdiff-win.exe", needsMacSign: false },
+  mac: { pkgTarget: "node22-macos-x64", binName: "pptxdiff-mac", needsMacSign: true },
 };
 
-// Same subset root package.json's "files" ships to npm — the exact set of
-// static files bin/cli.js's server actually reads from ROOT.
-export const ASSET_ENTRIES = [
-  ["src/pptxdiff/index.html", "index.html"],
-  ["src/pptxdiff/support.js", "support.js"],
-  ["src/pptxdiff/sample-pptx.js", "sample-pptx.js"],
-  ["src/pptxdiff/vendor", "vendor"],
+// Same subset root package.json's "files" ships to npm — the exact static
+// files bin/cli.js's server reads from ROOT. Relative to REPO_ROOT, which
+// is where the temp pkg config gets written (see the file header comment
+// on WHY that placement matters).
+export const ASSET_GLOBS = [
+  "src/pptxdiff/index.html",
+  "src/pptxdiff/support.js",
+  "src/pptxdiff/sample-pptx.js",
+  "src/pptxdiff/vendor/**/*",
 ];
 
-// Pure: `platform` -> PLATFORM_MAP entry, or null if unsupported.
-export function resolveTarget(platform) {
-  return PLATFORM_MAP[platform] || null;
+// Pure: osKey -> TARGET_MAP entry, or null if unknown.
+export function resolveTarget(osKey) {
+  return TARGET_MAP[osKey] || null;
 }
 
 function log(osKey, msg) {
   console.log(`[build-binary:${osKey}] ${msg}`);
 }
 
-function run(osKey, cmd, args, opts = {}) {
-  log(osKey, `$ ${cmd} ${args.join(" ")}`);
-  execFileSync(cmd, args, { stdio: "inherit", ...opts });
-}
-
-function cleanDir(dir) {
-  fs.rmSync(dir, { recursive: true, force: true });
-  fs.mkdirSync(dir, { recursive: true });
-}
-
-// Removes only what a previous build.mjs run generated inside an OS folder
-// (the binary, the copied assets/ folder, any zip artifacts) — NOT a blind
-// `rm -rf` of the whole folder, which would also delete the tracked
-// README.md/CHANGELOG.md that live there. Safe to call whether or not a
-// prior build has ever run (nothing to remove on a fresh clone).
-function cleanGeneratedOutDir(outDir, target) {
+// Builds ONE OS's binary. `target` must be a TARGET_MAP entry. Returns the
+// absolute path to the built executable. Writes bin.mjs's temp pkg config
+// at REPO_ROOT and always removes it afterward, success or failure.
+export async function buildOne(osKey, target) {
+  const outDir = path.join(__dirname, `pptxdiff-${osKey}`);
   fs.mkdirSync(outDir, { recursive: true });
-  fs.rmSync(path.join(outDir, target.binName), { force: true });
-  fs.rmSync(path.join(outDir, "assets"), { recursive: true, force: true });
-  for (const entry of fs.readdirSync(outDir)) {
-    if (entry.endsWith(".zip")) fs.rmSync(path.join(outDir, entry), { force: true });
-  }
-}
-
-async function zipDir(dir, outZipPath) {
-  const zip = new JSZip();
-  const walk = (abs, rel) => {
-    for (const entry of fs.readdirSync(abs, { withFileTypes: true })) {
-      const absChild = path.join(abs, entry.name);
-      const relChild = rel ? `${rel}/${entry.name}` : entry.name;
-      if (entry.isDirectory()) walk(absChild, relChild);
-      else zip.file(relChild, fs.readFileSync(absChild));
-    }
-  };
-  walk(dir, "");
-  const buf = await zip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
-  fs.writeFileSync(outZipPath, buf);
-}
-
-// Builds the given PLATFORM_MAP `target` (must match the CURRENT
-// process.platform — SEA injects into a copy of the running node binary,
-// it cannot target a different OS). Returns {outDir, binPath, zipPath}.
-export async function buildBinary(target) {
-  const PKG_VERSION = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, "package.json"), "utf8")).version;
-  const outDir = path.join(__dirname, `pptxdiff-${target.osKey}`);
-  const buildTmp = path.join(__dirname, ".build");
-  const assetsOut = path.join(outDir, "assets");
   const binOut = path.join(outDir, target.binName);
+  fs.rmSync(binOut, { force: true });
 
-  log(target.osKey, `Building for ${process.platform} -> ${outDir}`);
-  cleanGeneratedOutDir(outDir, target);
-  cleanDir(buildTmp);
+  const tmpConfigPath = path.join(REPO_ROOT, `.pkg-binaries-config.${osKey}.json`);
+  fs.writeFileSync(tmpConfigPath, JSON.stringify({ assets: ASSET_GLOBS }, null, 2));
 
-  // 1. Bundle sea-entry.cjs (which itself inlines bin/cli.js's exports) into
-  //    a single flat CommonJS file — SEA's `main` must be one self-contained
-  //    file; it does not resolve a script's own `require("./other-file")`
-  //    calls at runtime.
-  const esbuild = await import("esbuild");
-  const bundlePath = path.join(buildTmp, "bundle.cjs");
-  await esbuild.build({
-    entryPoints: [path.join(__dirname, "sea-entry.cjs")],
-    outfile: bundlePath,
-    bundle: true,
-    platform: "node",
-    format: "cjs",
-    target: "node20",
-  });
+  try {
+    log(osKey, `Building ${target.pkgTarget} -> ${binOut}`);
+    const { exec } = await import("@yao-pkg/pkg");
+    await exec([
+      path.join(REPO_ROOT, "bin", "cli.js"),
+      "-c",
+      tmpConfigPath,
+      "-t",
+      target.pkgTarget,
+      "-o",
+      binOut,
+    ]);
 
-  // 2. Generate the SEA config + blob.
-  const seaConfigPath = path.join(buildTmp, "sea-config.json");
-  const blobPath = path.join(buildTmp, "sea-prep.blob");
-  fs.writeFileSync(
-    seaConfigPath,
-    JSON.stringify(
-      {
-        main: bundlePath,
-        output: blobPath,
-        disableExperimentalSEAWarning: true,
-      },
-      null,
-      2
-    )
-  );
-  run(target.osKey, process.execPath, ["--experimental-sea-config", seaConfigPath]);
+    if (target.needsMacSign) {
+      if (process.platform === "darwin") {
+        log(osKey, "codesign --sign - (ad-hoc; no paid cert available — see GAP_ANALYSIS.md)");
+        execFileSync("codesign", ["--sign", "-", binOut], { stdio: "inherit" });
+      } else {
+        console.warn(
+          `[build-binary:${osKey}] WARNING: built on ${process.platform}, not darwin — this binary is COMPLETELY UNSIGNED (not even ad-hoc). ` +
+            "It may not launch at all on Apple Silicon (AMFI requires at least an ad-hoc signature). Build on a real macOS host/runner for a distributable artifact."
+        );
+      }
+    }
 
-  // 3. Copy the currently-running node executable as the base, then inject
-  //    the blob into it.
-  fs.copyFileSync(process.execPath, binOut);
-  fs.chmodSync(binOut, 0o755);
-
-  if (target.isMac) {
-    // Required by Node's SEA guide: an existing signature on the copied
-    // node binary must be removed before injecting, or postject's write
-    // corrupts it.
-    run(target.osKey, "codesign", ["--remove-signature", binOut]);
+    if (!target.binName.endsWith(".exe")) fs.chmodSync(binOut, 0o755);
+    log(osKey, `Done: ${binOut}`);
+    return binOut;
+  } finally {
+    fs.rmSync(tmpConfigPath, { force: true });
   }
+}
 
-  run(target.osKey, "npx", [
-    "--no-install",
-    "postject",
-    binOut,
-    "NODE_SEA_BLOB",
-    blobPath,
-    "--sentinel-fuse",
-    "NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2",
-    ...(target.isMac ? ["--macho-segment-name", "NODE_SEA"] : []),
-  ]);
-
-  if (target.isMac) {
-    // Ad-hoc signature (no cert) so the binary can run locally at all;
-    // Gatekeeper still warns on a freshly-downloaded copy — see the file
-    // header comment and GAP_ANALYSIS.md.
-    run(target.osKey, "codesign", ["--sign", "-", binOut]);
+// Builds every osKey in `osKeys` (default: all three — a reasonable local-
+// dev default since pkg CAN cross-compile all three from one machine; the
+// mac-signing caveat above still applies). Returns { [osKey]: binPath }.
+export async function buildAll(osKeys = Object.keys(TARGET_MAP)) {
+  const results = {};
+  for (const osKey of osKeys) {
+    const target = resolveTarget(osKey);
+    if (!target) throw new Error(`Unknown osKey "${osKey}" (expected one of ${Object.keys(TARGET_MAP).join(", ")})`);
+    results[osKey] = await buildOne(osKey, target);
   }
-  if (!target.isWin) fs.chmodSync(binOut, 0o755);
-
-  // 4. Copy the static app assets the server reads from `root`.
-  fs.mkdirSync(assetsOut, { recursive: true });
-  for (const [srcRel, destRel] of ASSET_ENTRIES) {
-    const src = path.join(REPO_ROOT, srcRel);
-    const dest = path.join(assetsOut, destRel);
-    fs.cpSync(src, dest, { recursive: true });
-  }
-
-  // 5. Zip the binary + assets together as the actual downloadable artifact.
-  const zipPath = path.join(outDir, `pptxdiff-${target.osKey}-${PKG_VERSION}.zip`);
-  await zipDir(outDir, zipPath);
-
-  fs.rmSync(buildTmp, { recursive: true, force: true });
-  log(target.osKey, `Done: ${binOut}`);
-  log(target.osKey, `Done: ${zipPath}`);
-  return { outDir, binPath: binOut, zipPath };
+  return results;
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const target = resolveTarget(process.platform);
-  if (!target) {
-    console.error(`No SEA build mapping for process.platform=${process.platform} (supported: win32, darwin, linux).`);
+  const requested = process.argv.slice(2);
+  buildAll(requested.length ? requested : undefined).catch((e) => {
+    console.error(e);
     process.exitCode = 1;
-  } else {
-    buildBinary(target).catch((e) => {
-      console.error(e);
-      process.exitCode = 1;
-    });
-  }
+  });
 }

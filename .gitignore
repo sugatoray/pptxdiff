@@ -386,11 +386,14 @@ src/pptxdiff/docs-site/site/
 !src/packages/*/lib/
 !src/packages/*/lib/**
 
-## Native-binary build output (src/packages/binaries/build.mjs) — the
-## executable, the copied "assets" folder, and the zipped artifact are all
-## generated per-OS, not source; keep each OS folder's own README.md and
-## CHANGELOG.md tracked (they document the folder even before a build has
-## ever run there) but ignore everything else build.mjs writes into it.
+## Native-binary build output (src/packages/binaries/build.mjs, via
+## @yao-pkg/pkg) — the single packaged executable per OS is generated, not
+## source; keep each OS folder's own README.md and CHANGELOG.md tracked
+## (they document the folder even before a build has ever run there) but
+## ignore the built binary itself. build.mjs also writes a temp pkg config
+## directly at the repo root (see WISDOM.md's pkg-config-colocation trap
+## entry for why) and always removes it in a `finally` — ignored here too
+## as a defensive backstop in case a build is interrupted mid-run.
 src/packages/binaries/pptxdiff-win/*
 src/packages/binaries/pptxdiff-mac/*
 src/packages/binaries/pptxdiff-linux/*
@@ -400,4 +403,4 @@ src/packages/binaries/pptxdiff-linux/*
 !src/packages/binaries/pptxdiff-win/CHANGELOG.md
 !src/packages/binaries/pptxdiff-mac/CHANGELOG.md
 !src/packages/binaries/pptxdiff-linux/CHANGELOG.md
-src/packages/binaries/.build/
+/.pkg-binaries-config.*.json

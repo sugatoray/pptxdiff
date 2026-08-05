@@ -391,7 +391,7 @@ shim, not sequentially — that plan is what shipped below.
 ## Done this session (Red/Green regression test for the Chocolatey package)
 - [x] **P2 — `test_chocolatey_package.mjs`**: pure-Node static-analysis regression test for `src/packages/pptxdiff-chocolatey/` (no `choco`/`pwsh` needed). 21 assertions covering version-sync across `pptxdiff.nuspec`/root `package.json`/the install script's fallback pin, the nuspec's `nodejs` dependency version, both `.ps1` scripts' npm commands, the cmdlet-argument-mode `+`-concatenation bug staying absent, `tools/LICENSE.txt` staying byte-identical to root `LICENSE`, and required companion files existing. Genuinely demonstrated RED (18/21, 3 real failures) before GREEN (21/21) by temporarily reintroducing a version mismatch and the PowerShell bug, then restoring both.
 - [x] Ticket 2 above ("Automate version sync") is now PARTIALLY addressed: still a manual bump, but drift is caught automatically by the new test instead of shipping silently — see GAP_ANALYSIS.md's updated entry.
-## Done this session (standalone native binaries for Windows/macOS/Linux)
+## Done this session (standalone native binaries for Windows/macOS/Linux) — mechanism superseded later this same session, see "switched to @yao-pkg/pkg" below
 - [x] **P2 — `src/packages/binaries/`: standalone native `pptxdiff` executables via Node SEA.**
   Explicit ask, with an explicit up-front choice (asked directly): standalone binaries vs. real
   signed OS installers — user picked standalone binaries, consistent with the prior explicit
@@ -428,19 +428,54 @@ shim, not sequentially — that plan is what shipped below.
 
 ## New tickets opened this session
 1. **P2 — Attach the built binaries to GitHub Releases**, not just CI workflow artifacts. Needs a
-   `release: types: [published]`-triggered job (or similar) that re-runs the 3-OS build matrix and
-   uploads the zips to the release — not built this session, current CI only produces downloadable
-   workflow artifacts on push/dispatch.
+   `release: types: [published]`-triggered job (or similar) that re-runs the build and uploads the
+   binaries to the release — not built this session, current CI only produces downloadable workflow
+   artifacts on push/dispatch.
 2. **P3 — Code signing for the Windows `.exe` and a real Apple Developer ID for macOS.** Needs a
    purchased/managed certificate (real ongoing cost, not a code change) — until then, both binaries
    trigger their OS's "unidentified/unsigned" security warning on first run. Documented per-OS in
    each `pptxdiff-<os>/README.md`.
-3. **P4 — True single-file binaries via Node SEA's embedded-asset store** (`node:sea`'s
-   `getAsset()`), instead of shipping a `binary + assets/ folder`, zipped together. Would need
-   `bin/cli.js`'s static server to read from `sea.getAsset()` when running under SEA instead of
-   `fs.readFile()` — a real behavior change to already-hardened code, deliberately not made for this
-   first pass (see GAP_CONTEXT.md).
-4. **P4 — `test_build_e2e.mjs` only exercises the CURRENT host's platform branch.** The macOS/Windows
-   `buildBinary()` branches (codesign steps, `.exe` naming) are covered by `test_build_config.mjs`'s
-   static checks but not by a real build+run — that only happens via CI's 3-OS matrix. Not a gap in
-   this session's TDD work so much as an inherent constraint of Node SEA itself (see GAP_ANALYSIS.md).
+3. ~~**P4 — True single-file binaries via Node SEA's embedded-asset store.**~~ **[DONE, by switching
+   mechanism entirely]** — see the `@yao-pkg/pkg` switch below. `pkg`'s built-in asset embedding gave
+   a genuine single file with zero `bin/cli.js` changes, superseding this ticket rather than closing
+   it as originally scoped.
+4. ~~**P4 — `test_build_e2e.mjs` only exercises the CURRENT host's platform branch.**~~ Still true
+   under `pkg` (same reason: only the current host's binary can actually be RUN and verified over
+   HTTP locally) — carried forward, not re-opened as new.
+
+## Done this session (switched `@pptxdiff/binaries` from Node SEA to `@yao-pkg/pkg`)
+- [x] **P2 — Switched the native-binary build mechanism after an explicit follow-up question** ("why
+  aren't you using yao-pkg/pkg?"). Investigated hands-on rather than reasoning abstractly: built real
+  test binaries in this sandbox confirming `pkg` genuinely cross-compiles (a real Linux-built `.exe`
+  confirmed via `file` as `PE32+ executable ... for MS Windows`, a real Linux-built mac binary
+  confirmed as `Mach-O 64-bit x86_64 executable`) and that its snapshot filesystem lets `bin/cli.js`
+  serve its static assets with ZERO code changes (reverted the SEA-era `root` parameter entirely —
+  `bin/cli.js` is now byte-identical to before this whole feature, confirmed via `git show` diff).
+  `build.mjs` rewritten around `pkg`'s `exec()` API (`buildOne(osKey, target)`/`buildAll(osKeys)`),
+  `sea-entry.cjs` deleted (no longer needed — `pkg` points directly at the real `bin/cli.js`).
+  Output is now a true single file per OS (no more `assets/` folder, no more zip wrapper).
+- [x] **Found and fixed a real, silently-failing gotcha mid-switch**: `pkg`'s `"assets"` glob paths
+  resolve relative to wherever the CONFIG FILE ITSELF lives, not cwd or the entry file's directory —
+  confirmed via a controlled A/B test (moving the config file between directories with the identical
+  glob, watching assets silently stop embedding with zero error). Fixed by having `buildOne()` write
+  its temp pkg config directly at `REPO_ROOT` (removed in a `finally`); new WISDOM.md trap entry with
+  the full reproduction, since this fails completely silently at build time.
+- [x] **`.github/workflows/binaries.yml` restructured to 2 jobs** (from the original 3-OS matrix):
+  `build-linux-win` on `ubuntu-latest` builds both those targets in one job (genuine cross-compile);
+  `build-mac` stays on its own `macos-latest` runner — NOT collapsed into the Linux job, because
+  `codesign` only exists on macOS and a completely unsigned binary may not even launch on Apple
+  Silicon (AMFI requires at least an ad-hoc signature) — see GAP_CONTEXT.md's new entry for the full
+  reasoning on why this one target intentionally isn't cross-compiled despite `pkg` technically being
+  able to.
+- [x] **Both test files (`test_build_config.mjs`/`test_build_e2e.mjs`) rewritten for the new shape**
+  and re-verified with genuine RED→GREEN on the sharpest new guard (the config-colocation regression
+  check) — moved the temp-config write location, confirmed the test caught it (17/18), restored,
+  confirmed 18/18. `test_build_e2e.mjs` re-run for real against the new mechanism: 10/10, a real
+  binary built via `pkg` and run, serving the real app over real HTTP, with an explicit assertion
+  that no separate `assets/` folder exists anymore.
+- [x] Per-OS `README.md`/`CHANGELOG.md` (both still-unreleased, so amended in place rather than
+  given a second changelog entry) updated to describe the single-file artifact and, for macOS
+  specifically, the "must be built on a real Mac" constraint.
+- [x] Root `CHANGELOG.md`'s `[Unreleased]` section updated to match (mentions `@yao-pkg/pkg`, the
+  2-job CI split, and the Red/Green test suite — no longer mentions Node SEA or `startServer`'s
+  `root` param, since that was fully reverted).
