@@ -1,11 +1,11 @@
-# Changelog — pptxdiff for Windows (standalone binary)
+# Changelog — pptxdiff for Windows (standalone binaries)
 
-All notable changes to the Windows standalone `pptxdiff-win.exe` build are
-documented here. The format is based on
-[Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the version
+All notable changes to the Windows standalone `pptxdiff-win.exe`/
+`pptxdiff-win-arm64.exe` builds are documented here. The format is based
+on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the version
 tracked is the `pptxdiff` app version bundled into the binary (see the
 root [`CHANGELOG.md`](../../../../CHANGELOG.md) for the app's own history)
-since the binary has no independent feature set of its own.
+since the binaries have no independent feature set of their own.
 
 ## [Unreleased]
 
@@ -22,6 +22,15 @@ since the binary has no independent feature set of its own.
   Node.js install, no companion folder needed.
 - Genuinely cross-compiled: this binary can be built from any host OS
   (Linux, macOS, or Windows), not just Windows itself.
+- **Native arm64 build (`pptxdiff-win-arm64.exe`)**, added after an
+  explicit follow-up ask to extend the macOS arm64 work to Windows/Linux
+  too. Needs `--fallback-to-source` (see `../README.md`) since generating
+  V8 bytecode for a foreign architecture isn't possible without QEMU
+  emulation on the build host — confirmed directly via a genuine
+  exec-format failure without the flag. Verified for real in this
+  project's own dev sandbox (x64 Linux): built the `node22-win-arm64`
+  target and confirmed via `file` it's a genuine `PE32+ ... Aarch64`
+  executable.
 
 ### Known limitations
 

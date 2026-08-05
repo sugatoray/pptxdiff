@@ -1,11 +1,11 @@
-# Changelog — pptxdiff for Linux (standalone binary)
+# Changelog — pptxdiff for Linux (standalone binaries)
 
-All notable changes to the Linux standalone `pptxdiff-linux` build are
-documented here. The format is based on
+All notable changes to the Linux standalone `pptxdiff-linux`/
+`pptxdiff-linux-arm64` builds are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the version
 tracked is the `pptxdiff` app version bundled into the binary (see the
 root [`CHANGELOG.md`](../../../../CHANGELOG.md) for the app's own history)
-since the binary has no independent feature set of its own.
+since the binaries have no independent feature set of their own.
 
 ## [Unreleased]
 
@@ -29,6 +29,18 @@ since the binary has no independent feature set of its own.
   real, confirmed to correctly serve `index.html`/`support.js`/`vendor/*`
   over real HTTP requests with zero code changes to `bin/cli.js` (see
   `../test_build_e2e.mjs`).
+- **Native arm64 build (`pptxdiff-linux-arm64`)**, added after an explicit
+  follow-up ask to extend the macOS arm64 work to Windows/Linux too. Needs
+  `--fallback-to-source` (see `../README.md`) since generating V8 bytecode
+  for a foreign architecture isn't possible without QEMU emulation on the
+  build host — confirmed directly via a genuine exec-format failure
+  without the flag. Verified for real in this project's own dev sandbox
+  (x64): built the `node22-linux-arm64` target via the real production
+  path (`buildOne()`, real asset config) and confirmed via `file` it's a
+  genuine `ELF ... ARM aarch64` executable, landing correctly in this
+  shared folder without disturbing the tracked `README.md`/`CHANGELOG.md`.
+  Not run (no arm64 emulation available in that sandbox) — real execution
+  verification is CI's job.
 
 ### Known limitations
 
