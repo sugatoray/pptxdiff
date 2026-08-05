@@ -114,6 +114,7 @@ nav:
   - CLI Reference: cli.md
   - Headless CLI & Web API: headless-cli-api.md
   - VS Code Extension: vscode-extension.md
+  - Homebrew Formula: homebrew.md
   - Architecture: architecture.md
   - Limitations: limitations.md
   - FAQ: faq.md
@@ -125,4 +126,6 @@ nav:
           - "Changelog: @pptxdiff/server": changelogs/pptxdiff-server.md
       - VS Code Extension(s):
           - "Changelog: pptxdiff-vscode": changelogs/pptxdiff-vscode.md
+      - Homebrew Formula(s):
+          - "Changelog: pptxdiff (brew)": changelogs/pptxdiff-brew.md
   - Documentation Coverage: documentation-coverage.md

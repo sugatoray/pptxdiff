@@ -26,6 +26,8 @@ doc_coverage:
     quality: complete
   - id: headless-cli-api-limitations
     quality: complete
+  - id: homebrew-formula-limitations
+    quality: complete
 ---
 
 # Known limitations
@@ -52,6 +54,8 @@ These are documented, accepted trade-offs — not bugs waiting to be fixed. Each
 | **The headless CLI/API aren't published, and `batch`/`report`/`merge` aren't built yet** | `pptxdiff-cli`/`@pptxdiff/server` are source-only (`file:` dependencies on their monorepo siblings) — install from a checkout, not `npm install`. `diff`/`checksum`/git integration (`textconv`/`difftool`/`install-git-integration`) ship; `batch`/`report`/`merge` and server authentication for a non-loopback bind are designed but not built. Every invocation currently pays a real headless-browser boot cost (no native, browser-free engine yet). See [Headless CLI & Web API](headless-cli-api.md). |
 | **`textconv` only extracts shape/placeholder text and speaker notes** | Table cell text, chart data labels, and SmartArt text aren't included — narrower than the app's own GUI diff engine, which does cover those. A `git diff` on a `.pptx` won't show a change that's only inside a table cell or chart data point. |
 | **`install-git-integration` only writes a repo-local `.gitattributes`**, never a global one | `--global` sets the `git config` driver definition machine-wide, but the `*.pptx diff=pptxdiff` association itself still needs a per-repo `.gitattributes` (or manually configuring `core.attributesFile` yourself) — there's no fully zero-per-repo-setup mode yet. |
+| **The Homebrew formula isn't in a real tap yet** | `brew install pptxdiff` doesn't work — only `brew install --formula <path-or-URL>` does, until a dedicated `sugatoray/homebrew-pptxdiff` tap repo and a cross-repo CI credential are created (both deliberate manual steps, not automated). A CI workflow already keeps the formula's version pin current and, once the tap exists, will push it there automatically. See [Homebrew formula](homebrew.md). |
+| **The Homebrew formula hasn't been verified against real `brew` locally** | `brew` refuses to run as root, and running it as an unprivileged user in this project's development sandbox hits a blocked host needed for Homebrew's own Ruby runtime — a genuine environment wall, not a formula defect. A CI job runs real `brew audit`/`brew install`/`brew test` on a macOS GitHub Actions runner instead; check its logs the first time it fires. |
 
 ## Headless CLI/API Notes
 

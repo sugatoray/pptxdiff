@@ -81,6 +81,9 @@ features:
   - id: openapi-docs
     title: "OpenAPI docs endpoints (/openapi.json and /docs)"
     source: SPEC.md §30
+  - id: homebrew-formula
+    title: "Homebrew formula for pptxdiff"
+    source: SPEC.md §32-§33
 
 limitations:
   - id: rendering-limitations
@@ -122,3 +125,6 @@ limitations:
   - id: headless-cli-api-limitations
     title: "Headless CLI/API: not published, Phase 1 only, no server auth"
     source: GAP_ANALYSIS.md "Headless CLI / Web API — Phase 1"
+  - id: homebrew-formula-limitations
+    title: "Homebrew formula: not tapped anywhere yet, not verified against real brew locally"
+    source: GAP_ANALYSIS.md "Packaging"

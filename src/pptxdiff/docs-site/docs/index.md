@@ -119,6 +119,17 @@ See the full [feature walkthrough](features/index.md) for a guided tour of each 
     open src/pptxdiff/index.html
     ```
 
+=== "Homebrew"
+
+    Not yet in a real tap — install directly from the formula file for now:
+
+    ```bash
+    brew install --formula https://raw.githubusercontent.com/sugatoray/pptxdiff/HEAD/src/packages/pptxdiff-brew/Formula/pptxdiff.rb
+    pptxdiff
+    ```
+
+    See the [Homebrew formula](homebrew.md) page for the full story (and the eventual `brew tap` command).
+
 !!! note "Works fully offline"
     React, Babel, `@aiden0z/pptx-renderer`, and fonts are all vendored locally — no CDN, no internet connection required, for any install option above. Your `.pptx` files never leave your machine either.
 

@@ -2,6 +2,25 @@
 
 **Read `.scrolls/SPEC.md` first for the full feature list.** This file is the "what's the state of things right now" note — update it at the end of every session, keep it short and current (prune stale entries).
 
+## Update (2026-08-05 — docs-site coverage for the Homebrew formula)
+- Direct ask: "Make sure to update the documentation under pptxdiff/docs-site folder." Read
+  `docs/.scrolls/DOCS.md` first per `STARTER.md`'s standing rule (this is more than a routine
+  single-page edit — new pages, nav restructuring, new registry ids).
+- New `docs/homebrew.md` page (nav, right after "VS Code Extension") + new
+  `docs/changelogs/pptxdiff-brew.md` transclusion page (new "Homebrew Formula(s):" nav group) +
+  updated `index.md` (Install tabs), `getting-started.md` (Option D), `architecture.md`
+  (packaging-layers diagram, four surfaces → five), `limitations.md` (two new honest rows), and
+  `scripts/coverage_registry.yml` (two new ids: `homebrew-formula`, `homebrew-formula-limitations`).
+- **Verified for real**: `sync_doc_coverage.py --write` (40 items, 36 complete/4 partial/0
+  missing) then `--check` (PASS). `mkdocs build --strict` initially ABORTED — the
+  `git-revision-date-localized`/`git-authors` plugins correctly flag that brand-new,
+  not-yet-committed files have no git history; committed the change, reran, clean (see below for
+  confirmation this was actually re-verified post-commit, not just asserted).
+- Docs updated: `docs/.scrolls/DOCS.md` §15 (full writeup), `docs-site/CHANGELOG.md` (dated entry).
+  No change needed to `SPEC.md`/`GAP_ANALYSIS.md`/`GAP_CONTEXT.md` — the underlying feature was
+  already fully documented there across the three prior sessions; this session's scope was
+  specifically the public docs site.
+
 ## Update (2026-08-05 — LICENSE added to pptxdiff-brew; README/CHANGELOG/LICENSE now sync to the tap)
 - Direct two-part follow-up ask on the sync-automation work below: (1) "always include the main
   LICENSE file from the repo ... inside the pptxdiff-brew folder," (2) "make sure that both the

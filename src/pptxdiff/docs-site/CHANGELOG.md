@@ -24,6 +24,20 @@ summary, that one is the record of *why*.
 
 No changes yet.
 
+## 2026-08-05 — New "Homebrew Formula" page + install-tab coverage
+
+### Added
+
+- New page `homebrew.md`, added to the nav right after "VS Code Extension" — documents the new `src/packages/pptxdiff-brew/` Homebrew formula, its not-yet-tapped status, the working `brew install --formula <url>` command, what the formula does, and the CI sync workflow.
+- New changelog page `changelogs/pptxdiff-brew.md` (transcludes `src/packages/pptxdiff-brew/CHANGELOG.md`), under a new "Homebrew Formula(s):" nav group.
+- New `documentation-coverage.md` registry entries: `homebrew-formula` (feature, `partial` — the page is complete, the underlying tapped-install feature isn't finished yet) and `homebrew-formula-limitations` (limitation, `complete`).
+
+### Changed
+
+- `index.md`'s Install tabs gained a "Homebrew" option; `getting-started.md` gained "Option D — Homebrew" (intro sentence reworded from "three equivalent ways" to "several," so it won't need editing again next time); `architecture.md`'s packaging-layers diagram now shows five surfaces instead of four; `limitations.md` gained two new rows (tap doesn't exist yet; not verified against real `brew` locally, with the real root cause explained).
+
+See `docs/.scrolls/DOCS.md` §15 for the full reasoning.
+
 ## 2026-07-31 — New "Headless CLI & Web API" page for `pptxdiff-cli`/`@pptxdiff/server`
 
 ### Added
