@@ -28,21 +28,29 @@ function assert(name, cond) {
 }
 
 // --- TARGET_MAP / resolveTarget ---
-assert("TARGET_MAP has exactly linux/win/mac keys", (
-  JSON.stringify(Object.keys(TARGET_MAP).sort()) === JSON.stringify(["linux", "mac", "win"])
+assert("TARGET_MAP has exactly linux/win/mac/mac-arm64 keys", (
+  JSON.stringify(Object.keys(TARGET_MAP).sort()) === JSON.stringify(["linux", "mac", "mac-arm64", "win"])
 ));
-assert("linux target: node22-linux-x64, no .exe suffix, doesn't need mac signing", (
-  TARGET_MAP.linux.pkgTarget === "node22-linux-x64" && !TARGET_MAP.linux.binName.includes(".") && TARGET_MAP.linux.needsMacSign === false
+assert("linux target: node22-linux-x64, no .exe suffix, own outDirKey, doesn't need mac signing", (
+  TARGET_MAP.linux.pkgTarget === "node22-linux-x64" && !TARGET_MAP.linux.binName.includes(".") && TARGET_MAP.linux.outDirKey === "linux" && TARGET_MAP.linux.needsMacSign === false
 ));
-assert("win target: node22-win-x64, binName ends .exe, doesn't need mac signing", (
-  TARGET_MAP.win.pkgTarget === "node22-win-x64" && TARGET_MAP.win.binName.endsWith(".exe") && TARGET_MAP.win.needsMacSign === false
+assert("win target: node22-win-x64, binName ends .exe, own outDirKey, doesn't need mac signing", (
+  TARGET_MAP.win.pkgTarget === "node22-win-x64" && TARGET_MAP.win.binName.endsWith(".exe") && TARGET_MAP.win.outDirKey === "win" && TARGET_MAP.win.needsMacSign === false
 ));
 assert("mac target: node22-macos-x64, needsMacSign true (the whole reason it's built separately in CI)", (
   TARGET_MAP.mac.pkgTarget === "node22-macos-x64" && TARGET_MAP.mac.needsMacSign === true
 ));
+assert("mac-arm64 target: node22-macos-arm64, needsMacSign true, binName distinct from the x64 one", (
+  TARGET_MAP["mac-arm64"].pkgTarget === "node22-macos-arm64" && TARGET_MAP["mac-arm64"].needsMacSign === true && TARGET_MAP["mac-arm64"].binName !== TARGET_MAP.mac.binName
+));
+assert("mac and mac-arm64 share the SAME outDirKey (both download from pptxdiff-mac/)", (
+  TARGET_MAP.mac.outDirKey === "mac" && TARGET_MAP["mac-arm64"].outDirKey === "mac"
+));
 assert("resolveTarget('linux') === TARGET_MAP.linux", resolveTarget("linux") === TARGET_MAP.linux);
+assert("resolveTarget('mac-arm64') === TARGET_MAP['mac-arm64']", resolveTarget("mac-arm64") === TARGET_MAP["mac-arm64"]);
 assert("resolveTarget returns null for an unknown osKey", resolveTarget("solaris") === null);
 assert("resolveTarget returns null for an empty string", resolveTarget("") === null);
+assert("every TARGET_MAP entry declares an outDirKey", Object.values(TARGET_MAP).every((t) => typeof t.outDirKey === "string" && t.outDirKey.length > 0));
 
 // --- ASSET_GLOBS drift guard: must match root package.json's "files" ---
 // (same fixture-drift-check concern this project already tracks elsewhere
@@ -80,6 +88,9 @@ assert("buildOne() removes the temp pkg config in a finally block", (
 ));
 assert("ASSET_GLOBS are relative (repo-root-relative) paths, not absolute", (
   ASSET_GLOBS.every((g) => !path.isAbsolute(g))
+));
+assert("buildOne() computes outDir from target.outDirKey, not the osKey argument (so mac/mac-arm64 share pptxdiff-mac/)", (
+  /outDir\s*=\s*path\.join\(__dirname, `pptxdiff-\$\{target\.outDirKey\}`\)/.test(buildSrc)
 ));
 
 // --- bin/cli.js is passed to pkg UNMODIFIED — no assets-folder workaround ---

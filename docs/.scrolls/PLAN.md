@@ -425,3 +425,37 @@ shim, not sequentially — that plan is what shipped below.
 - [x] Root `CHANGELOG.md`'s `[Unreleased]` section updated to match (mentions `@yao-pkg/pkg`, the
   2-job CI split, and the Red/Green test suite — no longer mentions Node SEA or `startServer`'s
   `root` param, since that was fully reverted).
+
+## Done this session (native Apple Silicon build: `pptxdiff-mac-arm64`)
+- [x] **P3 — Added `pptxdiff-mac-arm64`, a native Apple Silicon binary**, after an explicit follow-up
+  question ("does the mac binary work for Apple Silicon MacBooks?"). Before this, Apple Silicon Macs
+  could only run the Intel `pptxdiff-mac` binary via Rosetta 2 translation. `TARGET_MAP` gained an
+  `outDirKey` field (separate from the map key) so `mac`/`mac-arm64` share `pptxdiff-mac/` as their
+  output folder while keeping distinct `binName`s — `buildOne()` computes `outDir` from
+  `target.outDirKey`, not the `osKey` it's called with. `.github/workflows/binaries.yml`'s `build-mac`
+  job now builds both mac targets (`npm run build -- mac mac-arm64`) and uploads both as separate
+  artifacts; `test_build_e2e.mjs` picks `mac` vs `mac-arm64` based on the host's actual `os.arch()`,
+  so GitHub's Apple-Silicon `macos-latest` runners genuinely exercise the native build. Verified for
+  real in this sandbox (Linux): built the `node22-macos-arm64` target directly, confirmed via `file`
+  it's a genuine `Mach-O 64-bit arm64 executable`, confirmed it landed in the shared `pptxdiff-mac/`
+  folder without disturbing the tracked `README.md`/`CHANGELOG.md`, and confirmed `pkg`'s own error
+  output independently prints the same Apple-Silicon-signing warning this project's reasoning already
+  relied on. Windows/Linux stay x64-only — not asked about, and arm64 desktops are a much smaller
+  fraction of that audience than Apple Silicon is of the Mac audience (see GAP_CONTEXT.md).
+- [x] **Genuine RED→GREEN demonstrated on the new `outDirKey` guard**: temporarily reverted
+  `buildOne()`'s `outDir` computation to use the `osKey` argument instead of `target.outDirKey`,
+  confirmed the dedicated regression test caught it (22/23), restored it, confirmed 23/23.
+- [x] Per-OS mac `README.md`/`CHANGELOG.md`, the top-level `src/packages/binaries/README.md`, root
+  `CHANGELOG.md`, `SPEC.md` §32, `GAP_ANALYSIS.md`, and `GAP_CONTEXT.md` all updated to describe both
+  mac targets.
+
+## New tickets opened this session
+1. **P4 — Native Windows/Linux arm64 builds**, if ever asked for — `pkg` supports
+   `node22-win-arm64`/`node22-linux-arm64` equally well; not attempted since neither was asked about
+   and arm64 desktop/laptop usage is comparatively rare for those two OSes among this app's likely
+   users (see GAP_CONTEXT.md).
+2. **P4 — Investigate `ldid` for Linux-side ad-hoc signing of macOS binaries**, which `pkg`'s own
+   error output suggests as an alternative to a real macOS CI runner — would let `build-mac` fold
+   into the cross-compiled `build-linux-win` job (one CI job instead of two). Not pursued; a real
+   `macos-latest` runner using Apple's own `codesign` was judged more trustworthy for a first pass —
+   revisit if CI job count/time ever becomes a real constraint.

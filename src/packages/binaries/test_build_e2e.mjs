@@ -8,11 +8,14 @@
 // real pkg build downloads/uses a base binary and takes a while) — run via
 // `npm run test:e2e`, same split as pptxdiff-cli's `test:difftool`.
 //
-// Only exercises the CURRENT host's own platform target — win/mac builds
-// are structurally identical (same buildOne(), only the mac codesign step
-// differs) but only actually built-and-run by CI's linux+win /
-// macos-specific jobs (see .github/workflows/binaries.yml and
-// build.mjs's header comment for why mac isn't cross-built here).
+// Only exercises the CURRENT host's own platform+arch target — win/linux/
+// the other mac arch build are structurally identical (same buildOne(),
+// only the mac codesign branch differs) but only actually built-and-run by
+// CI's linux+win / macos-specific jobs (see .github/workflows/binaries.yml
+// and build.mjs's header comment for why neither mac target is
+// cross-built here). On macOS this picks `mac-arm64` vs `mac` based on the
+// HOST's actual arch, so an Apple Silicon runner (GitHub's macos-latest,
+// as of 2024) genuinely exercises the native arm64 build, not the x64 one.
 //
 // Run: node test_build_e2e.mjs
 
@@ -26,7 +29,12 @@ import { buildOne, resolveTarget } from "./build.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const HOST_TO_OSKEY = { win32: "win", darwin: "mac", linux: "linux" };
+function hostOsKey() {
+  if (process.platform === "win32") return "win";
+  if (process.platform === "linux") return "linux";
+  if (process.platform === "darwin") return os.arch() === "arm64" ? "mac-arm64" : "mac";
+  return null;
+}
 
 let pass = 0;
 let fail = 0;
@@ -76,10 +84,10 @@ function waitForLine(child, matcher, timeoutMs) {
 }
 
 async function main() {
-  const osKey = HOST_TO_OSKEY[process.platform];
+  const osKey = hostOsKey();
   const target = osKey && resolveTarget(osKey);
   if (!target) {
-    console.error(`No target mapping for process.platform=${process.platform} — nothing to e2e-test here.`);
+    console.error(`No target mapping for process.platform=${process.platform}/${os.arch()} — nothing to e2e-test here.`);
     process.exitCode = 1;
     return;
   }
