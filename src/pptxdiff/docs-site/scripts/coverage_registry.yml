@@ -84,6 +84,9 @@ features:
   - id: homebrew-formula
     title: "Homebrew formula for pptxdiff"
     source: SPEC.md §32-§33
+  - id: native-binaries
+    title: "Standalone native binaries (@pptxdiff/binaries, x64+arm64 for win/mac/linux)"
+    source: SPEC.md §36
 
 limitations:
   - id: rendering-limitations
@@ -128,3 +131,6 @@ limitations:
   - id: homebrew-formula-limitations
     title: "Homebrew formula: not tapped anywhere yet, not verified against real brew locally"
     source: GAP_ANALYSIS.md "Packaging"
+  - id: native-binaries-limitations
+    title: "Standalone binaries: unsigned/ad-hoc-signed, macOS not cross-compiled, not on GitHub Releases"
+    source: GAP_ANALYSIS.md "Standalone native binaries"

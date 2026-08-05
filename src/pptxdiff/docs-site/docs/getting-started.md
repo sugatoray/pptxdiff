@@ -11,6 +11,9 @@ doc_coverage:
   - id: homebrew-formula
     quality: partial
     anchor: option-d-homebrew
+  - id: native-binaries
+    quality: partial
+    anchor: option-e-standalone-binary-no-nodejs-at-all
 ---
 
 # Getting started
@@ -53,6 +56,33 @@ pptxdiff
 
 Same behavior as Option B once installed — the formula packages the identical published npm tarball, just via `brew` instead of `npm`. Not yet in a real `brew tap` (so no plain `brew install pptxdiff` yet — the `--formula <url>` form above works today without one); see the [Homebrew formula](homebrew.md) page for full details and status.
 
+## Option E — standalone binary (no Node.js at all)
+
+```bash
+./pptxdiff-linux      # or pptxdiff-mac / pptxdiff-mac-arm64 / pptxdiff-win.exe, etc.
+```
+
+A native, standalone executable per OS+chip — download one file from a
+[GitHub Actions build](https://github.com/sugatoray/pptxdiff/actions/workflows/binaries.yml)
+and run it directly. No Node.js install of any kind, not even the `npx`/`npm`
+step Options A/B still need. Six targets exist (x64 and arm64 for each of
+Windows, macOS, and Linux) — see the [`@pptxdiff/binaries` package
+README](https://github.com/sugatoray/pptxdiff/blob/master/src/packages/binaries/README.md)
+for exactly which file to pick and how to build them yourself.
+
+This is a genuine single file (the Node runtime and the app's static assets
+are both embedded inside it via [`@yao-pkg/pkg`](https://github.com/yao-pkg/pkg))
+running the exact same, unmodified `bin/cli.js` Options A/B run — same local
+server, same loopback binding, same [security properties](cli.md#security-note).
+
+!!! warning "Not code-signed"
+    There's no code-signing certificate for this project yet, so Windows
+    SmartScreen and macOS Gatekeeper will both warn on a freshly-downloaded
+    copy — see each OS folder's own README for how to proceed anyway
+    (`pptxdiff-{win,mac,linux}/README.md` in the repo). Not attached to a
+    tagged GitHub Release yet either; download from the Actions run's
+    workflow artifacts for now.
+
 ## What happens on first load
 
 The app ships a built-in **sample deck** — `sample-pptx.js` generates a Before/After pair on load — so you can try every feature immediately, with nothing to upload. Drop in your own `.pptx` pair whenever you're ready, or click **Reset to sample** to go back to the demo data.
@@ -61,7 +91,7 @@ The app ships a built-in **sample deck** — `sample-pptx.js` generates a Before
 
 ## Requirements
 
-- **Node.js ≥ 18** if you're using the `npx`/`npm` install paths (see `engines` in `package.json`).
+- **Node.js ≥ 18** if you're using the `npx`/`npm` install paths (see `engines` in `package.json`). Not needed at all for Option E (standalone binary) — the Node runtime is embedded inside it.
 - **No internet connection required, for any install option.** React, ReactDOM, Babel-standalone, `@aiden0z/pptx-renderer`, JSZip, and fonts are all vendored locally under `src/pptxdiff/vendor/` and loaded from disk, not from a CDN. The app works fully offline/air-gapped by default — an opt-in `PPTXDIFF_LITE_MODE` switches back to CDN sourcing if you ever want that; see the [CLI reference](cli.md#lite-mode-cdn-sourcing).
 - **Your `.pptx` files never leave your machine.** Parsing, rendering, and diffing all happen client-side, in your browser's memory.
 

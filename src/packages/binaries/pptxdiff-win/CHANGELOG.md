@@ -4,7 +4,7 @@ All notable changes to the Windows standalone `pptxdiff-win.exe`/
 `pptxdiff-win-arm64.exe` builds are documented here. The format is based
 on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); the version
 tracked is the `pptxdiff` app version bundled into the binary (see the
-root [`CHANGELOG.md`](../../../../CHANGELOG.md) for the app's own history)
+root [`CHANGELOG.md`](https://github.com/sugatoray/pptxdiff/blob/master/CHANGELOG.md) for the app's own history)
 since the binaries have no independent feature set of their own.
 
 ## [Unreleased]
