@@ -2,6 +2,49 @@
 
 **Read `.scrolls/SPEC.md` first for the full feature list.** This file is the "what's the state of things right now" note — update it at the end of every session, keep it short and current (prune stale entries).
 
+## Update (2026-08-05 — LICENSE added to pptxdiff-brew; README/CHANGELOG/LICENSE now sync to the tap)
+- Direct two-part follow-up ask on the sync-automation work below: (1) "always include the main
+  LICENSE file from the repo ... inside the pptxdiff-brew folder," (2) "make sure that both the
+  README.md and CHANGELOG.md files along with the LICENSE file ... are pushed to the
+  homebrew-pptxdiff repo via the CI."
+- **`src/packages/pptxdiff-brew/LICENSE`** (new): a real copy (`cp`, not a symlink — same reasoning
+  as why the whole tap sync is a CI job rather than a git-level trick, see GAP_CONTEXT.md) of the
+  repo root's Apache-2.0 `LICENSE`, matching `pptxdiff-vscode/LICENSE`'s existing precedent for the
+  same "distributed as a standalone artifact" reason.
+- **`.github/workflows/sync-homebrew-tap.yml` reworked**: `bump-formula`'s staging step now copies
+  `Formula/pptxdiff.rb` + `README.md` + `CHANGELOG.md` + `LICENSE` into a flat `dist-tap/` staging
+  dir (avoids relying on `actions/upload-artifact`'s multi-path structure-preservation semantics,
+  which weren't worth the ambiguity for 4 known files) and uploads them as one
+  `pptxdiff-tap-files` artifact. `sync-tap-repo` copies the formula into the tap checkout's
+  `Formula/` and the other three into its repo root, one PR carrying all four.
+- **New `should_sync` job output** (`steps.sync.outputs.changed == 'true' || github.event_name ==
+  'workflow_dispatch'`) now gates the `brew-audit` and `sync-tap-repo` jobs, replacing the
+  pin-only `changed` gate. Reasoning: before this change, a docs-only edit (fixing README wording,
+  adding a CHANGELOG entry) could never reach the tap until the next real npm version bump, even via
+  a manual dispatch — `should_sync` fixes that by making a manual `workflow_dispatch` run always push
+  the current combined state, while a scheduled run still only does real work when the version pin
+  actually changed (no weekly no-op macOS run / empty-diff PR). The job-1-internal "open a PR
+  against this repo" step still gates on `changed` alone, unchanged — that PR is specifically about
+  the pin, not the docs sync.
+- Verified: YAML re-parsed cleanly with the same `python3 -c 'yaml.safe_load(...)'` check used for
+  the first version of this workflow; `should_sync`/`changed` output wiring re-read by hand against
+  both trigger types (`workflow_dispatch` always true; `schedule` mirrors `changed`) since this
+  sandbox still can't execute a real GitHub Actions run to confirm end-to-end — same "written and
+  syntax-checked, not yet fired for real" status as the rest of this workflow (see PLAN.md).
+- **`test_formula.mjs` gained a new "0." check** for the three tap-sync sibling files
+  (`README.md`/`CHANGELOG.md`/`LICENSE` exist) plus a real drift check (`LICENSE` byte-identical to
+  the repo root's). Caught a genuine bug in its own first draft via the RED demonstration: the
+  byte-identity assertion read the local `LICENSE` unconditionally inside an `&&` chain without
+  checking it existed first, so deleting the file crashed the whole script with an uncaught `ENOENT`
+  instead of failing that one assertion — fixed with the missing `fs.existsSync()` guard. Demonstrated
+  three real RED states before GREEN: file moved away (2/22 failed), file restored but
+  content-tampered i.e. drifted-not-missing (1/22 failed, correctly only the identity check), restored
+  byte-identical (22/22). Self-test count 18 → 22.
+- Docs updated to match: SPEC.md §33 (three new bullets), GAP_ANALYSIS.md (both packaging-gap entries
+  updated to mention the 4-file push; the `LICENSE`-drift gap revised to "detection exists, no
+  auto-fix" rather than "no check at all"), two new GAP_CONTEXT.md "why" entries, the package's own
+  README.md ("Publishing to a real tap" updated, new "License" section) and CHANGELOG.md.
+
 ## Update (2026-08-05 — Homebrew tap sync automation: `sync-tap.mjs` + `sync-homebrew-tap.yml`)
 - Direct follow-up to a user question from the immediately-prior session (below): "What would be
   needed to symlink the Homebrew formula into a new repo `sugatoray/homebrew-pptxdiff`? What about

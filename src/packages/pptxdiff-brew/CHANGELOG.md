@@ -70,3 +70,40 @@ root `CHANGELOG.md` for that).
   and the two manual one-time setup steps (repo + secret) still needed before job 3 can succeed.
 - `README.md`: new "Publishing to a real tap" section; "Bumping the version" rewritten to point at
   `sync-tap.mjs` instead of manual editing.
+
+## [Unreleased] (continued)
+
+### Added
+
+- `LICENSE` — a real copy (not a symlink) of the repo root's Apache-2.0 `LICENSE`, matching
+  `pptxdiff-vscode`'s existing precedent of carrying its own copy for the same reason: this
+  directory's content is pushed into the separate `sugatoray/homebrew-pptxdiff` repo by CI, which
+  needs its own top-level `LICENSE` as a standalone repo.
+
+### Changed
+
+- `.github/workflows/sync-homebrew-tap.yml`: the `bump-formula` job now stages and uploads
+  `README.md`/`CHANGELOG.md`/`LICENSE` alongside `Formula/pptxdiff.rb`, and `sync-tap-repo` copies
+  all four into the tap repo (formula into `Formula/`, the other three into the repo root) as part of
+  the same PR. Added a job-level `should_sync` output (`changed == 'true' || event_name ==
+  'workflow_dispatch'`) so a manual `workflow_dispatch` run always pushes the current
+  README/CHANGELOG/LICENSE/formula state to the tap even when the version pin itself didn't move
+  (e.g. a docs-only edit) — a scheduled run still only proceeds past `bump-formula` when the pin
+  actually changed, to avoid a no-op macOS run + empty-diff PR every week.
+- `test_formula.mjs`: new "0." check asserting `README.md`/`CHANGELOG.md`/`LICENSE` exist, plus a
+  real drift check that this package's `LICENSE` is byte-identical to the repo root's `LICENSE`.
+  Self-test count 18 → 22.
+
+### Fixed
+
+- A real bug in the new drift-check assertion itself, caught by its own RED demonstration: the
+  first version read the local `LICENSE` file unconditionally inside an `&&` chain without first
+  checking it existed, so deleting it crashed the whole test script with an uncaught `ENOENT`
+  instead of failing that one assertion. Fixed by adding the missing `fs.existsSync()` guard.
+
+### Verified
+
+- Three real RED states demonstrated before the final GREEN: `LICENSE` moved away entirely (2/22
+  failed: existence + identity); `LICENSE` restored but then content-tampered, i.e. drifted rather
+  than missing (1/22 failed: identity only, existence correctly passed); restored to genuinely
+  byte-identical (22/22).

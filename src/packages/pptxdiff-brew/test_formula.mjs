@@ -50,6 +50,23 @@ function assert(label, cond) {
 async function main() {
   const rubySource = fs.readFileSync(FORMULA_PATH, "utf8");
 
+  console.log("0. Required tap-sync sibling files exist (README/CHANGELOG/LICENSE)");
+  // .github/workflows/sync-homebrew-tap.yml pushes these three alongside the
+  // formula into the separate homebrew-pptxdiff repo (Formula/pptxdiff.rb ->
+  // Formula/, the rest -> repo root) -- if any is missing, that job's `cp`
+  // step fails outright, so this check catches it long before CI would.
+  const ROOT_LICENSE_PATH = path.join(DIR, "..", "..", "..", "LICENSE");
+  const LOCAL_LICENSE_PATH = path.join(DIR, "LICENSE");
+  assert("README.md exists in this package", fs.existsSync(path.join(DIR, "README.md")));
+  assert("CHANGELOG.md exists in this package", fs.existsSync(path.join(DIR, "CHANGELOG.md")));
+  assert("LICENSE exists in this package", fs.existsSync(LOCAL_LICENSE_PATH));
+  assert(
+    "this package's LICENSE is byte-identical to the repo root's LICENSE (catches drift if the root license is ever edited without updating this copy)",
+    fs.existsSync(ROOT_LICENSE_PATH) &&
+      fs.existsSync(LOCAL_LICENSE_PATH) &&
+      fs.readFileSync(ROOT_LICENSE_PATH, "utf8") === fs.readFileSync(LOCAL_LICENSE_PATH, "utf8")
+  );
+
   console.log("1. Formula structure (pure regex checks)");
   const f = parseFormula(rubySource);
   assert("has a url pinned to a real pptxdiff-<version>.tgz tarball", !!f.url && !!f.version);

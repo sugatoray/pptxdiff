@@ -1,20 +1,29 @@
 name: sync-homebrew-tap
 
-# Keeps the Homebrew formula's url/sha256 pin current with the published
-# `pptxdiff` npm package, in two places: this monorepo's own source-of-truth
-# copy (src/packages/pptxdiff-brew/Formula/pptxdiff.rb) and, once it exists,
-# the separate sugatoray/homebrew-pptxdiff tap repo's copy.
+# Keeps a separate sugatoray/homebrew-pptxdiff tap repo in sync with this
+# monorepo's src/packages/pptxdiff-brew/ -- both the formula's url/sha256
+# pin AND the package's README.md/CHANGELOG.md/LICENSE, which the tap repo
+# needs as its own top-level files once it's a standalone repo (LICENSE in
+# particular: the tap repo distributes the same Apache-2.0-licensed formula
+# content, so it needs its own copy, same as pptxdiff-vscode already
+# carries its own copy of the root LICENSE for the same reason).
 #
 # Trigger choice, deliberate: npm publishing from this repo is still a
 # manual `npm publish` step (see root package.json's `build:npm` -- it only
 # packs, it doesn't publish), so there's no reliable "npm publish just
 # happened" CI event to hook. Rather than race a push-to-master trigger
 # against an unpublished version, this runs on:
-#   - workflow_dispatch: the maintainer runs it by hand right after
-#     `npm publish`, optionally pinning an exact version.
-#   - schedule (weekly): a safety net that catches drift automatically even
-#     if the manual dispatch is forgotten, the same way `brew livecheck`
-#     periodically checks upstream versions in real Homebrew taps.
+#   - workflow_dispatch: the maintainer runs it by hand, optionally pinning
+#     an exact version. ALWAYS syncs current README/CHANGELOG/LICENSE/
+#     formula state to the tap on this trigger, even if the version pin
+#     itself didn't change -- this is the "I just edited the README, push
+#     it to the tap" path, a deliberate human action.
+#   - schedule (weekly): a safety net that catches version drift
+#     automatically even if the manual dispatch is forgotten, the same way
+#     `brew livecheck` periodically checks upstream versions in real
+#     Homebrew taps. Only does real work (macOS brew-audit run, PRs) when
+#     the version pin actually changed -- no point spending CI minutes on a
+#     no-op weekly check.
 #
 # NOTE for whoever first enables this: the actions below are pinned to
 # versions that were current/known-good as of when this workflow was
@@ -42,11 +51,18 @@ permissions:
 
 jobs:
   bump-formula:
-    name: Bump src/packages/pptxdiff-brew/Formula/pptxdiff.rb
+    name: Bump formula + stage README/CHANGELOG/LICENSE
     runs-on: ubuntu-latest
     outputs:
       changed: ${{ steps.sync.outputs.changed }}
       version: ${{ steps.sync.outputs.version }}
+      # true if the formula pin actually changed, OR this run was a manual
+      # workflow_dispatch (an explicit human action that should always push
+      # the current README/CHANGELOG/LICENSE/formula state to the tap, even
+      # when the version pin itself is unchanged). A scheduled run with no
+      # pin change stays false -- no point opening PRs / spinning up a
+      # macOS runner for a no-op weekly check.
+      should_sync: ${{ steps.sync.outputs.changed == 'true' || github.event_name == 'workflow_dispatch' }}
     steps:
       - uses: actions/checkout@v7
 
@@ -59,17 +75,26 @@ jobs:
         working-directory: src/packages/pptxdiff-brew
         run: node sync-tap.mjs --version "${{ inputs.version || 'latest' }}"
 
-      - name: Real Red/Green verification of the (possibly updated) formula
-        if: steps.sync.outputs.changed == 'true'
+      - name: Real Red/Green verification of the current formula
+        if: steps.sync.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
         working-directory: src/packages/pptxdiff-brew
         run: npm test
 
-      - name: Upload the formula file for downstream jobs
-        if: steps.sync.outputs.changed == 'true'
+      - name: Stage Formula/pptxdiff.rb + README.md + CHANGELOG.md + LICENSE for downstream jobs
+        if: steps.sync.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
+        run: |
+          mkdir -p dist-tap
+          cp src/packages/pptxdiff-brew/Formula/pptxdiff.rb dist-tap/pptxdiff.rb
+          cp src/packages/pptxdiff-brew/README.md dist-tap/README.md
+          cp src/packages/pptxdiff-brew/CHANGELOG.md dist-tap/CHANGELOG.md
+          cp src/packages/pptxdiff-brew/LICENSE dist-tap/LICENSE
+
+      - name: Upload the staged files for downstream jobs
+        if: steps.sync.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@v4
         with:
-          name: pptxdiff-formula
-          path: src/packages/pptxdiff-brew/Formula/pptxdiff.rb
+          name: pptxdiff-tap-files
+          path: dist-tap
           retention-days: 7
 
       - name: Open a PR against this repo with the bumped pin
@@ -93,12 +118,12 @@ jobs:
   brew-audit:
     name: Real brew audit/install/test (macOS)
     needs: bump-formula
-    if: needs.bump-formula.outputs.changed == 'true'
+    if: needs.bump-formula.outputs.should_sync == 'true'
     runs-on: macos-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: pptxdiff-formula
+          name: pptxdiff-tap-files
           path: .
 
       - name: brew audit --strict --online
@@ -115,15 +140,15 @@ jobs:
         run: brew uninstall --force pptxdiff || true
 
   sync-tap-repo:
-    name: Open a PR against sugatoray/homebrew-pptxdiff
+    name: Push formula + README/CHANGELOG/LICENSE to sugatoray/homebrew-pptxdiff
     needs: [bump-formula, brew-audit]
-    if: needs.bump-formula.outputs.changed == 'true'
+    if: needs.bump-formula.outputs.should_sync == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: pptxdiff-formula
-          path: pptxdiff-formula
+          name: pptxdiff-tap-files
+          path: pptxdiff-tap-files
 
       # Requires a repo secret HOMEBREW_TAP_TOKEN: a token with write access
       # to sugatoray/homebrew-pptxdiff (the default GITHUB_TOKEN can only
@@ -138,22 +163,26 @@ jobs:
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           path: homebrew-pptxdiff
 
-      - name: Copy the updated formula into the tap repo checkout
+      - name: Copy the formula into Formula/, README/CHANGELOG/LICENSE into the repo root
         run: |
           mkdir -p homebrew-pptxdiff/Formula
-          cp pptxdiff-formula/pptxdiff.rb homebrew-pptxdiff/Formula/pptxdiff.rb
+          cp pptxdiff-tap-files/pptxdiff.rb homebrew-pptxdiff/Formula/pptxdiff.rb
+          cp pptxdiff-tap-files/README.md homebrew-pptxdiff/README.md
+          cp pptxdiff-tap-files/CHANGELOG.md homebrew-pptxdiff/CHANGELOG.md
+          cp pptxdiff-tap-files/LICENSE homebrew-pptxdiff/LICENSE
 
       - name: Open a PR against the tap repo
         uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           path: homebrew-pptxdiff
-          commit-message: "chore: bump pptxdiff to ${{ needs.bump-formula.outputs.version }}"
-          title: "chore: bump pptxdiff to ${{ needs.bump-formula.outputs.version }}"
+          commit-message: "chore: sync formula + docs from pptxdiff@${{ needs.bump-formula.outputs.version }}"
+          title: "chore: sync formula + docs from pptxdiff@${{ needs.bump-formula.outputs.version }}"
           body: |
             Automated sync from `sugatoray/pptxdiff`'s
             `.github/workflows/sync-homebrew-tap.yml`, source of truth at
-            `src/packages/pptxdiff-brew/Formula/pptxdiff.rb`.
+            `src/packages/pptxdiff-brew/` (`Formula/pptxdiff.rb`, `README.md`,
+            `CHANGELOG.md`, `LICENSE`).
 
             Already verified in that run: real Red/Green tests
             (`src/packages/pptxdiff-brew/test_formula.mjs` +
@@ -161,3 +190,8 @@ jobs:
             on macOS (this workflow's `brew-audit` job).
           branch: bump-pptxdiff
           delete-branch: true
+          add-paths: |
+            Formula/pptxdiff.rb
+            README.md
+            CHANGELOG.md
+            LICENSE

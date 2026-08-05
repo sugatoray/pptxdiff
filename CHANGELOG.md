@@ -32,6 +32,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   own README.md).
 - `src/packages/pptxdiff-brew/lib.mjs` and `test_sync_tap.mjs`: shared formula-parsing/network
   helpers and Red/Green tests for the new sync tooling's pure logic.
+- `src/packages/pptxdiff-brew/LICENSE`: a copy of the repo root's Apache-2.0 `LICENSE`, matching
+  `pptxdiff-vscode/LICENSE`'s existing precedent for a package that ends up distributed as a
+  standalone artifact elsewhere. `.github/workflows/sync-homebrew-tap.yml` now pushes it, alongside
+  `README.md` and `CHANGELOG.md`, into the tap repo's root in the same PR as `Formula/pptxdiff.rb` --
+  gated by a new `should_sync` job output so a manual `workflow_dispatch` run always syncs the current
+  state to the tap even without a version-pin change, while a scheduled run still only does real work
+  on an actual version bump. `test_formula.mjs` now also asserts `LICENSE` stays byte-identical to
+  the repo root's copy, catching drift instead of silently shipping a stale license to the tap.
 
 ## [0.7.0] - 2026-08-02
 

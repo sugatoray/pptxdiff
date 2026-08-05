@@ -362,6 +362,13 @@ shim, not sequentially — that plan is what shipped below.
   `.github/workflows/sync-homebrew-tap.yml` (3 jobs: bump this repo's own formula + open a PR, real
   `brew audit`/`brew install`/`brew test` on a macOS runner, then sync to the tap repo). See SPEC.md
   §33.
+- [x] **P2 — `LICENSE` inside `pptxdiff-brew/`, and README/CHANGELOG/LICENSE all synced to the tap.**
+  Direct follow-up: `src/packages/pptxdiff-brew/LICENSE` (real copy of root `LICENSE`, matching
+  `pptxdiff-vscode/LICENSE`'s precedent) now exists, and `sync-homebrew-tap.yml` stages + pushes it
+  alongside `README.md`/`CHANGELOG.md`/`Formula/pptxdiff.rb` in one PR against the tap repo. Added a
+  `should_sync` job output so a manual `workflow_dispatch` always pushes the current combined state
+  even without a version-pin change (a docs-only edit), while a scheduled run still only does real
+  work on an actual version change. See SPEC.md §33, GAP_CONTEXT.md's two new "why" entries.
 - [ ] **P3 — Create the real `sugatoray/homebrew-pptxdiff` repo + add a `HOMEBREW_TAP_TOKEN` secret
   to this repo.** The only two things left before `sync-homebrew-tap.yml`'s `sync-tap-repo` job (and
   therefore `brew tap sugatoray/pptxdiff && brew install pptxdiff`) actually works — deliberately
