@@ -1,0 +1,36 @@
+VERIFICATION
+Verification is intended to assist the Chocolatey moderators and community
+in verifying that this package's contents are trustworthy.
+
+This package does not embed, download, or execute any pre-compiled binary
+of its own. It is a thin Chocolatey wrapper around the official npm CLI
+package "pptxdiff": its only action, in tools\chocolateyinstall.ps1, is to
+run
+
+    npm install --global pptxdiff@<version>
+
+and, in tools\chocolateyuninstall.ps1, to run
+
+    npm uninstall --global pptxdiff
+
+using whatever npm is already on PATH (provided by this package's own
+`nodejs` Chocolatey dependency). Both scripts are plain, short, readable
+PowerShell -- there is nothing else to unpack or extract.
+
+To verify the contents this installs:
+
+1. Inspect the npm package directly:
+   https://www.npmjs.com/package/pptxdiff
+   https://registry.npmjs.org/pptxdiff
+
+2. Compare the npm package's contents against the tagged release in the
+   public GitHub source repository:
+   https://github.com/sugatoray/pptxdiff
+
+3. Read tools\chocolateyinstall.ps1 and tools\chocolateyuninstall.ps1 in
+   this package -- both are plain text, contain no embedded binary
+   payloads, and their entire logic is the two npm commands above.
+
+There is no separate checksum published for this package, since it does
+not download any binary artifact itself; npm performs its own integrity
+verification when it installs pptxdiff@<version> from the npm registry.
