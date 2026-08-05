@@ -24,6 +24,8 @@ npm install -g pptxdiff && pptxdiff   # global install
 
 There are no command-line flags. One optional environment variable is supported — see [Lite mode](#lite-mode-cdn-sourcing) below.
 
+**No Node.js at all?** A standalone native executable per OS+chip runs this exact, unmodified `bin/cli.js` with the Node runtime embedded inside it — see [Getting Started → Option D](getting-started.md#option-d-standalone-binary-no-nodejs-at-all).
+
 ## What it does
 
 `bin/cli.js` is a stdlib-only Node script (`node:http` / `node:fs` / `node:child_process`, no npm dependencies):

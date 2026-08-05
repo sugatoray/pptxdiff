@@ -81,6 +81,9 @@ features:
   - id: openapi-docs
     title: "OpenAPI docs endpoints (/openapi.json and /docs)"
     source: SPEC.md §30
+  - id: native-binaries
+    title: "Standalone native binaries (@pptxdiff/binaries, x64+arm64 for win/mac/linux)"
+    source: SPEC.md §32
 
 limitations:
   - id: rendering-limitations
@@ -122,3 +125,6 @@ limitations:
   - id: headless-cli-api-limitations
     title: "Headless CLI/API: not published, Phase 1 only, no server auth"
     source: GAP_ANALYSIS.md "Headless CLI / Web API — Phase 1"
+  - id: native-binaries-limitations
+    title: "Standalone binaries: unsigned/ad-hoc-signed, macOS not cross-compiled, not on GitHub Releases"
+    source: GAP_ANALYSIS.md "Standalone native binaries"

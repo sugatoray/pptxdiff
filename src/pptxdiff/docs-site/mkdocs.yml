@@ -123,6 +123,7 @@ nav:
           - "Changelog: pptxdiff": changelogs/pptxdiff.md
           - "Changelog: @pptxdiff/cli": changelogs/pptxdiff-cli.md
           - "Changelog: @pptxdiff/server": changelogs/pptxdiff-server.md
+          - "Changelog: @pptxdiff/binaries": changelogs/pptxdiff-binaries.md
       - VS Code Extension(s):
           - "Changelog: pptxdiff-vscode": changelogs/pptxdiff-vscode.md
   - Documentation Coverage: documentation-coverage.md

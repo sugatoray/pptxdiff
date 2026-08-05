@@ -11,6 +11,7 @@ title: Changelog
 - [Changelog: pptxdiff](changelogs/pptxdiff.md)
 - [Changelog: @pptxdiff/cli](changelogs/pptxdiff-cli.md)
 - [Changelog: @pptxdiff/server](changelogs/pptxdiff-server.md)
+- [Changelog: @pptxdiff/binaries](changelogs/pptxdiff-binaries.md)
 
 ## VS Code Extension(s)
 

@@ -45,7 +45,7 @@ It's a **single self-contained HTML file**. No server, no build step, no cloud u
 
     ---
 
-    Open `index.html` directly, or run it with `npx pptxdiff`.
+    Open `index.html` directly, run it with `npx pptxdiff`, or download a standalone native binary — no Node.js needed for that last one.
 
     [:octicons-arrow-right-24: Getting started](getting-started.md)
 

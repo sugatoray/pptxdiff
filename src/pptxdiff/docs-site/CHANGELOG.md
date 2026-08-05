@@ -24,6 +24,25 @@ summary, that one is the record of *why*.
 
 No changes yet.
 
+## 2026-08-05 — Content updates + new changelog subpage for standalone native binaries
+
+### Added
+
+- `getting-started.md`: new "Option D — standalone binary (no Node.js at all)" section; `cli.md` gained a one-paragraph cross-link to it.
+- `limitations.md`: new row for the standalone binaries' own limitations (unsigned/ad-hoc-signed, not on GitHub Releases yet).
+- New changelog subpage `changelogs/pptxdiff-binaries.md`, added to nav — structurally different from every other subpage since it transcludes THREE per-OS `CHANGELOG.md` files (no single package-level one exists for this package) under `## Windows` / `## macOS` / `## Linux` subheadings.
+- New `documentation-coverage.md` registry entries: `native-binaries` (feature, `partial`) and `native-binaries-limitations` (limitation, `complete`).
+
+### Fixed
+
+- The three per-OS `CHANGELOG.md` files' relative link back to the root `CHANGELOG.md` broke once transcluded into the new changelog subpage (`pymdownx.snippets` doesn't rewrite relative links for their new location) — caught by `mkdocs build --strict`, fixed by swapping to an absolute GitHub URL at the source.
+
+### Changed
+
+- `index.md`'s "No install required" card now mentions the binaries option.
+
+See `docs/.scrolls/DOCS.md` §15 for the full reasoning.
+
 ## 2026-07-31 — New "Headless CLI & Web API" page for `pptxdiff-cli`/`@pptxdiff/server`
 
 ### Added
