@@ -342,9 +342,6 @@ shim, not sequentially — that plan is what shipped below.
   pinned to the published `pptxdiff@0.7.0` npm tarball (verified sha256), `depends_on "node"`, no
   `resource` blocks needed. See SPEC.md §32, GAP_CONTEXT.md's two new "Why the Homebrew formula..."
   entries.
-- [ ] **P3 — Create a real `sugatoray/homebrew-pptxdiff` tap repo** so `brew tap sugatoray/pptxdiff
-  && brew install pptxdiff` works, instead of the current `brew install --formula <path>` direct
-  install. Not started — see GAP_ANALYSIS.md.
 - [x] **P2 — Red/Green TDD for the Homebrew formula, given real `brew` genuinely can't run here.**
   Attempted real `brew` twice (as root: refused outright; as a fresh unprivileged user: hit a `403`
   from the outbound proxy on `ghcr.io`, needed for Homebrew's portable-ruby) — both attempts real,
@@ -354,9 +351,25 @@ shim, not sequentially — that plan is what shipped below.
   before GREEN: corrupted `sha256` + deleted `depends_on "node"`, confirmed exactly 2/18 assertions
   failed, restored, confirmed 18/18. See SPEC.md §32, GAP_CONTEXT.md's new "Why the Homebrew
   formula's tests replay `install`'s exact mechanics instead of running real `brew`" entry.
-- [ ] **P2 — Still needs a real `brew audit`/`brew install`/`brew test` pass** on a machine with
-  working Homebrew and unblocked `ghcr.io` access — `test_formula.mjs` cannot substitute for
-  `brew audit`'s own style/lint rules or `brew`'s own dependency-resolution behavior. See
-  GAP_ANALYSIS.md.
+- [x] **P2 — Sync tooling + CI workflow for a future tap repo.** Direct follow-up to a user question
+  comparing symlink/submodule/subtree approaches for syncing the formula into a separate
+  `sugatoray/homebrew-pptxdiff` tap repo — all three rejected on their mechanics (see
+  GAP_CONTEXT.md's new "Why the tap gets synced by a CI job..." entry). Built instead:
+  `src/packages/pptxdiff-brew/lib.mjs` (shared pure/network helpers, including new
+  `updateFormulaPin`), `sync-tap.mjs` (bumps a formula file's url/sha256 to a target npm version,
+  idempotent, verified for real against the live npm registry), `test_sync_tap.mjs` (network-free
+  Red/Green tests, genuine RED→GREEN demonstrated), and
+  `.github/workflows/sync-homebrew-tap.yml` (3 jobs: bump this repo's own formula + open a PR, real
+  `brew audit`/`brew install`/`brew test` on a macOS runner, then sync to the tap repo). See SPEC.md
+  §33.
+- [ ] **P3 — Create the real `sugatoray/homebrew-pptxdiff` repo + add a `HOMEBREW_TAP_TOKEN` secret
+  to this repo.** The only two things left before `sync-homebrew-tap.yml`'s `sync-tap-repo` job (and
+  therefore `brew tap sugatoray/pptxdiff && brew install pptxdiff`) actually works — deliberately
+  left as manual/human steps, not automated by an agent (see GAP_CONTEXT.md). Not started.
+- [ ] **P2 — Confirm `.github/workflows/sync-homebrew-tap.yml` actually runs green** the first time
+  it fires (`workflow_dispatch` or its weekly `schedule`) — written and YAML-syntax-checked in this
+  sandbox, but never executed by a real GitHub Actions runner yet. The `brew-audit` job in particular
+  is the first genuine real-`brew` verification of this formula anywhere — check its logs the first
+  time it runs. See GAP_ANALYSIS.md.
 - [ ] **P4 — Homebrew formula for `pptxdiff-cli`**, once that package is published to npm (currently
   monorepo-local only — see its own README's `file:` dependency note).

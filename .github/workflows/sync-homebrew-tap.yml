@@ -1,0 +1,163 @@
+name: sync-homebrew-tap
+
+# Keeps the Homebrew formula's url/sha256 pin current with the published
+# `pptxdiff` npm package, in two places: this monorepo's own source-of-truth
+# copy (src/packages/pptxdiff-brew/Formula/pptxdiff.rb) and, once it exists,
+# the separate sugatoray/homebrew-pptxdiff tap repo's copy.
+#
+# Trigger choice, deliberate: npm publishing from this repo is still a
+# manual `npm publish` step (see root package.json's `build:npm` -- it only
+# packs, it doesn't publish), so there's no reliable "npm publish just
+# happened" CI event to hook. Rather than race a push-to-master trigger
+# against an unpublished version, this runs on:
+#   - workflow_dispatch: the maintainer runs it by hand right after
+#     `npm publish`, optionally pinning an exact version.
+#   - schedule (weekly): a safety net that catches drift automatically even
+#     if the manual dispatch is forgotten, the same way `brew livecheck`
+#     periodically checks upstream versions in real Homebrew taps.
+#
+# NOTE for whoever first enables this: the actions below are pinned to
+# versions that were current/known-good as of when this workflow was
+# written, matching the major versions this repo's other workflow
+# (docs.yml) already pins to where a direct precedent existed
+# (actions/checkout@v7). This sandbox could not reach the GitHub Actions
+# Marketplace to verify the exact latest major for the others
+# (actions/setup-node, actions/upload-artifact, actions/download-artifact,
+# peter-evans/create-pull-request) -- check for newer majors before or
+# shortly after first relying on this workflow.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "pptxdiff npm version to sync to (e.g. 0.8.0). Leave as 'latest' to use npm's current dist-tag."
+        required: false
+        default: "latest"
+  schedule:
+    - cron: "17 6 * * 1" # every Monday, off-the-hour to avoid GH Actions' top-of-hour congestion
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  bump-formula:
+    name: Bump src/packages/pptxdiff-brew/Formula/pptxdiff.rb
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.sync.outputs.changed }}
+      version: ${{ steps.sync.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - id: sync
+        name: Run sync-tap.mjs against the monorepo's own formula copy
+        working-directory: src/packages/pptxdiff-brew
+        run: node sync-tap.mjs --version "${{ inputs.version || 'latest' }}"
+
+      - name: Real Red/Green verification of the (possibly updated) formula
+        if: steps.sync.outputs.changed == 'true'
+        working-directory: src/packages/pptxdiff-brew
+        run: npm test
+
+      - name: Upload the formula file for downstream jobs
+        if: steps.sync.outputs.changed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pptxdiff-formula
+          path: src/packages/pptxdiff-brew/Formula/pptxdiff.rb
+          retention-days: 7
+
+      - name: Open a PR against this repo with the bumped pin
+        if: steps.sync.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "chore(pptxdiff-brew): bump formula to pptxdiff@${{ steps.sync.outputs.version }}"
+          title: "chore(pptxdiff-brew): bump formula to pptxdiff@${{ steps.sync.outputs.version }}"
+          body: |
+            Automated version bump via `.github/workflows/sync-homebrew-tap.yml`, using
+            `src/packages/pptxdiff-brew/sync-tap.mjs`.
+
+            Verified with `npm test` (`src/packages/pptxdiff-brew/`) in this run -- real tarball
+            download + sha256 verification, real npm-registry cross-check, and a real replayed
+            `install`/run/curl of the resulting `pptxdiff` binary. See the `brew-audit` job in this
+            same workflow run for the real `brew audit`/`brew install`/`brew test` result.
+          branch: chore/bump-homebrew-formula
+          delete-branch: true
+          add-paths: src/packages/pptxdiff-brew/Formula/pptxdiff.rb
+
+  brew-audit:
+    name: Real brew audit/install/test (macOS)
+    needs: bump-formula
+    if: needs.bump-formula.outputs.changed == 'true'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: pptxdiff-formula
+          path: .
+
+      - name: brew audit --strict --online
+        run: brew audit --strict --online ./pptxdiff.rb
+
+      - name: brew install --formula
+        run: brew install --formula ./pptxdiff.rb
+
+      - name: brew test
+        run: brew test pptxdiff
+
+      - name: brew uninstall (cleanup)
+        if: always()
+        run: brew uninstall --force pptxdiff || true
+
+  sync-tap-repo:
+    name: Open a PR against sugatoray/homebrew-pptxdiff
+    needs: [bump-formula, brew-audit]
+    if: needs.bump-formula.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: pptxdiff-formula
+          path: pptxdiff-formula
+
+      # Requires a repo secret HOMEBREW_TAP_TOKEN: a token with write access
+      # to sugatoray/homebrew-pptxdiff (the default GITHUB_TOKEN can only
+      # act on THIS repo). Not created yet as of this workflow being added
+      # -- see src/packages/pptxdiff-brew/README.md's "Publishing to a real
+      # tap" section for the exact setup steps. Until both the token and
+      # the target repo exist, this job fails with a clear checkout error
+      # rather than silently doing nothing.
+      - uses: actions/checkout@v7
+        with:
+          repository: sugatoray/homebrew-pptxdiff
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-pptxdiff
+
+      - name: Copy the updated formula into the tap repo checkout
+        run: |
+          mkdir -p homebrew-pptxdiff/Formula
+          cp pptxdiff-formula/pptxdiff.rb homebrew-pptxdiff/Formula/pptxdiff.rb
+
+      - name: Open a PR against the tap repo
+        uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: homebrew-pptxdiff
+          commit-message: "chore: bump pptxdiff to ${{ needs.bump-formula.outputs.version }}"
+          title: "chore: bump pptxdiff to ${{ needs.bump-formula.outputs.version }}"
+          body: |
+            Automated sync from `sugatoray/pptxdiff`'s
+            `.github/workflows/sync-homebrew-tap.yml`, source of truth at
+            `src/packages/pptxdiff-brew/Formula/pptxdiff.rb`.
+
+            Already verified in that run: real Red/Green tests
+            (`src/packages/pptxdiff-brew/test_formula.mjs` +
+            `test_sync_tap.mjs`) and real `brew audit`/`brew install`/`brew test`
+            on macOS (this workflow's `brew-audit` job).
+          branch: bump-pptxdiff
+          delete-branch: true

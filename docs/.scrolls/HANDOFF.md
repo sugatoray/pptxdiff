@@ -2,6 +2,61 @@
 
 **Read `.scrolls/SPEC.md` first for the full feature list.** This file is the "what's the state of things right now" note — update it at the end of every session, keep it short and current (prune stale entries).
 
+## Update (2026-08-05 — Homebrew tap sync automation: `sync-tap.mjs` + `sync-homebrew-tap.yml`)
+- Direct follow-up to a user question from the immediately-prior session (below): "What would be
+  needed to symlink the Homebrew formula into a new repo `sugatoray/homebrew-pptxdiff`? What about
+  git submodule or subtree?" Answered as a design discussion first (all three rejected: a cross-repo
+  symlink has nothing to resolve against after a plain `brew tap` clone; a submodule's content never
+  materializes because `brew tap` never runs `git submodule update --init`; a subtree copy is real
+  but static, still needs a script/CI job to actually keep it current) — then this session's direct
+  ask was "Create the sync script/CI workflow."
+- **`src/packages/pptxdiff-brew/lib.mjs`** (new): `parseFormula`/`fetch`/`sha256hex` moved out of
+  `test_formula.mjs` (not duplicated — `test_formula.mjs` now imports them), plus two new exports:
+  `resolveNpmVersion(packageName, version)` and pure `updateFormulaPin(rubySource, {url, sha256})`
+  (regex-replaces only the url/sha256 lines, idempotent).
+- **`src/packages/pptxdiff-brew/sync-tap.mjs`** (new CLI): `node sync-tap.mjs [--file <path>]
+  [--version <x.y.z>|latest]` — downloads the real target-version tarball, computes its real sha256,
+  updates the target formula file in place (no-op if already current), writes `changed`/`version` to
+  `$GITHUB_OUTPUT` when running under Actions. Verified for real against the live npm registry (not
+  just unit-tested): a no-op run against the current, already-correct formula printed "already up to
+  date" with zero write; a run against a scratch copy deliberately corrupted to a fake version/sha256
+  correctly restored it to the real, current `0.7.0` pin, confirmed byte-identical to the real
+  formula file afterward.
+- **`src/packages/pptxdiff-brew/test_sync_tap.mjs`** (new, network-free): Red/Green tests for
+  `updateFormulaPin` and `sync-tap.mjs`'s exported `parseArgs`. Demonstrated genuine RED before
+  GREEN: broke `updateFormulaPin`'s sha256-replacement regex so it could never match ever, confirmed
+  exactly 1 of 11 assertions failed, restored it, confirmed 11/11 — then re-ran `test_formula.mjs`
+  to confirm the `lib.mjs` extraction caused zero regression there (still 18/18). `package.json`'s
+  `test` script is now `test_sync_tap.mjs && test_formula.mjs`.
+- **`.github/workflows/sync-homebrew-tap.yml`** (new, repo root): three jobs — `bump-formula`
+  (ubuntu, runs `sync-tap.mjs` + `npm test` against this repo's own `Formula/pptxdiff.rb`, opens a PR
+  here if changed), `brew-audit` (macos-latest, needs a real change — runs actual `brew audit
+  --strict --online`/`brew install --formula`/`brew test`, the genuine real-Homebrew verification
+  this sandbox has never been able to do itself), `sync-tap-repo` (needs both — opens a PR against
+  `sugatoray/homebrew-pptxdiff` with the same file). Triggers: `workflow_dispatch` + a weekly
+  `schedule`, deliberately not a `package.json`-push trigger (npm publishing here is still manual,
+  no reliable "just published" event to hook without racing an unpublished version — see the
+  workflow file's own header comment). YAML syntax checked with `python3 -c 'yaml.safe_load(...)'`
+  in this sandbox (parses cleanly, including the expected `on:` → `True` PyYAML quirk that GitHub's
+  own parser handles fine, same as this repo's pre-existing `docs.yml`) — **not yet run by a real
+  GitHub Actions runner**, since that requires an actual trigger firing after this branch merges.
+- **Two things deliberately left as manual, human steps, not automated**: creating the
+  `sugatoray/homebrew-pptxdiff` repo itself, and adding a `HOMEBREW_TAP_TOKEN` secret (a PAT scoped
+  to that repo) to this repo's Actions secrets. Both are visible, credential-bearing, or
+  externally-visible actions outside the literal scope of "create the sync script/CI workflow" — see
+  GAP_CONTEXT.md's new "Why creating the tap repo and its access token were left as manual steps"
+  entry. Until both exist, jobs 1-2 of the workflow still run and are useful standalone.
+- Docs updated to match: SPEC.md §33 (new), GAP_ANALYSIS.md (both packaging gaps narrowed to reflect
+  what tooling now exists vs. what still needs the workflow to actually fire once, or the two manual
+  setup steps), two new GAP_CONTEXT.md "why" entries, PLAN.md's packaging tickets, the package's own
+  README.md ("Publishing to a real tap" section, "Bumping the version" rewritten to point at
+  `sync-tap.mjs`) and CHANGELOG.md, and root `CHANGELOG.md`.
+- **Next session, if picking this up**: once the maintainer creates the tap repo + secret, trigger
+  `sync-homebrew-tap.yml` via `workflow_dispatch` and check all three jobs' logs — especially
+  `brew-audit`'s, since that's the first time this formula will have been checked by real Homebrew
+  anywhere. If `brew audit --strict` flags anything (style/convention issues this session's
+  `test_formula.mjs` couldn't check), fix the formula and re-run.
+
 ## Update (2026-08-05 — Real Red/Green TDD for the Homebrew formula: `test_formula.mjs`)
 - Direct follow-up ask on the entry immediately below: "Make sure to use Red/Green TDD and update
   the documents." The prior session had only run `ruby -c` (syntax-only) against the formula and

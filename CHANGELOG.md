@@ -22,6 +22,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   tarball, verifies its sha256, cross-checks it against the npm registry, then replays the formula's
   `install` method's exact `npm install --global --prefix=<libexec> ...` command against the real
   tarball and runs/curls the resulting real `pptxdiff` binary.
+- `src/packages/pptxdiff-brew/sync-tap.mjs` and `.github/workflows/sync-homebrew-tap.yml`: automated
+  version-bump sync for the Homebrew formula. `sync-tap.mjs` downloads a target `pptxdiff` npm
+  version's real tarball, computes its real sha256, and updates a formula file's `url`/`sha256` pin
+  in place (idempotent). The CI workflow runs it against this repo's own formula copy (opening a PR
+  if changed), then runs real `brew audit`/`brew install`/`brew test` on a macOS GitHub Actions
+  runner, then syncs the result to a separate `sugatoray/homebrew-pptxdiff` tap repo once that repo
+  and a `HOMEBREW_TAP_TOKEN` secret exist (both still need one-time manual setup -- see the package's
+  own README.md).
+- `src/packages/pptxdiff-brew/lib.mjs` and `test_sync_tap.mjs`: shared formula-parsing/network
+  helpers and Red/Green tests for the new sync tooling's pure logic.
 
 ## [0.7.0] - 2026-08-02
 

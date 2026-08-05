@@ -30,13 +30,12 @@
 // Run: node src/packages/pptxdiff-brew/test_formula.mjs
 
 import { execFileSync, spawn } from "node:child_process";
-import { createHash } from "node:crypto";
 import fs from "node:fs";
 import http from "node:http";
-import https from "node:https";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { fetch, parseFormula, sha256hex } from "./lib.mjs";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const FORMULA_PATH = path.join(DIR, "Formula", "pptxdiff.rb");
@@ -46,54 +45,6 @@ let checks = 0;
 function assert(label, cond) {
   checks++;
   if (!cond) failures.push(label);
-}
-
-// Pure: extracts the fields a Homebrew formula needs from its Ruby source
-// via plain regexes — deliberately not a real Ruby parse (no new
-// dependency), just enough structure to catch the mistakes that matter
-// (wrong/missing url, sha256, depends_on, install/test wiring).
-export function parseFormula(rubySource) {
-  const url = rubySource.match(/^\s*url\s+"([^"]+)"/m)?.[1] ?? null;
-  const sha256 = rubySource.match(/^\s*sha256\s+"([^"]+)"/m)?.[1] ?? null;
-  const license = rubySource.match(/^\s*license\s+"([^"]+)"/m)?.[1] ?? null;
-  const homepage = rubySource.match(/^\s*homepage\s+"([^"]+)"/m)?.[1] ?? null;
-  const version = url?.match(/pptxdiff-(\d+\.\d+\.\d+)\.tgz$/)?.[1] ?? null;
-  return {
-    url,
-    sha256,
-    license,
-    homepage,
-    version,
-    dependsOnNode: /depends_on\s+"node"/.test(rubySource),
-    hasStdNpmInstall: /system\s+"npm",\s*"install",\s*\*std_npm_install_args\(libexec\)/.test(rubySource),
-    hasBinInstallSymlink: /bin\.install_symlink\s+Dir\[/.test(rubySource),
-    hasTestBlock: /\btest\s+do\b/.test(rubySource),
-    hasLivecheckNpm: /livecheck\s+do[\s\S]*?strategy\s+:npm/.test(rubySource),
-  };
-}
-
-function fetch(url) {
-  return new Promise((resolve, reject) => {
-    https
-      .get(url, { headers: { "user-agent": "pptxdiff-brew-test" } }, (res) => {
-        if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-          resolve(fetch(res.headers.location));
-          return;
-        }
-        if (res.statusCode !== 200) {
-          reject(new Error(`GET ${url} -> ${res.statusCode}`));
-          return;
-        }
-        const chunks = [];
-        res.on("data", (c) => chunks.push(c));
-        res.on("end", () => resolve(Buffer.concat(chunks)));
-      })
-      .on("error", reject);
-  });
-}
-
-function sha256hex(buf) {
-  return createHash("sha256").update(buf).digest("hex");
 }
 
 async function main() {

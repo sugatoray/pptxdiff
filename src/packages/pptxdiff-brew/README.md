@@ -108,21 +108,64 @@ uploaded anywhere. Press Ctrl-C in the terminal to stop the server.
 
 ## Bumping the version
 
-When a new `pptxdiff` version is published to npm:
+Automated, via `sync-tap.mjs` — no more hand-editing `url`/`sha256`:
 
-1. Update the `url` in `Formula/pptxdiff.rb` to the new tarball URL.
-2. Recompute the sha256 of that tarball and update `sha256`:
+```sh
+node sync-tap.mjs                    # bumps to npm's current dist-tags.latest
+node sync-tap.mjs --version 0.8.0    # or pin an exact version
+```
 
-   ```sh
-   curl -sL "https://registry.npmjs.org/pptxdiff/-/pptxdiff-<new-version>.tgz" | shasum -a 256
-   ```
+It downloads the real tarball for that version, computes its real sha256, and rewrites only the
+`url`/`sha256` lines in `Formula/pptxdiff.rb` in place (everything else — comments, `install`,
+`test do`, `caveats` — is untouched). If the formula already matches that version it prints "already
+up to date" and makes no change (idempotent — safe to run on a schedule). After it runs, re-verify
+with `npm test` (see above) before committing.
 
-3. Run `brew audit --strict --online Formula/pptxdiff.rb` and
-   `brew install --formula Formula/pptxdiff.rb && brew test pptxdiff` on a real Homebrew machine
-   before committing.
+This is exactly what `.github/workflows/sync-homebrew-tap.yml` runs in CI — see "Publishing to a
+real tap" below for the full automated pipeline, and for what still needs manual, one-time setup
+before that workflow actually reaches a tap repo.
 
-The `livecheck` block (`strategy :npm`) lets `brew livecheck` detect new versions automatically
-once this formula lives in a real tap that runs livecheck in CI.
+The `livecheck` block (`strategy :npm`) additionally lets `brew livecheck` detect new versions
+automatically once this formula lives in a real tap that runs livecheck in CI — a complementary,
+Homebrew-native signal, independent of `sync-tap.mjs`.
+
+## Publishing to a real tap
+
+`.github/workflows/sync-homebrew-tap.yml` automates the whole "keep a separate
+`sugatoray/homebrew-pptxdiff` tap repo in sync" story, in three jobs:
+
+1. **`bump-formula`** (ubuntu, runs `sync-tap.mjs` against this repo's own `Formula/pptxdiff.rb`,
+   then `npm test` for real verification) — opens a PR against **this** repo if the pin changed, so
+   the monorepo's source-of-truth copy stays current release-over-release instead of drifting stale
+   between manual bumps.
+2. **`brew-audit`** (macOS, needs a real `changed` pin from step 1) — runs actual
+   `brew audit --strict --online`, `brew install --formula`, and `brew test` against the updated
+   formula. GitHub's `macos-latest` runners ship with Homebrew preinstalled as a normal (non-root)
+   user, so this is the genuine real-`brew` verification this sandbox cannot do itself (see
+   `test_formula.mjs`'s own doc comment for why) — once this workflow runs for real, it closes that
+   gap for good.
+3. **`sync-tap-repo`** (needs both above) — checks out `sugatoray/homebrew-pptxdiff` and opens a PR
+   there with the same updated formula file.
+
+Triggers: `workflow_dispatch` (run by hand right after `npm publish`, optionally pinning an exact
+version) and a weekly `schedule` as a drift-catching safety net. See the workflow file's own header
+comment for why it doesn't trigger on a `package.json` push (npm publishing here is still a manual
+step, so there's no reliable "just published" CI event to race against).
+
+**Two things still need one-time manual setup before job 3 can succeed** (deliberately not done by
+an agent — creating a new public repo and a cross-repo credential are both real, visible actions a
+human should take explicitly):
+
+1. **Create the `sugatoray/homebrew-pptxdiff` repo** (empty is fine — the first sync PR will add
+   `Formula/pptxdiff.rb`).
+2. **Add a `HOMEBREW_TAP_TOKEN` secret to this repo** (Settings -> Secrets and variables -> Actions):
+   a token with write + pull-request access scoped to `sugatoray/homebrew-pptxdiff` (a fine-grained
+   PAT limited to that one repo is the least-privilege option; the default `GITHUB_TOKEN` cannot
+   reach a different repository).
+
+Until both exist, jobs 1 and 2 still run and are useful on their own (keeping this repo's formula
+current, with real macOS `brew` verification on every version bump); job 3 fails at the checkout step
+with a clear "repository not found" / auth error rather than doing anything silently wrong.
 
 ## Relationship to the other packages in `src/packages/`
 
