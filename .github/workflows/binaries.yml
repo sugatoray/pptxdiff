@@ -42,11 +42,14 @@ jobs:
           path: src/packages/binaries/pptxdiff-win/pptxdiff-win.exe
           if-no-files-found: error
 
-  # mac builds on a REAL macOS runner specifically so it can be ad-hoc
-  # codesigned (codesign only exists on macOS) — an unsigned mac binary is
-  # a real functional problem on Apple Silicon, not just a warning, so this
-  # is NOT cross-compiled from the linux job above. See build.mjs's header
-  # comment and docs/.scrolls/GAP_CONTEXT.md.
+  # mac (both Intel x64 and Apple Silicon arm64) builds on a REAL macOS
+  # runner specifically so both can be ad-hoc codesigned (codesign only
+  # exists on macOS) — an unsigned mac binary is a real functional problem
+  # on Apple Silicon, not just a warning, so neither is cross-compiled from
+  # the linux job above. See build.mjs's header comment and
+  # docs/.scrolls/GAP_CONTEXT.md. GitHub's macos-latest runners are
+  # themselves Apple Silicon as of 2024, so the arm64 build here is a
+  # genuinely native build+sign, not a translated one.
   build-mac:
     runs-on: macos-latest
     steps:
@@ -60,10 +63,15 @@ jobs:
         working-directory: src/packages/binaries
       - run: npm run test:e2e
         working-directory: src/packages/binaries
-      - run: npm run build -- mac
+      - run: npm run build -- mac mac-arm64
         working-directory: src/packages/binaries
       - uses: actions/upload-artifact@v4
         with:
           name: pptxdiff-mac
           path: src/packages/binaries/pptxdiff-mac/pptxdiff-mac
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pptxdiff-mac-arm64
+          path: src/packages/binaries/pptxdiff-mac/pptxdiff-mac-arm64
           if-no-files-found: error

@@ -30,17 +30,21 @@
 // "src/pptxdiff/**" to resolve — written fresh before each build and
 // removed in a `finally`, since it isn't a real project file.
 //
-// **macOS is NOT cross-compiled from this build.** pkg can produce a
-// macOS binary from Linux/Windows, but it cannot codesign it (`codesign`
-// only exists on macOS) — and an entirely unsigned binary is a real
-// functional problem on Apple Silicon (arm64 requires at least an ad-hoc
-// signature to launch at all under AMFI, not just a Gatekeeper warning
-// like on Intel). So `buildOne('mac', ...)` only runs its codesign step
-// when `process.platform === 'darwin'`; on any other host it still
-// produces a binary (for local experimentation) but loudly warns it's
-// unsigned rather than silently shipping something that may not launch.
+// **macOS (both `mac`/Intel and `mac-arm64`/Apple Silicon) is NOT
+// cross-compiled from this build.** pkg can produce either macOS binary
+// from Linux/Windows regardless of the BUILD host's own architecture, but
+// it cannot codesign either one (`codesign` only exists on macOS) — and an
+// entirely unsigned binary is a real functional problem specifically on
+// Apple Silicon (arm64 requires at least an ad-hoc signature to launch at
+// all under AMFI, not just a Gatekeeper warning like on Intel). So
+// `buildOne()` only runs its codesign step when `process.platform ===
+// 'darwin'`, for either mac target; on any other host it still produces a
+// binary (for local experimentation) but loudly warns it's unsigned
+// rather than silently shipping something that may not launch.
 // .github/workflows/binaries.yml reflects this: linux+win build together
-// on ubuntu-latest, mac builds separately on macos-latest.
+// on ubuntu-latest, both mac targets build separately on macos-latest
+// (GitHub's macos-latest runners are themselves Apple Silicon as of 2024,
+// so `mac-arm64` there is a genuinely native build+sign, not translated).
 
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -50,10 +54,15 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..", "..", "..");
 
+// `outDirKey` is separate from the map's own key so multiple targets can
+// share one OS folder — `mac` (Intel/x64) and `mac-arm64` (Apple Silicon,
+// native) both land in `pptxdiff-mac/`, since they're the same OS as far
+// as a user picking a download is concerned, just a different chip.
 export const TARGET_MAP = {
-  linux: { pkgTarget: "node22-linux-x64", binName: "pptxdiff-linux", needsMacSign: false },
-  win: { pkgTarget: "node22-win-x64", binName: "pptxdiff-win.exe", needsMacSign: false },
-  mac: { pkgTarget: "node22-macos-x64", binName: "pptxdiff-mac", needsMacSign: true },
+  linux: { pkgTarget: "node22-linux-x64", binName: "pptxdiff-linux", outDirKey: "linux", needsMacSign: false },
+  win: { pkgTarget: "node22-win-x64", binName: "pptxdiff-win.exe", outDirKey: "win", needsMacSign: false },
+  mac: { pkgTarget: "node22-macos-x64", binName: "pptxdiff-mac", outDirKey: "mac", needsMacSign: true },
+  "mac-arm64": { pkgTarget: "node22-macos-arm64", binName: "pptxdiff-mac-arm64", outDirKey: "mac", needsMacSign: true },
 };
 
 // Same subset root package.json's "files" ships to npm — the exact static
@@ -80,7 +89,7 @@ function log(osKey, msg) {
 // absolute path to the built executable. Writes bin.mjs's temp pkg config
 // at REPO_ROOT and always removes it afterward, success or failure.
 export async function buildOne(osKey, target) {
-  const outDir = path.join(__dirname, `pptxdiff-${osKey}`);
+  const outDir = path.join(__dirname, `pptxdiff-${target.outDirKey}`);
   fs.mkdirSync(outDir, { recursive: true });
   const binOut = path.join(outDir, target.binName);
   fs.rmSync(binOut, { force: true });
@@ -121,9 +130,10 @@ export async function buildOne(osKey, target) {
   }
 }
 
-// Builds every osKey in `osKeys` (default: all three — a reasonable local-
-// dev default since pkg CAN cross-compile all three from one machine; the
-// mac-signing caveat above still applies). Returns { [osKey]: binPath }.
+// Builds every osKey in `osKeys` (default: every TARGET_MAP entry — a
+// reasonable local-dev default since pkg CAN cross-compile all of them
+// from one machine; the mac-signing caveat above still applies to both
+// `mac` and `mac-arm64`). Returns { [osKey]: binPath }.
 export async function buildAll(osKeys = Object.keys(TARGET_MAP)) {
   const results = {};
   for (const osKey of osKeys) {

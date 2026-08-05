@@ -40,10 +40,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   state to the tap even without a version-pin change, while a scheduled run still only does real work
   on an actual version bump. `test_formula.mjs` now also asserts `LICENSE` stays byte-identical to
   the repo root's copy, catching drift instead of silently shipping a stale license to the tap.
-- New private `@pptxdiff/binaries` package (`src/packages/binaries/`) building standalone native `pptxdiff` executables for Windows, macOS, and Linux via `@yao-pkg/pkg` — download one file and run it, no separate Node.js install required.
+- New private `@pptxdiff/binaries` package (`src/packages/binaries/`) building standalone native `pptxdiff` executables for Windows, macOS (Intel and Apple Silicon), and Linux via `@yao-pkg/pkg` — download one file and run it, no separate Node.js install required.
+- Native Apple Silicon (`pptxdiff-mac-arm64`) build alongside the existing Intel one, both sharing `src/packages/binaries/pptxdiff-mac/` — avoids Apple Silicon Macs having to run the Intel binary via Rosetta 2 translation.
 - Per-OS build output folders `src/packages/binaries/pptxdiff-{win,mac,linux}/`, each with its own `README.md` and `CHANGELOG.md`.
-- `.github/workflows/binaries.yml`: `pkg` genuinely cross-compiles, so Windows and Linux build together in one `ubuntu-latest` job; macOS builds in its own `macos-latest` job so it can be properly ad-hoc codesigned.
-- `make pkg.binaries.build` / `npm run build:binary` for local builds (all three OSes by default, or a specific subset).
+- `.github/workflows/binaries.yml`: `pkg` genuinely cross-compiles, so Windows and Linux build together in one `ubuntu-latest` job; both macOS targets build in their own `macos-latest` job so they can be properly ad-hoc codesigned.
+- `make pkg.binaries.build` / `npm run build:binary` for local builds (all four targets by default, or a specific subset).
 - Red/Green TDD test suite for the build tooling itself: `npm test` (fast, pure — config/asset-drift/regression checks) and `npm run test:e2e` (slow, real — builds and runs the actual packaged binary over real HTTP) in `src/packages/binaries/`.
 
 ## [0.7.0] - 2026-08-02

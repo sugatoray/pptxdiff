@@ -39,13 +39,34 @@ only — never shipped in the binaries or the npm package), vs. a fork of a
 project Vercel walked away from. Judged worth it for the two wins above;
 see `docs/.scrolls/GAP_CONTEXT.md` for the full reasoning.
 
-**macOS is the one target NOT cross-compiled here.** `pkg` CAN produce a
-macOS binary from Linux, but it can't codesign it (`codesign` only exists
-on macOS) — and on Apple Silicon, a completely unsigned binary may not
-even *launch* (AMFI requires at least an ad-hoc signature, not just a
-Gatekeeper warning the way Intel Macs work). So the mac target only runs
-its codesign step when actually built on a macOS host — see
-`.github/workflows/binaries.yml`'s separate `build-mac` job.
+**macOS is the one OS NOT cross-compiled here** (for either chip). `pkg`
+CAN produce macOS binaries from Linux, but it can't codesign them
+(`codesign` only exists on macOS) — and on Apple Silicon, a completely
+unsigned binary may not even *launch* (AMFI requires at least an ad-hoc
+signature, not just a Gatekeeper warning the way Intel Macs work; `pkg`
+itself prints this exact warning if you try). So both mac targets only run
+their codesign step when actually built on a macOS host — see
+`.github/workflows/binaries.yml`'s separate `build-mac` job. (`pkg` does
+mention one Linux-side workaround — installing the `ldid` utility so it
+can ad-hoc-sign Mach-O binaries without a real Mac at all — not pursued
+here; a real `macos-latest` CI runner was judged simpler and more
+reliable than depending on a third tool for signing.)
+
+## Apple Silicon (arm64)
+
+Two mac targets exist, both landing in `pptxdiff-mac/`:
+
+| osKey | pkg target | binary | chip |
+|---|---|---|---|
+| `mac` | `node22-macos-x64` | `pptxdiff-mac` | Intel |
+| `mac-arm64` | `node22-macos-arm64` | `pptxdiff-mac-arm64` | Apple Silicon (native) |
+
+Without the `mac-arm64` target, an Apple Silicon Mac would only be able to
+run the Intel binary via Rosetta 2 translation (extra launch overhead,
+and Rosetta isn't guaranteed pre-installed on a fresh Mac). `TARGET_MAP`
+entries share an `outDirKey` (`"mac"` for both) separate from their own
+map key, specifically so multiple chip variants of the same OS can land
+in one folder — see `build.mjs`'s `buildOne()`.
 
 ## How it works
 
@@ -78,15 +99,18 @@ tracked file inside this package's own directory.
 ```sh
 cd src/packages/binaries
 npm install
-npm run build              # builds all three (win/mac/linux) by default
-npm run build -- linux win # or build a specific subset
+npm run build                    # builds all four targets by default
+npm run build -- linux win       # or build a specific subset
+npm run build -- mac mac-arm64   # (on macOS, for a properly-signed result)
 ```
 
-Output lands in `./pptxdiff-<win|mac|linux>/<binary>` — one file per OS,
-nothing else needed alongside it. Each OS folder keeps a tracked
-`README.md` (usage/known-warnings) and `CHANGELOG.md` (Keep a Changelog,
-tracks the bundled `pptxdiff` app version) — `build.mjs` only ever
-touches the binary file itself, never those two.
+Output lands in `./pptxdiff-<win|mac|linux>/<binary>` — one file per
+target, nothing else needed alongside it (the two mac targets share the
+`pptxdiff-mac/` folder). Each OS folder keeps a tracked `README.md`
+(usage/known-warnings) and `CHANGELOG.md` (Keep a Changelog, tracks the
+bundled `pptxdiff` app version) — `build.mjs` only ever touches the
+specific binary file it's building, never those two or the other target's
+binary.
 
 ## Testing (Red/Green TDD)
 
@@ -99,18 +123,22 @@ npm run test:e2e  # slow, real — builds an actual binary for the CURRENT
                    # support.js/vendor/* + a path-traversal check)
 ```
 
-`test:e2e` only exercises the current host's own target — win/mac are
-structurally identical (same `buildOne()`, only the mac codesign branch
-differs) but only actually built-and-run by CI.
+`test:e2e` only exercises the current host's own target (on macOS, it
+picks `mac` vs `mac-arm64` based on the host's actual `os.arch()`, so an
+Apple Silicon CI runner genuinely tests the native `mac-arm64` build) —
+every target is structurally identical (same `buildOne()`, only the mac
+codesign branch differs) but only actually built-and-run by CI.
 
 ## Known gaps (see `docs/.scrolls/GAP_ANALYSIS.md`)
 
-- **Unsigned Windows `.exe` / ad-hoc-signed-only macOS binary.** No
+- **Unsigned Windows `.exe` / ad-hoc-signed-only macOS binaries.** No
   code-signing certificate — Windows SmartScreen and macOS Gatekeeper will
   warn on a freshly-downloaded copy. Documented per-OS in each
   `pptxdiff-<os>/README.md`.
 - **Not attached to GitHub Releases yet.** CI currently only uploads build
   artifacts on push/dispatch; wiring a release-tag trigger to attach them
   to a GitHub Release is a follow-up, not done here.
-- **x64 only, no native arm64 build** for any OS (matches the original
-  scope) — an Apple Silicon Mac runs the x64 binary via Rosetta 2.
+- **x64 only for Windows and Linux** — no native arm64 build for either
+  (matches the original scope; macOS is the one OS with a native arm64
+  build, added after an explicit follow-up ask since Apple Silicon is now
+  the dominant Mac).
