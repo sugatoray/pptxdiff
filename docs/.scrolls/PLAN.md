@@ -336,3 +336,17 @@ shim, not sequentially — that plan is what shipped below.
     the GUI's `slideDiffReviewerState_v1` shape so a human on the GUI and an agent on the API can
     collaborate on the same review. This is the design doc's most distinctive value beyond "diff as
     a service" (§8) — not started.
+
+## Packaging tickets (this session)
+- [x] **P2 — Homebrew formula for `pptxdiff`.** `src/packages/pptxdiff-brew/Formula/pptxdiff.rb`,
+  pinned to the published `pptxdiff@0.7.0` npm tarball (verified sha256), `depends_on "node"`, no
+  `resource` blocks needed. See SPEC.md §32, GAP_CONTEXT.md's two new "Why the Homebrew formula..."
+  entries.
+- [ ] **P3 — Create a real `sugatoray/homebrew-pptxdiff` tap repo** so `brew tap sugatoray/pptxdiff
+  && brew install pptxdiff` works, instead of the current `brew install --formula <path>` direct
+  install. Not started — see GAP_ANALYSIS.md.
+- [ ] **P2 — Run the Homebrew formula through real Homebrew** (`brew audit --strict --online`,
+  `brew install`, `brew test`) on a machine that actually has `brew` — this sandbox doesn't. Only
+  `ruby -c` syntax has been checked so far. See GAP_ANALYSIS.md.
+- [ ] **P4 — Homebrew formula for `pptxdiff-cli`**, once that package is published to npm (currently
+  monorepo-local only — see its own README's `file:` dependency note).

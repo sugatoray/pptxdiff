@@ -2,6 +2,40 @@
 
 **Read `.scrolls/SPEC.md` first for the full feature list.** This file is the "what's the state of things right now" note — update it at the end of every session, keep it short and current (prune stale entries).
 
+## Update (2026-08-05 — Homebrew formula for `pptxdiff`, new `src/packages/pptxdiff-brew/`)
+- Direct ask: "Create a brew package for pptxdiff. Make it available inside the folder
+  `src/packages/pptxdiff-brew/`."
+- Confirmed the root `pptxdiff` npm package is already published (`registry.npmjs.org/pptxdiff`,
+  latest `0.7.0`) — unlike `@pptxdiff/cli`/`@pptxdiff/server`, which are still monorepo-local. That
+  made this a straightforward npm-tarball-based formula rather than a source build: downloaded the
+  real `pptxdiff-0.7.0.tgz`, verified its sha256
+  (`b7bc10ffee012efa1d4914e53b264b338dfbb15dea0714f31c6f664023bff272`) against both the local
+  download and the registry's own reported shasum, and confirmed `package.json` has zero runtime
+  `dependencies` (only `devDependencies`) — every third-party lib the app needs is already vendored
+  under `src/pptxdiff/vendor/` and shipped inside the tarball, so no `resource` blocks were needed.
+- **New package `src/packages/pptxdiff-brew/`**: `Formula/pptxdiff.rb` (`depends_on "node"`,
+  `npm install` into `libexec` via `std_npm_install_args` + `bin.install_symlink`, a `livecheck`
+  block for automatic version-bump detection, and a `test do` block that actually starts the
+  installed binary, reads its printed `pptxdiff running at http://localhost:<port>` line to recover
+  the OS-assigned port — `pptxdiff` never exits on its own — then curls it and asserts real HTML
+  comes back before killing the process), plus `README.md` (status, direct-install command, why not
+  a real tap yet, version-bump procedure) and `CHANGELOG.md` (Keep a Changelog style, matching the
+  other packages under `src/packages/`).
+- **Not run through real Homebrew**: this sandbox has no `brew` binary. Verified the formula with
+  `ruby -c` (valid syntax) only — `brew audit`/`brew install`/`brew test` still need to run on a
+  real machine before this is fully done. New GAP_ANALYSIS.md entries flag this explicitly.
+- **Not a real tap yet, by design for this session**: `brew tap sugatoray/pptxdiff` needs a repo
+  literally named `homebrew-pptxdiff` with formulae at its own `Formula/` root — a subdirectory of
+  this monorepo can't be tapped that way. Documented `brew install --formula <path-or-URL>` as the
+  working install method today; creating a dedicated tap repo is a new PLAN.md ticket, not done this
+  session (see GAP_CONTEXT.md's "Why the Homebrew formula isn't in a real tap yet").
+- Docs updated to match: SPEC.md §32 (new), CHANGELOG.md's `[Unreleased]` section, PLAN.md's new
+  "Packaging tickets (this session)" section, two new GAP_ANALYSIS.md entries under "Packaging", two
+  new GAP_CONTEXT.md "why" entries.
+- Next session, if picking this up: get access to a real `brew` binary (or ask the user to run the
+  verification commands in `src/packages/pptxdiff-brew/README.md`) and decide whether to actually
+  create the `sugatoray/homebrew-pptxdiff` tap repo.
+
 ## Update (2026-08-02 — `@pptxdiff/server` scoped CLI dependency fix)
 
 - Last commit `452ba63` fixed a server-package break introduced by renaming the CLI package to `@pptxdiff/cli`: `src/packages/pptxdiff-server/lib/server.js` still required old `pptxdiff-cli/lib/index.js`, so fresh `npm install && npm test` failed with `MODULE_NOT_FOUND`.

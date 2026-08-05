@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-...
+### Added
+
+- New `src/packages/pptxdiff-brew/` package: a Homebrew formula (`Formula/pptxdiff.rb`) for the
+  published `pptxdiff` npm package, so it can be installed with `brew install` in addition to
+  `npm install -g`. Pinned to `pptxdiff@0.7.0`'s published npm tarball with a verified `sha256`,
+  `depends_on "node"`, no `resource` blocks needed (the tarball has zero runtime dependencies), and
+  a `test do` block that starts the real server and curls it. Not yet published to a real Homebrew
+  tap -- see the package's own `README.md` for the direct-install command and version-bump steps.
 
 ## [0.7.0] - 2026-08-02
 
