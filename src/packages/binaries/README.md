@@ -50,6 +50,30 @@ it on all three platforms — `.github/workflows/binaries.yml` does exactly
 that via a `windows-latest`/`macos-latest`/`ubuntu-latest` CI matrix and
 uploads each as a workflow artifact.
 
+Each OS folder keeps a tracked `README.md` (usage/known-warnings) and
+`CHANGELOG.md` (Keep a Changelog, tracks the bundled `pptxdiff` app
+version) — `build.mjs` only ever removes the specific files/folders it
+itself generates (the binary, `assets/`, `*.zip`), never those two, even
+across repeated builds.
+
+## Testing (Red/Green TDD)
+
+```sh
+npm test        # fast, pure — PLATFORM_MAP/ASSET_ENTRIES/resolveTarget shape,
+                 # an ASSET_ENTRIES-vs-root-package.json drift guard, and a
+                 # regression guard on bin/cli.js's startServer(root = ROOT)
+                 # signature this whole feature depends on
+npm run test:e2e # slow, real — builds an actual binary for the CURRENT host
+                 # OS and drives it over real HTTP (index.html/support.js/
+                 # vendor/* + a path-traversal check), same split as
+                 # pptxdiff-cli's `npm test` vs `npm run test:difftool`
+```
+
+`test:e2e` only exercises the current host's platform branch — the other
+two OS branches are structurally identical (same `build.mjs`, only the
+codesign step differs) but only actually built-and-run by CI's 3-OS
+matrix.
+
 ## Known gaps (see `docs/.scrolls/GAP_ANALYSIS.md`)
 
 - **Unsigned/ad-hoc-signed.** No code-signing certificate — Windows

@@ -388,13 +388,16 @@ src/pptxdiff/docs-site/site/
 
 ## Native-binary build output (src/packages/binaries/build.mjs) — the
 ## executable, the copied "assets" folder, and the zipped artifact are all
-## generated per-OS, not source; keep each OS folder's own README.md tracked
-## (it documents the folder before a build has ever run there) but ignore
-## everything else build.mjs writes into it.
+## generated per-OS, not source; keep each OS folder's own README.md and
+## CHANGELOG.md tracked (they document the folder even before a build has
+## ever run there) but ignore everything else build.mjs writes into it.
 src/packages/binaries/pptxdiff-win/*
 src/packages/binaries/pptxdiff-mac/*
 src/packages/binaries/pptxdiff-linux/*
 !src/packages/binaries/pptxdiff-win/README.md
 !src/packages/binaries/pptxdiff-mac/README.md
 !src/packages/binaries/pptxdiff-linux/README.md
+!src/packages/binaries/pptxdiff-win/CHANGELOG.md
+!src/packages/binaries/pptxdiff-mac/CHANGELOG.md
+!src/packages/binaries/pptxdiff-linux/CHANGELOG.md
 src/packages/binaries/.build/

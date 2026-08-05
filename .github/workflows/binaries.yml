@@ -33,6 +33,10 @@ jobs:
           node-version: "22"
       - run: npm install
         working-directory: src/packages/binaries
+      - run: npm test
+        working-directory: src/packages/binaries
+      - run: npm run test:e2e
+        working-directory: src/packages/binaries
       - run: npm run build
         working-directory: src/packages/binaries
       - uses: actions/upload-artifact@v4

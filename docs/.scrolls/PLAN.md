@@ -408,6 +408,23 @@ shim, not sequentially — that plan is what shipped below.
   ran the actual packaged binary (not just `bin/cli.js`), confirmed it serves `index.html`/
   `support.js`/`vendor/*` correctly via real HTTP requests. macOS/Windows are structurally identical
   but unverified until CI runs them (no non-Linux host in this sandbox) — see GAP_ANALYSIS.md.
+- [x] **P2 — Red/Green TDD for the binaries build (explicit follow-up ask), plus CHANGELOG.md per OS
+  folder.** `build.mjs` refactored with an entrypoint guard (same pattern as `capture_screenshots.mjs`)
+  exporting `PLATFORM_MAP`/`ASSET_ENTRIES`/`resolveTarget`/`buildBinary` for testability.
+  `test_build_config.mjs` (fast/pure, `npm test`): 17 assertions including a static-source regression
+  guard on `bin/cli.js`'s `startServer(root = ROOT)` signature — demonstrated genuine RED→GREEN by
+  temporarily reverting that exact signature, confirming the one dependent assertion failed (16/17),
+  restoring it, confirming 17/17. `test_build_e2e.mjs` (slow/real, `npm run test:e2e`, current-platform
+  only): actually builds and RUNS the real packaged binary, 11/11 assertions against real HTTP
+  responses (including a path-traversal check against this feature's different `root` value). Caught
+  and fixed a real bug while writing the e2e test: `build.mjs`'s (and the test's own) "clean the
+  output dir" step was a blind `rm -rf` that would have deleted the tracked `README.md`/`CHANGELOG.md`
+  living in the same per-OS folder on every build — fixed with a `cleanGeneratedOutDir()` that removes
+  only the specific generated entries; verified by running the real build twice in a row and
+  confirming both docs files survive. `src/packages/binaries/pptxdiff-{win,mac,linux}/CHANGELOG.md`
+  added (Keep a Changelog format, tracks the bundled `pptxdiff` app version). Root `CHANGELOG.md`
+  `[Unreleased]` section filled in for this whole feature (previously an empty placeholder). See
+  SPEC.md §32, WISDOM.md's new "clean the output dir" trap entry.
 
 ## New tickets opened this session
 1. **P2 — Attach the built binaries to GitHub Releases**, not just CI workflow artifacts. Needs a
@@ -423,3 +440,7 @@ shim, not sequentially — that plan is what shipped below.
    `bin/cli.js`'s static server to read from `sea.getAsset()` when running under SEA instead of
    `fs.readFile()` — a real behavior change to already-hardened code, deliberately not made for this
    first pass (see GAP_CONTEXT.md).
+4. **P4 — `test_build_e2e.mjs` only exercises the CURRENT host's platform branch.** The macOS/Windows
+   `buildBinary()` branches (codesign steps, `.exe` naming) are covered by `test_build_config.mjs`'s
+   static checks but not by a real build+run — that only happens via CI's 3-OS matrix. Not a gap in
+   this session's TDD work so much as an inherent constraint of Node SEA itself (see GAP_ANALYSIS.md).

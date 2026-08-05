@@ -10,7 +10,9 @@
     "url": "https://github.com/sugatoray"
   },
   "scripts": {
-    "build": "node build.mjs"
+    "build": "node build.mjs",
+    "test": "node test_build_config.mjs",
+    "test:e2e": "node test_build_e2e.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.24.0",

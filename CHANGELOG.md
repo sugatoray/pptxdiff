@@ -40,6 +40,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   state to the tap even without a version-pin change, while a scheduled run still only does real work
   on an actual version bump. `test_formula.mjs` now also asserts `LICENSE` stays byte-identical to
   the repo root's copy, catching drift instead of silently shipping a stale license to the tap.
+- New private `@pptxdiff/binaries` package (`src/packages/binaries/`) building standalone native `pptxdiff` executables for Windows, macOS, and Linux via Node's Single Executable Applications feature — download one artifact and run it, no separate Node.js install required.
+- Per-OS build output folders `src/packages/binaries/pptxdiff-{win,mac,linux}/`, each with its own `README.md` and `CHANGELOG.md`.
+- `.github/workflows/binaries.yml`: a 3-OS CI matrix building all three binaries (Node SEA has no cross-compile mode, so each OS's binary is built on that OS).
+- `make pkg.binaries.build` / `npm run build:binary` for local single-OS builds.
+- `bin/cli.js`'s `startServer()` gained a backward-compatible optional `root` parameter so the packaged binaries can serve static assets from next to themselves.
 
 ## [0.7.0] - 2026-08-02
 
