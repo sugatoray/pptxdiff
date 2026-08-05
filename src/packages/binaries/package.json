@@ -1,0 +1,36 @@
+{
+  "name": "@pptxdiff/binaries",
+  "version": "0.1.0",
+  "description": "Build script producing standalone native pptxdiff executables (via @yao-pkg/pkg) for Windows, macOS, and Linux — no separate Node.js install required to run them.",
+  "license": "Apache-2.0",
+  "private": true,
+  "author": {
+    "name": "Sugato Ray",
+    "email": "sugatoray.dev@gmail.com",
+    "url": "https://github.com/sugatoray"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node test_build_config.mjs",
+    "test:e2e": "node test_build_e2e.mjs"
+  },
+  "devDependencies": {
+    "@yao-pkg/pkg": "^6.22.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sugatoray/pptxdiff.git",
+    "directory": "src/packages/binaries"
+  },
+  "homepage": "https://github.com/sugatoray/pptxdiff#readme",
+  "keywords": [
+    "pptx",
+    "powerpoint",
+    "diff",
+    "pkg",
+    "native-binary"
+  ]
+}

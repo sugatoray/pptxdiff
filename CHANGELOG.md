@@ -7,7 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-...
+### Added
+
+- New private `@pptxdiff/binaries` package (`src/packages/binaries/`) building standalone native `pptxdiff` executables for Windows, macOS, and Linux (x64 AND arm64 for all three) via `@yao-pkg/pkg` — download one file and run it, no separate Node.js install required.
+- Native arm64 builds for all three OSes (`pptxdiff-mac-arm64`, `pptxdiff-win-arm64.exe`, `pptxdiff-linux-arm64`), each sharing its OS's output folder with the existing x64 build — avoids Apple Silicon Macs having to run the Intel binary via Rosetta 2 translation, and gives Windows-on-ARM/arm64-Linux users a native option too.
+- Per-OS build output folders `src/packages/binaries/pptxdiff-{win,mac,linux}/`, each with its own `README.md` and `CHANGELOG.md`.
+- `.github/workflows/binaries.yml`: `pkg` genuinely cross-compiles, so Windows and Linux (both chip variants) build together in one `ubuntu-latest` job; both macOS targets build in their own `macos-latest` job so they can be properly ad-hoc codesigned.
+- `make pkg.binaries.build` / `npm run build:binary` for local builds (all six targets by default, or a specific subset).
+- Red/Green TDD test suite for the build tooling itself: `npm test` (fast, pure — config/asset-drift/regression checks) and `npm run test:e2e` (slow, real — builds and runs the actual packaged binary over real HTTP) in `src/packages/binaries/`.
 
 ## [0.7.0] - 2026-08-02
 

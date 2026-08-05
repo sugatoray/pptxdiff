@@ -14,7 +14,8 @@
   },
   "scripts": {
     "build:npm": "mkdir -p dist && npm pack --pack-destination dist",
-    "package:vscode": "cd src/packages/pptxdiff-vscode && mkdir -p dist && vsce package --out dist/pptxdiff-vscode-$(node -p \"require('./package.json').version\").vsix"
+    "package:vscode": "cd src/packages/pptxdiff-vscode && mkdir -p dist && vsce package --out dist/pptxdiff-vscode-$(node -p \"require('./package.json').version\").vsix",
+    "build:binary": "cd src/packages/binaries && npm install && npm run build"
   },
   "files": [
     "bin",

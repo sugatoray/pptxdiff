@@ -52,6 +52,9 @@ VSCE_EXT_VERSION := $(shell node -p "require('$(VSCE_PKGJSON_PATH)').version")
 VSCE_EXT_NAME := $(shell node -p "require('$(VSCE_PKGJSON_PATH)').name")
 VSIX_EXT_PATH_LOCAL := dist/$(VSCE_EXT_NAME)-$(VSCE_EXT_VERSION).vsix
 
+BINARIES_PKG_DIR_RELPATH := ./src/packages/binaries
+BINARIES_PKG_DIR := $(abspath $(ROOT_DIR)/$(BINARIES_PKG_DIR_RELPATH))
+
 MKDOCS_YML_PATH := $(abspath $(ROOT_DIR)/$(MKDOCS_YML_RELPATH))
 
 ####################### DETERMINE VSCODE EDITOR TYPE ###########################
@@ -97,6 +100,7 @@ help:
 	# pkg.build         :	Build the extension (creates a.vsix file).
 	# pkg.publish       :	Publish the extension.
 	# pkg.release       :	Build and Publish the extension.
+	# pkg.binaries.build:	Build a standalone native pptxdiff executable for the current OS.
 	#
 	# vsce.open         :	Opens the VS Code Extension Management page for a Publisher.
 	# vsce.token        :	Opens the Azure DevOps Page to Manage the Personal Access Token for VSCE.
@@ -209,7 +213,16 @@ pkg.vsce.install.local:
 	@echo -e "\n✨ Installing VS Code extension locally (from 'dist/' folder)... ⏳\n"
 	@echo -e "\n✨ VS Code Type: $(VSCODE_CMD)"
 	@$(VSCODE_CMD) --install-extension $(VSCE_PKG_DIR)/$(VSIX_EXT_PATH_LOCAL) --force
-	
+
+.PHONY: pkg.binaries.build
+pkg.binaries.build:
+	@## npm run build:binary — builds a standalone native pptxdiff executable
+	@## for the CURRENT host OS only (Node SEA has no cross-compile mode); see
+	@## src/packages/binaries/README.md and .github/workflows/binaries.yml for
+	@## how all three (win/mac/linux) get built via a CI matrix.
+	@echo -e "\n✨ Building native pptxdiff binary for the current OS... ⏳\n"
+	@cd $(BINARIES_PKG_DIR) && npm install && npm run build
+
 
 ############################## ..: COMMANDS vsce.*:.. ################################
 

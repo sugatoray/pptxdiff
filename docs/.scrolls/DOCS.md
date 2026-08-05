@@ -242,3 +242,69 @@ PUBLIC-docs-site side of that same rule.
   docs`, per §5/§13's existing note about avoiding the root `[project]` deps' torch/CUDA pull), the
   new page's `/headless-cli-api/index.html` present in the built `site/` output, and
   `sync_doc_coverage.py --check` passing (34 complete, 1 partial, 0 missing, structurally valid).
+
+## 15. Content updates + new changelog subpage for standalone native binaries (`@pptxdiff/binaries`, added a later session)
+
+Follow-up to the `@pptxdiff/binaries` feature (SPEC.md §32 — six standalone executables, x64+arm64
+for Windows/macOS/Linux, via `@yao-pkg/pkg`) shipped across several turns of the same session — the
+`.scrolls/` working-memory docs were updated as each piece landed, but the PUBLIC docs-site was not
+touched at all until an explicit follow-up ("verify docs/.scrolls folder is updated and so is the
+docs-site folder"). Confirmed via `git log --oneline master..HEAD -- src/pptxdiff/docs-site/`
+returning zero commits before this entry — a real, not hypothetical, gap.
+
+- **`getting-started.md` gained "Option D — standalone binary (no Node.js at all)"**, between the
+  existing Option C (just the file) and "What happens on first load" — this page's whole job is
+  already "here are the ways to run pptxdiff," so a new install option belongs here, not a new
+  top-level page (see §14's own reasoning for the opposite call on `headless-cli-api.md`, which
+  documents a genuinely different tool with a different purpose — this is the SAME `bin/cli.js`,
+  just packaged differently). New `doc_coverage:` id `native-binaries` (`partial` — the page is
+  accurate, but the underlying feature has known gaps: unsigned/ad-hoc-signed, not on GitHub
+  Releases yet), anchored to the new section.
+- **`cli.md` gained a one-paragraph cross-link** ("No Node.js at all?") pointing at the new Option D
+  — no new `doc_coverage:` id here, since `getting-started.md`'s new id already covers the feature
+  and this is supplementary framing on an already-covered page, not a second independent unit of
+  coverage.
+- **`limitations.md` gained a new row** (`native-binaries-limitations`, `complete` — the limitation
+  itself is fully documented even though the underlying feature has real gaps, same convention §14
+  established for `headless-cli-api-limitations`) and the existing "npm CLI opens a browser tab" row
+  was reworded to note the binaries share that same property (same `bin/cli.js`, not a native-window
+  wrapper) rather than reading as if the binaries somehow escaped it.
+- **`index.md`'s "No install required" card** updated to mention the binaries option — a factual
+  correction (the card previously implied only two options existed), no coverage-registry impact
+  (the card doesn't carry its own `doc_coverage:` entry, `index.md`'s existing ids are unaffected).
+- **New changelog subpage `changelogs/pptxdiff-binaries.md`**, added to nav under "NPM Package(s)"
+  (same category `pptxdiff-cli`/`@pptxdiff/server` already live in, despite also being `private:
+  true` unpublished packages — the nav grouping in this site means "package.json-defined sibling in
+  this repo," not "published to the npm registry") and to `changelog.md`'s index. **Structurally
+  different from every other changelog subpage**: `@pptxdiff/binaries` has no single package-level
+  `CHANGELOG.md` (each OS's binary has its own, since they're independent downloadable artifacts —
+  see `SPEC.md` §32/`GAP_CONTEXT.md`) — so this page transcludes all THREE
+  (`src/packages/binaries/pptxdiff-{win,mac,linux}/CHANGELOG.md`) under their own `## Windows` /
+  `## macOS` / `## Linux` subheadings, rather than one `--8<--` include like every other subpage.
+- **A real `mkdocs build --strict` failure found and fixed, not just described**: the three per-OS
+  `CHANGELOG.md` files each linked back to the root `CHANGELOG.md` via a relative path
+  (`../../../../CHANGELOG.md`) that's correct when the file is read on GitHub (four levels up from
+  `src/packages/binaries/pptxdiff-win/`) but WRONG once transcluded verbatim into
+  `docs-site/docs/changelogs/pptxdiff-binaries.md` — `pymdownx.snippets` is a textual include, it
+  does not rewrite relative links to account for where the content ends up, so the link resolved
+  against the WRONG base and `mkdocs build --strict`'s link checker correctly flagged it (twice — the
+  same relative link appears in the transcluded content of two other, unrelated warnings the build
+  also printed for the same reason). Fixed at the SOURCE (`src/packages/binaries/pptxdiff-{win,mac,
+  linux}/CHANGELOG.md` themselves, since the docs-site page transcludes them verbatim) by swapping
+  the relative link for the same absolute GitHub URL pattern every other subpage's own "Source:"
+  line already uses — the fix had to happen in the package-level files, not the docs-site page, since
+  the page has no content of its own to fix.
+- **`scripts/coverage_registry.yml` gained two new ids** (`native-binaries` under `features:`,
+  `native-binaries-limitations` under `limitations:`), each added in the same change as the
+  page/row that declares them via `doc_coverage:` front matter, per this file's own §8/§14 rule —
+  `sync_doc_coverage.py --write` then `--check` re-run to confirm 36 complete + 4 partial + 0 missing
+  (of 40; was 34 complete + 1 partial before this session's headless-CLI-API work, then presumably
+  higher still after intervening sessions not otherwise noted here).
+- **Verified for real**: `mkdocs build --strict` clean after the link fix (one remaining, expected,
+  harmless warning — `git-revision-date-localized-plugin` complaining the brand-new, not-yet-committed
+  `pptxdiff-binaries.md` has no git history yet; resolves itself once committed, not a structural
+  issue). Directly grepped the built HTML (`getting-started/index.html`, `cli/index.html`,
+  `limitations/index.html`) to confirm the new anchor (`option-d-standalone-binary-no-nodejs-at-all`)
+  matches EXACTLY between the page that defines it and the two pages that link to it, rather than
+  trusting that `--strict` alone would have caught a mismatched anchor (MkDocs's built-in link
+  checker validates that a linked FILE exists, not that a `#fragment` inside it does).

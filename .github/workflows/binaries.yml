@@ -1,0 +1,93 @@
+name: binaries
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "bin/cli.js"
+      - "src/pptxdiff/**"
+      - "src/packages/binaries/**"
+      - ".github/workflows/binaries.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # linux + win (x64 AND arm64) are genuinely cross-compiled by
+  # @yao-pkg/pkg from one host — confirmed directly (real ELF aarch64 /
+  # PE32+ Aarch64 executables built on an x64 dev sandbox) — no
+  # codesigning concern for either OS, so all four build together in one
+  # job. Cross-ARCH builds need --fallback-to-source (see build.mjs) since
+  # V8 bytecode generation for a foreign arch fails without QEMU emulation
+  # — harmless, this is already-open-source code with nothing to protect
+  # by shipping bytecode instead of plain source.
+  build-linux-win:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - run: npm install
+        working-directory: src/packages/binaries
+      - run: npm test
+        working-directory: src/packages/binaries
+      - run: npm run test:e2e
+        working-directory: src/packages/binaries
+      - run: npm run build -- linux linux-arm64 win win-arm64
+        working-directory: src/packages/binaries
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pptxdiff-linux
+          path: src/packages/binaries/pptxdiff-linux/pptxdiff-linux
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pptxdiff-linux-arm64
+          path: src/packages/binaries/pptxdiff-linux/pptxdiff-linux-arm64
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pptxdiff-win
+          path: src/packages/binaries/pptxdiff-win/pptxdiff-win.exe
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pptxdiff-win-arm64
+          path: src/packages/binaries/pptxdiff-win/pptxdiff-win-arm64.exe
+          if-no-files-found: error
+
+  # mac (both Intel x64 and Apple Silicon arm64) builds on a REAL macOS
+  # runner specifically so both can be ad-hoc codesigned (codesign only
+  # exists on macOS) — an unsigned mac binary is a real functional problem
+  # on Apple Silicon, not just a warning, so neither is cross-compiled from
+  # the linux job above. See build.mjs's header comment and
+  # docs/.scrolls/GAP_CONTEXT.md. GitHub's macos-latest runners are
+  # themselves Apple Silicon as of 2024, so the arm64 build here is a
+  # genuinely native build+sign, not a translated one.
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - run: npm install
+        working-directory: src/packages/binaries
+      - run: npm test
+        working-directory: src/packages/binaries
+      - run: npm run test:e2e
+        working-directory: src/packages/binaries
+      - run: npm run build -- mac mac-arm64
+        working-directory: src/packages/binaries
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pptxdiff-mac
+          path: src/packages/binaries/pptxdiff-mac/pptxdiff-mac
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pptxdiff-mac-arm64
+          path: src/packages/binaries/pptxdiff-mac/pptxdiff-mac-arm64
+          if-no-files-found: error
