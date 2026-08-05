@@ -1,7 +1,7 @@
 {
   "name": "@pptxdiff/binaries",
   "version": "0.1.0",
-  "description": "Build script producing standalone native pptxdiff executables (Node Single Executable Applications) for Windows, macOS, and Linux — no separate Node.js install required to run them.",
+  "description": "Build script producing standalone native pptxdiff executables (via @yao-pkg/pkg) for Windows, macOS, and Linux — no separate Node.js install required to run them.",
   "license": "Apache-2.0",
   "private": true,
   "author": {
@@ -15,9 +15,7 @@
     "test:e2e": "node test_build_e2e.mjs"
   },
   "devDependencies": {
-    "esbuild": "^0.24.0",
-    "jszip": "^3.10.1",
-    "postject": "^1.0.0-alpha.6"
+    "@yao-pkg/pkg": "^6.22.0"
   },
   "engines": {
     "node": ">=20"
@@ -32,8 +30,7 @@
     "pptx",
     "powerpoint",
     "diff",
-    "sea",
-    "single-executable-application",
+    "pkg",
     "native-binary"
   ]
 }

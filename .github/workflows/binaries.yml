@@ -14,18 +14,10 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - runner: ubuntu-latest
-            target: linux
-          - runner: macos-latest
-            target: mac
-          - runner: windows-latest
-            target: win
-    runs-on: ${{ matrix.runner }}
+  # linux + win are genuinely cross-compiled by @yao-pkg/pkg from one host —
+  # no codesigning concern for either, so they build together in one job.
+  build-linux-win:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v5
@@ -37,10 +29,41 @@ jobs:
         working-directory: src/packages/binaries
       - run: npm run test:e2e
         working-directory: src/packages/binaries
-      - run: npm run build
+      - run: npm run build -- linux win
         working-directory: src/packages/binaries
       - uses: actions/upload-artifact@v4
         with:
-          name: pptxdiff-${{ matrix.target }}
-          path: src/packages/binaries/pptxdiff-${{ matrix.target }}/*.zip
+          name: pptxdiff-linux
+          path: src/packages/binaries/pptxdiff-linux/pptxdiff-linux
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pptxdiff-win
+          path: src/packages/binaries/pptxdiff-win/pptxdiff-win.exe
+          if-no-files-found: error
+
+  # mac builds on a REAL macOS runner specifically so it can be ad-hoc
+  # codesigned (codesign only exists on macOS) — an unsigned mac binary is
+  # a real functional problem on Apple Silicon, not just a warning, so this
+  # is NOT cross-compiled from the linux job above. See build.mjs's header
+  # comment and docs/.scrolls/GAP_CONTEXT.md.
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+      - run: npm install
+        working-directory: src/packages/binaries
+      - run: npm test
+        working-directory: src/packages/binaries
+      - run: npm run test:e2e
+        working-directory: src/packages/binaries
+      - run: npm run build -- mac
+        working-directory: src/packages/binaries
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pptxdiff-mac
+          path: src/packages/binaries/pptxdiff-mac/pptxdiff-mac
           if-no-files-found: error

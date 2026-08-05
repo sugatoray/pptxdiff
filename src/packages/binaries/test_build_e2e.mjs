@@ -1,31 +1,32 @@
 #!/usr/bin/env node
 "use strict";
 
-// Real, slow, current-platform-only end-to-end check: actually runs
-// buildBinary() (the same code `node build.mjs` runs), then spawns the
-// REAL packaged executable it produced and drives it over real HTTP —
-// same spirit as pptxdiff-cli's *_e2e.mjs files (real browser, real
-// spawned process) rather than mocking any of this. Deliberately kept out
-// of the default `npm test` (this alone takes well over a minute and
-// produces a ~100MB+ binary) — run explicitly via `npm run test:e2e`,
-// mirroring pptxdiff-cli's `test:difftool` split for the same reason
-// (a slow/heavy check that needs real platform resources).
+// Real, slow, current-platform-only end-to-end check: actually calls
+// buildOne() for the CURRENT host's OS (the same code `node build.mjs`
+// runs), then spawns the REAL resulting single-file executable and drives
+// it over real HTTP. Deliberately kept out of the default `npm test` (a
+// real pkg build downloads/uses a base binary and takes a while) — run via
+// `npm run test:e2e`, same split as pptxdiff-cli's `test:difftool`.
 //
-// Only exercises the CURRENT host's platform branch (Node SEA has no
-// cross-platform build mode — see build.mjs's header comment) — the other
-// two OS branches are structurally identical but only really exercised by
-// CI's 3-OS matrix (.github/workflows/binaries.yml).
+// Only exercises the CURRENT host's own platform target — win/mac builds
+// are structurally identical (same buildOne(), only the mac codesign step
+// differs) but only actually built-and-run by CI's linux+win /
+// macos-specific jobs (see .github/workflows/binaries.yml and
+// build.mjs's header comment for why mac isn't cross-built here).
 //
 // Run: node test_build_e2e.mjs
 
 import { execFile } from "node:child_process";
 import fs from "node:fs";
 import http from "node:http";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildBinary, resolveTarget } from "./build.mjs";
+import { buildOne, resolveTarget } from "./build.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+const HOST_TO_OSKEY = { win32: "win", darwin: "mac", linux: "linux" };
 
 let pass = 0;
 let fail = 0;
@@ -75,32 +76,32 @@ function waitForLine(child, matcher, timeoutMs) {
 }
 
 async function main() {
-  const target = resolveTarget(process.platform);
+  const osKey = HOST_TO_OSKEY[process.platform];
+  const target = osKey && resolveTarget(osKey);
   if (!target) {
-    console.error(`No SEA build mapping for process.platform=${process.platform} — nothing to e2e-test here.`);
+    console.error(`No target mapping for process.platform=${process.platform} — nothing to e2e-test here.`);
     process.exitCode = 1;
     return;
   }
 
-  console.log(`Building a real ${target.osKey} binary (this takes a while)...`);
-  const { outDir, binPath, zipPath } = await buildBinary(target);
+  console.log(`Building a real ${osKey} binary via @yao-pkg/pkg (this takes a while, downloads a base binary on first run)...`);
+  const binPath = await buildOne(osKey, target);
 
   assert("build produced the binary file", fs.existsSync(binPath));
-  assert("build produced the assets folder", fs.existsSync(path.join(outDir, "assets", "index.html")));
-  assert("build produced the zip artifact", fs.existsSync(zipPath));
-  if (!target.isWin) {
+  assert("no separate assets/ folder needed (pkg embeds them in the one file)", !fs.existsSync(path.join(path.dirname(binPath), "assets")));
+  if (!target.binName.endsWith(".exe")) {
     const mode = fs.statSync(binPath).mode;
     assert("binary is executable (owner +x bit set)", Boolean(mode & 0o100));
   }
 
-  // Actually run the packaged binary and talk to it over real HTTP —
-  // proves the assets/-folder-next-to-the-executable resolution (sea-entry.cjs's
-  // `path.dirname(process.execPath)` logic) genuinely works, not just that
-  // the files exist on disk in the right place.
-  const child = execFile(binPath, { cwd: outDir, env: {} });
+  // Actually run the packaged binary and talk to it over real HTTP — proves
+  // pkg's snapshot filesystem genuinely satisfies bin/cli.js's UNMODIFIED
+  // `ROOT = path.join(__dirname, "..", "src", "pptxdiff")` resolution, not
+  // just that files exist somewhere inside the binary.
+  const child = execFile(binPath, { cwd: os.tmpdir(), env: {} });
   let urlMatch;
   try {
-    urlMatch = await waitForLine(child, /pptxdiff running at (http:\/\/localhost:\d+)/, 15000);
+    urlMatch = await waitForLine(child, /pptxdiff running at (http:\/\/localhost:\d+)/, 20000);
   } catch (e) {
     console.error("Binary never printed its startup line:", e.message);
     child.kill();
@@ -121,15 +122,10 @@ async function main() {
     assert("GET /support.js has JS content-type", (supportJs.headers["content-type"] || "").includes("javascript"));
 
     const vendorFile = await fetchText(`${baseUrl}/vendor/react.production.min.js`);
-    assert("GET /vendor/react.production.min.js returns 200 (assets/ folder is actually being served)", vendorFile.status === 200);
+    assert("GET /vendor/react.production.min.js returns 200 (embedded vendor/ assets are actually being served)", vendorFile.status === 200);
 
-    // Path-containment regression check against THIS root (assets/), not
-    // just bin/cli.js's default ROOT — a different `root` value is exactly
-    // what this whole feature changed, so re-prove isPathContained still
-    // applies to it rather than assuming it does because it's "the same
-    // function."
     const traversal = await fetchText(`${baseUrl}/../../../etc/passwd`);
-    assert("path traversal against the packaged binary's assets root is rejected (403 or 404, never 200)", traversal.status !== 200);
+    assert("path traversal against the packaged binary is rejected (never 200)", traversal.status !== 200);
   } finally {
     child.kill();
   }
@@ -144,16 +140,11 @@ async function main() {
     } else {
       console.log("All build-e2e checks passed (GREEN).");
     }
-    // Clean up the built artifact afterward — this test's job is to prove
-    // the build+run path works, not to leave a ~100MB+ binary lying around.
-    // Only removes what THIS build generated (binary/assets/zip), not the
-    // whole outDir — that folder also holds the tracked README.md/
-    // CHANGELOG.md, which a blind `rm -rf` would delete too.
+    // Clean up the built binary afterward — this test's job is to prove
+    // the build+run path works, not to leave a ~70MB+ binary lying around.
+    // Only removes the binary itself, never the tracked README.md/
+    // CHANGELOG.md that live in the same per-OS folder.
     fs.rmSync(binPath, { force: true });
-    fs.rmSync(path.join(outDir, "assets"), { recursive: true, force: true });
-    for (const entry of fs.readdirSync(outDir)) {
-      if (entry.endsWith(".zip")) fs.rmSync(path.join(outDir, entry), { force: true });
-    }
   }
 }
 

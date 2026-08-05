@@ -15,10 +15,13 @@ since the binary has no independent feature set of its own.
 
 ### Added
 
-- First standalone Windows executable, built via Node's Single Executable
-  Applications feature (see `../README.md` and
-  `docs/.scrolls/SPEC.md` §32) — download `pptxdiff-win-0.7.0.zip`, unzip,
-  run `pptxdiff-win.exe`. No separate Node.js install required.
+- First standalone Windows executable, built via `@yao-pkg/pkg` (see
+  `../README.md` and `docs/.scrolls/SPEC.md` §32) — download
+  `pptxdiff-win.exe`, run it. A true single file (Node runtime and the
+  static app files it serves are both embedded inside it) — no separate
+  Node.js install, no companion folder needed.
+- Genuinely cross-compiled: this binary can be built from any host OS
+  (Linux, macOS, or Windows), not just Windows itself.
 
 ### Known limitations
 
@@ -27,5 +30,5 @@ since the binary has no independent feature set of its own.
   info" → "Run anyway". See `../README.md` and
   `docs/.scrolls/GAP_ANALYSIS.md`.
 - Not yet attached to GitHub Releases — built by
-  `.github/workflows/binaries.yml`'s CI matrix and available as a workflow
-  artifact.
+  `.github/workflows/binaries.yml`'s `build-linux-win` job and available
+  as a workflow artifact.

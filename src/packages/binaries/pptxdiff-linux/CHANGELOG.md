@@ -15,18 +15,23 @@ since the binary has no independent feature set of its own.
 
 ### Added
 
-- First standalone Linux executable, built via Node's Single Executable
-  Applications feature (see `../README.md` and
-  `docs/.scrolls/SPEC.md` §32) — download `pptxdiff-linux-0.7.0.zip`,
-  unzip, `chmod +x pptxdiff-linux && ./pptxdiff-linux`. No separate
-  Node.js install required.
-- Verified end-to-end in this project's own dev sandbox: built for real,
-  the actual packaged binary was run and confirmed to correctly serve
-  `index.html`/`support.js`/`vendor/*` over real HTTP requests (see
+- First standalone Linux executable, built via `@yao-pkg/pkg` (see
+  `../README.md` and `docs/.scrolls/SPEC.md` §32) — download
+  `pptxdiff-linux`, `chmod +x pptxdiff-linux && ./pptxdiff-linux`. A true
+  single file (Node runtime and the static app files it serves are both
+  embedded inside it) — no separate Node.js install, no companion folder
+  needed.
+- Genuinely cross-compiled: this binary can be built from any host OS, not
+  just Linux itself.
+- Verified end-to-end in this project's own dev sandbox, twice: once
+  against the original Node-SEA-based mechanism, and again after switching
+  to `@yao-pkg/pkg` — the actual packaged binary was built and run for
+  real, confirmed to correctly serve `index.html`/`support.js`/`vendor/*`
+  over real HTTP requests with zero code changes to `bin/cli.js` (see
   `../test_build_e2e.mjs`).
 
 ### Known limitations
 
 - Not yet attached to GitHub Releases — built by
-  `.github/workflows/binaries.yml`'s CI matrix and available as a workflow
-  artifact.
+  `.github/workflows/binaries.yml`'s `build-linux-win` job and available
+  as a workflow artifact.

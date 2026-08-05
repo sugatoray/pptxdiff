@@ -2,18 +2,16 @@
 "use strict";
 
 // Fast, pure regression checks for build.mjs's build CONFIGURATION — no
-// real SEA build, no subprocess, no network. Complements test_build_e2e.mjs
-// (which actually builds and runs a real binary but is slow/heavy) the
-// same way this project's other packages split a fast pure-unit suite from
-// a slower real-process/real-browser one (e.g. pptxdiff-cli's `npm test`
-// vs `npm run test:difftool`).
+// real pkg invocation, no network, no subprocess beyond reading files.
+// Complements test_build_e2e.mjs (real build + real run, slow). Same
+// fast/slow split as pptxdiff-cli's `npm test` vs `npm run test:difftool`.
 //
 // Run: node test_build_config.mjs
 
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { PLATFORM_MAP, ASSET_ENTRIES, resolveTarget } from "./build.mjs";
+import { TARGET_MAP, ASSET_GLOBS, resolveTarget } from "./build.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..", "..", "..");
@@ -29,73 +27,86 @@ function assert(name, cond) {
   }
 }
 
-// --- PLATFORM_MAP / resolveTarget ---
-assert("PLATFORM_MAP has exactly win32/darwin/linux keys", (
-  JSON.stringify(Object.keys(PLATFORM_MAP).sort()) === JSON.stringify(["darwin", "linux", "win32"])
+// --- TARGET_MAP / resolveTarget ---
+assert("TARGET_MAP has exactly linux/win/mac keys", (
+  JSON.stringify(Object.keys(TARGET_MAP).sort()) === JSON.stringify(["linux", "mac", "win"])
 ));
-assert("win32 maps to osKey=win, binName ends .exe, isWin=true", (
-  PLATFORM_MAP.win32.osKey === "win" && PLATFORM_MAP.win32.binName === "pptxdiff-win.exe" && PLATFORM_MAP.win32.isWin === true
+assert("linux target: node22-linux-x64, no .exe suffix, doesn't need mac signing", (
+  TARGET_MAP.linux.pkgTarget === "node22-linux-x64" && !TARGET_MAP.linux.binName.includes(".") && TARGET_MAP.linux.needsMacSign === false
 ));
-assert("darwin maps to osKey=mac, isMac=true, isWin=false", (
-  PLATFORM_MAP.darwin.osKey === "mac" && PLATFORM_MAP.darwin.isMac === true && PLATFORM_MAP.darwin.isWin === false
+assert("win target: node22-win-x64, binName ends .exe, doesn't need mac signing", (
+  TARGET_MAP.win.pkgTarget === "node22-win-x64" && TARGET_MAP.win.binName.endsWith(".exe") && TARGET_MAP.win.needsMacSign === false
 ));
-assert("linux maps to osKey=linux, isMac=false, isWin=false, no .exe suffix", (
-  PLATFORM_MAP.linux.osKey === "linux" && PLATFORM_MAP.linux.isMac === false && PLATFORM_MAP.linux.isWin === false && !PLATFORM_MAP.linux.binName.includes(".")
+assert("mac target: node22-macos-x64, needsMacSign true (the whole reason it's built separately in CI)", (
+  TARGET_MAP.mac.pkgTarget === "node22-macos-x64" && TARGET_MAP.mac.needsMacSign === true
 ));
-assert("resolveTarget('win32') === PLATFORM_MAP.win32", resolveTarget("win32") === PLATFORM_MAP.win32);
-assert("resolveTarget returns null for an unsupported platform", resolveTarget("aix") === null);
-assert("resolveTarget returns null for a made-up platform string", resolveTarget("not-a-real-platform") === null);
+assert("resolveTarget('linux') === TARGET_MAP.linux", resolveTarget("linux") === TARGET_MAP.linux);
+assert("resolveTarget returns null for an unknown osKey", resolveTarget("solaris") === null);
+assert("resolveTarget returns null for an empty string", resolveTarget("") === null);
 
-// --- ASSET_ENTRIES drift guard: must match root package.json's "files" ---
-// (mirrors the project's existing fixture-drift-check concern — see
-// GAP_ANALYSIS.md's "Fixture drift-check" ticket — applied here to the
-// asset set a packaged binary ships, so it can never silently diverge from
+// --- ASSET_GLOBS drift guard: must match root package.json's "files" ---
+// (same fixture-drift-check concern this project already tracks elsewhere
+// — see GAP_ANALYSIS.md's "Fixture drift-check" ticket — applied here so
+// the asset set a packaged binary embeds can never silently diverge from
 // what the npm package itself ships.)
 const rootPkg = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, "package.json"), "utf8"));
 const npmStaticFiles = rootPkg.files.filter((f) => f.startsWith("src/pptxdiff/"));
-const assetSrcPaths = ASSET_ENTRIES.map(([src]) => src).sort();
+// ASSET_GLOBS uses a "/**/*" suffix for the vendor directory (a pkg glob
+// requirement — bare "vendor" alone does not recurse); normalize before
+// comparing against package.json's plain-directory "vendor" entry.
+const assetGlobsNormalized = ASSET_GLOBS.map((g) => g.replace(/\/\*\*\/\*$/, "")).sort();
 assert(
-  `ASSET_ENTRIES source paths match root package.json "files" static app subset (got ${JSON.stringify(assetSrcPaths)} vs ${JSON.stringify([...npmStaticFiles].sort())})`,
-  JSON.stringify(assetSrcPaths) === JSON.stringify([...npmStaticFiles].sort())
+  `ASSET_GLOBS (normalized) match root package.json "files" static app subset (got ${JSON.stringify(assetGlobsNormalized)} vs ${JSON.stringify([...npmStaticFiles].sort())})`,
+  JSON.stringify(assetGlobsNormalized) === JSON.stringify([...npmStaticFiles].sort())
 );
-assert("every ASSET_ENTRIES source path exists on disk", (
-  ASSET_ENTRIES.every(([src]) => fs.existsSync(path.join(REPO_ROOT, src)))
-));
-assert("every ASSET_ENTRIES dest path is a plain relative name (no traversal)", (
-  ASSET_ENTRIES.every(([, dest]) => !dest.includes("..") && !path.isAbsolute(dest))
+assert("every ASSET_GLOBS entry's literal (non-glob) prefix exists on disk", (
+  ASSET_GLOBS.every((g) => fs.existsSync(path.join(REPO_ROOT, g.replace(/\/\*\*\/\*$/, ""))))
 ));
 
-// --- bin/cli.js contract sea-entry.cjs depends on ---
-// A regression guard, not a design assertion: if a future edit to
-// bin/cli.js drops startServer()'s optional `root` param (or its default),
-// the packaged binary silently breaks (it would try to serve from the npm
-// package's own ROOT instead of the assets folder next to the executable)
-// with no error at build time — only a confusing 404 at runtime. Catch it
-// here instead, the same static-source-check pattern WISDOM.md's
-// "stale renderVals binding" entry established for a similar class of
-// silent-breakage risk.
-const cliSrc = fs.readFileSync(path.join(REPO_ROOT, "bin", "cli.js"), "utf8");
-assert("bin/cli.js's startServer() still accepts an optional root param defaulting to ROOT", (
-  /function startServer\(root\s*=\s*ROOT\)/.test(cliSrc)
+// --- pkg's config-colocation requirement (see WISDOM.md's trap entry): ---
+// buildOne() MUST write its temp pkg config directly at REPO_ROOT (next to
+// the real package.json) — pkg resolves "assets" glob paths relative to
+// wherever the CONFIG FILE ITSELF lives, not cwd, not the entry file's
+// directory. A regression here fails SILENTLY at build time (pkg embeds
+// zero assets, no error) and only shows up as 404s when the binary is
+// actually run — exactly the kind of bug this static check exists to
+// catch before it ever reaches test_build_e2e.mjs.
+const buildSrc = fs.readFileSync(path.join(__dirname, "build.mjs"), "utf8");
+assert("buildOne() writes its temp pkg config at REPO_ROOT, not __dirname or cwd", (
+  /tmpConfigPath\s*=\s*path\.join\(REPO_ROOT,/.test(buildSrc)
 ));
-assert("bin/cli.js's startServer() still exports (module.exports includes startServer)", (
+assert("buildOne() removes the temp pkg config in a finally block", (
+  /finally\s*\{[^}]*rmSync\(tmpConfigPath/.test(buildSrc)
+));
+assert("ASSET_GLOBS are relative (repo-root-relative) paths, not absolute", (
+  ASSET_GLOBS.every((g) => !path.isAbsolute(g))
+));
+
+// --- bin/cli.js is passed to pkg UNMODIFIED — no assets-folder workaround ---
+// This is the whole point of switching to pkg (see GAP_CONTEXT.md): the
+// packaged binary should need zero special-casing in bin/cli.js itself.
+const cliSrc = fs.readFileSync(path.join(REPO_ROOT, "bin", "cli.js"), "utf8");
+assert("bin/cli.js's startServer() takes no parameters (no packaging-specific root override)", (
+  /function startServer\(\) \{/.test(cliSrc)
+));
+assert("bin/cli.js still exports startServer for pptxdiff-cli's reuse", (
   /module\.exports\s*=\s*\{[^}]*startServer[^}]*\}/.test(cliSrc)
 ));
-
-// --- sea-entry.cjs's own asset-resolution contract ---
-const entrySrc = fs.readFileSync(path.join(__dirname, "sea-entry.cjs"), "utf8");
-assert("sea-entry.cjs resolves ROOT relative to process.execPath, not __dirname", (
-  entrySrc.includes("path.dirname(process.execPath)") && /const ROOT = path\.join\(path\.dirname\(process\.execPath\)/.test(entrySrc)
-));
-assert("sea-entry.cjs passes ROOT into startServer() explicitly", (
-  /startServer\(ROOT\)/.test(entrySrc)
+assert("build.mjs points pkg directly at the real bin/cli.js (no wrapper entry file)", (
+  /path\.join\(REPO_ROOT, "bin", "cli\.js"\)/.test(buildSrc)
 ));
 
-// --- package.json devDependencies actually present ---
+// --- macOS signing safety: never silently ship an unsigned mac binary ---
+assert("buildOne() warns explicitly when building the mac target off of a non-darwin host", (
+  /WARNING.*UNSIGNED/.test(buildSrc)
+));
+assert("buildOne() only runs codesign when process.platform === \"darwin\"", (
+  /process\.platform === "darwin"/.test(buildSrc)
+));
+
+// --- package.json devDependency present ---
 const binPkg = JSON.parse(fs.readFileSync(path.join(__dirname, "package.json"), "utf8"));
-for (const dep of ["esbuild", "jszip", "postject"]) {
-  assert(`package.json devDependencies includes ${dep}`, Boolean(binPkg.devDependencies && binPkg.devDependencies[dep]));
-}
+assert("package.json devDependencies includes @yao-pkg/pkg", Boolean(binPkg.devDependencies && binPkg.devDependencies["@yao-pkg/pkg"]));
 
 console.log(`build-config check: ${pass}/${pass + fail} passed`);
 if (fail > 0) {
