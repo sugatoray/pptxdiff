@@ -1,0 +1,56 @@
+# Dependency & Package Directories
+node_modules/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+target/
+dist/
+build/
+
+# Graphify Output Folder (Crucial to prevent recursive graph indexing)
+graphify-out/
+
+# Lock Files & Binary Caches
+*.lock
+package-lock.json
+poetry.lock
+uv.lock
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.dll
+*.dylib
+
+# Environment & Sensitive Configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# IDE & Editor Settings
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs & Temporary Data
+*.log
+logs/
+tmp/
+temp/
+coverage/
+htmlcov/
+.coverage
+
+# Build Artifacts & Compiled Assets
+*.egg-info/
+.eggs/
+bundle/
+public/build/

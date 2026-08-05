@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "graphifyy>=0.9.32",
     "headroom-ai[all]>=0.32.1",
     "python-pptx>=1.0.2",
 ]

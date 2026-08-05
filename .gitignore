@@ -382,3 +382,9 @@ src/pptxdiff/docs-site/site/
 ## Covers pptxdiff-cli, @pptxdiff/server, and any future src/packages/*/lib/.
 !src/packages/*/lib/
 !src/packages/*/lib/**
+
+## Graphify
+graphify-out/
+
+## Exclude .serena coding agent
+.serena/
