@@ -8,14 +8,15 @@
 // real pkg build downloads/uses a base binary and takes a while) — run via
 // `npm run test:e2e`, same split as pptxdiff-cli's `test:difftool`.
 //
-// Only exercises the CURRENT host's own platform+arch target — win/linux/
-// the other mac arch build are structurally identical (same buildOne(),
-// only the mac codesign branch differs) but only actually built-and-run by
-// CI's linux+win / macos-specific jobs (see .github/workflows/binaries.yml
-// and build.mjs's header comment for why neither mac target is
-// cross-built here). On macOS this picks `mac-arm64` vs `mac` based on the
-// HOST's actual arch, so an Apple Silicon runner (GitHub's macos-latest,
-// as of 2024) genuinely exercises the native arm64 build, not the x64 one.
+// Only exercises the CURRENT host's own platform+arch target — every other
+// target is structurally identical (same buildOne(), only the mac
+// codesign branch differs) but only actually built-and-run by CI's
+// linux+win / macos-specific jobs (see .github/workflows/binaries.yml and
+// build.mjs's header comment for why neither mac target is cross-built
+// there). Picks the `-arm64` variant of whatever OS it's running on when
+// the HOST's actual `os.arch()` is arm64, so an Apple-Silicon macOS
+// runner (GitHub's macos-latest, as of 2024) or an arm64 Linux/Windows
+// runner genuinely exercises the native build, not the x64 one.
 //
 // Run: node test_build_e2e.mjs
 
@@ -30,9 +31,10 @@ import { buildOne, resolveTarget } from "./build.mjs";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function hostOsKey() {
-  if (process.platform === "win32") return "win";
-  if (process.platform === "linux") return "linux";
-  if (process.platform === "darwin") return os.arch() === "arm64" ? "mac-arm64" : "mac";
+  const isArm64 = os.arch() === "arm64";
+  if (process.platform === "win32") return isArm64 ? "win-arm64" : "win";
+  if (process.platform === "linux") return isArm64 ? "linux-arm64" : "linux";
+  if (process.platform === "darwin") return isArm64 ? "mac-arm64" : "mac";
   return null;
 }
 

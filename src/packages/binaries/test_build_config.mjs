@@ -28,14 +28,21 @@ function assert(name, cond) {
 }
 
 // --- TARGET_MAP / resolveTarget ---
-assert("TARGET_MAP has exactly linux/win/mac/mac-arm64 keys", (
-  JSON.stringify(Object.keys(TARGET_MAP).sort()) === JSON.stringify(["linux", "mac", "mac-arm64", "win"])
+const EXPECTED_KEYS = ["linux", "linux-arm64", "mac", "mac-arm64", "win", "win-arm64"];
+assert(`TARGET_MAP has exactly the six expected keys (got ${JSON.stringify(Object.keys(TARGET_MAP).sort())})`, (
+  JSON.stringify(Object.keys(TARGET_MAP).sort()) === JSON.stringify(EXPECTED_KEYS)
 ));
 assert("linux target: node22-linux-x64, no .exe suffix, own outDirKey, doesn't need mac signing", (
   TARGET_MAP.linux.pkgTarget === "node22-linux-x64" && !TARGET_MAP.linux.binName.includes(".") && TARGET_MAP.linux.outDirKey === "linux" && TARGET_MAP.linux.needsMacSign === false
 ));
+assert("linux-arm64 target: node22-linux-arm64, shares linux's outDirKey, distinct binName, doesn't need mac signing", (
+  TARGET_MAP["linux-arm64"].pkgTarget === "node22-linux-arm64" && TARGET_MAP["linux-arm64"].outDirKey === "linux" && TARGET_MAP["linux-arm64"].binName !== TARGET_MAP.linux.binName && TARGET_MAP["linux-arm64"].needsMacSign === false
+));
 assert("win target: node22-win-x64, binName ends .exe, own outDirKey, doesn't need mac signing", (
   TARGET_MAP.win.pkgTarget === "node22-win-x64" && TARGET_MAP.win.binName.endsWith(".exe") && TARGET_MAP.win.outDirKey === "win" && TARGET_MAP.win.needsMacSign === false
+));
+assert("win-arm64 target: node22-win-arm64, binName ends .exe, shares win's outDirKey, distinct binName, doesn't need mac signing", (
+  TARGET_MAP["win-arm64"].pkgTarget === "node22-win-arm64" && TARGET_MAP["win-arm64"].binName.endsWith(".exe") && TARGET_MAP["win-arm64"].outDirKey === "win" && TARGET_MAP["win-arm64"].binName !== TARGET_MAP.win.binName && TARGET_MAP["win-arm64"].needsMacSign === false
 ));
 assert("mac target: node22-macos-x64, needsMacSign true (the whole reason it's built separately in CI)", (
   TARGET_MAP.mac.pkgTarget === "node22-macos-x64" && TARGET_MAP.mac.needsMacSign === true
@@ -46,11 +53,18 @@ assert("mac-arm64 target: node22-macos-arm64, needsMacSign true, binName distinc
 assert("mac and mac-arm64 share the SAME outDirKey (both download from pptxdiff-mac/)", (
   TARGET_MAP.mac.outDirKey === "mac" && TARGET_MAP["mac-arm64"].outDirKey === "mac"
 ));
+assert("only the two mac targets need signing — every linux/win target (x64 or arm64) does not", (
+  ["linux", "linux-arm64", "win", "win-arm64"].every((k) => TARGET_MAP[k].needsMacSign === false)
+));
 assert("resolveTarget('linux') === TARGET_MAP.linux", resolveTarget("linux") === TARGET_MAP.linux);
 assert("resolveTarget('mac-arm64') === TARGET_MAP['mac-arm64']", resolveTarget("mac-arm64") === TARGET_MAP["mac-arm64"]);
+assert("resolveTarget('win-arm64') === TARGET_MAP['win-arm64']", resolveTarget("win-arm64") === TARGET_MAP["win-arm64"]);
 assert("resolveTarget returns null for an unknown osKey", resolveTarget("solaris") === null);
 assert("resolveTarget returns null for an empty string", resolveTarget("") === null);
 assert("every TARGET_MAP entry declares an outDirKey", Object.values(TARGET_MAP).every((t) => typeof t.outDirKey === "string" && t.outDirKey.length > 0));
+assert("every TARGET_MAP binName is unique (no two targets would collide in the same outDir)", (
+  new Set(Object.values(TARGET_MAP).map((t) => t.outDirKey + "/" + t.binName)).size === Object.keys(TARGET_MAP).length
+));
 
 // --- ASSET_GLOBS drift guard: must match root package.json's "files" ---
 // (same fixture-drift-check concern this project already tracks elsewhere
@@ -91,6 +105,16 @@ assert("ASSET_GLOBS are relative (repo-root-relative) paths, not absolute", (
 ));
 assert("buildOne() computes outDir from target.outDirKey, not the osKey argument (so mac/mac-arm64 share pptxdiff-mac/)", (
   /outDir\s*=\s*path\.join\(__dirname, `pptxdiff-\$\{target\.outDirKey\}`\)/.test(buildSrc)
+));
+// A cross-ARCH build (e.g. linux-arm64/win-arm64 from an x64 host) fails
+// outright without this flag — confirmed directly, a genuine exec-format
+// error trying to run a foreign-arch bytecode-generation helper. Losing
+// this flag would silently break EVERY arm64 target's build (pkg errors
+// out instead of falling back to plain-source shipping), the same
+// "passes on x64, breaks only for arm64" blind spot the config-colocation
+// gotcha above already represents for a different reason.
+assert("buildOne()'s pkg invocation includes --fallback-to-source (required for cross-arch builds)", (
+  /"--fallback-to-source"/.test(buildSrc)
 ));
 
 // --- bin/cli.js is passed to pkg UNMODIFIED — no assets-folder workaround ---

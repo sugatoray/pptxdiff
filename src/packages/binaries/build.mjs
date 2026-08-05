@@ -8,9 +8,12 @@
 // used).
 //
 // Unlike Node SEA, pkg genuinely cross-compiles: it downloads a prebuilt
-// "base" node binary for each TARGET platform and injects the bundled app
-// into it, so a single Linux (or any) host can build the Windows and Linux
-// binaries. macOS is the one exception in THIS build — see below.
+// "base" node binary for each TARGET platform+arch and injects the
+// bundled app into it, so a single Linux (or any) host can build the
+// Windows and Linux binaries (x64 AND arm64 — confirmed directly: a real
+// ELF aarch64 executable and a real PE32+ Aarch64 executable, both built
+// on this project's own x64 Linux dev sandbox). macOS is the one
+// exception in THIS build — see below.
 //
 // Points bin/cli.js's UNMODIFIED entry point directly at pkg, and embeds
 // the same static app files (index.html/support.js/sample-pptx.js/
@@ -55,12 +58,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, "..", "..", "..");
 
 // `outDirKey` is separate from the map's own key so multiple targets can
-// share one OS folder — `mac` (Intel/x64) and `mac-arm64` (Apple Silicon,
-// native) both land in `pptxdiff-mac/`, since they're the same OS as far
-// as a user picking a download is concerned, just a different chip.
+// share one OS folder — e.g. `mac`/`mac-arm64` (Intel/Apple Silicon) both
+// land in `pptxdiff-mac/`, `win`/`win-arm64` both land in `pptxdiff-win/`,
+// since they're the same OS as far as a user picking a download is
+// concerned, just a different chip.
 export const TARGET_MAP = {
   linux: { pkgTarget: "node22-linux-x64", binName: "pptxdiff-linux", outDirKey: "linux", needsMacSign: false },
+  "linux-arm64": { pkgTarget: "node22-linux-arm64", binName: "pptxdiff-linux-arm64", outDirKey: "linux", needsMacSign: false },
   win: { pkgTarget: "node22-win-x64", binName: "pptxdiff-win.exe", outDirKey: "win", needsMacSign: false },
+  "win-arm64": { pkgTarget: "node22-win-arm64", binName: "pptxdiff-win-arm64.exe", outDirKey: "win", needsMacSign: false },
   mac: { pkgTarget: "node22-macos-x64", binName: "pptxdiff-mac", outDirKey: "mac", needsMacSign: true },
   "mac-arm64": { pkgTarget: "node22-macos-arm64", binName: "pptxdiff-mac-arm64", outDirKey: "mac", needsMacSign: true },
 };
@@ -108,6 +114,18 @@ export async function buildOne(osKey, target) {
       target.pkgTarget,
       "-o",
       binOut,
+      // A cross-ARCH build (e.g. building *-arm64 from this x64 host) needs
+      // to run a foreign-arch "fabricator" helper to generate V8 bytecode,
+      // which fails outright without QEMU/binfmt emulation registered —
+      // confirmed directly (a genuine exec-format failure, not asset- or
+      // config-related). --fallback-to-source ships the entry as plain JS
+      // instead of pre-compiled bytecode when that happens; harmless for a
+      // same-arch build (bytecode generation just succeeds normally and
+      // this flag is never invoked) and an acceptable tradeoff here — this
+      // is already-open-source code, so bytecode's only real benefit
+      // (marginal startup speed / minor reverse-engineering friction)
+      // isn't worth failing the build over.
+      "--fallback-to-source",
     ]);
 
     if (target.needsMacSign) {

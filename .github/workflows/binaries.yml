@@ -14,8 +14,14 @@ permissions:
   contents: read
 
 jobs:
-  # linux + win are genuinely cross-compiled by @yao-pkg/pkg from one host —
-  # no codesigning concern for either, so they build together in one job.
+  # linux + win (x64 AND arm64) are genuinely cross-compiled by
+  # @yao-pkg/pkg from one host — confirmed directly (real ELF aarch64 /
+  # PE32+ Aarch64 executables built on an x64 dev sandbox) — no
+  # codesigning concern for either OS, so all four build together in one
+  # job. Cross-ARCH builds need --fallback-to-source (see build.mjs) since
+  # V8 bytecode generation for a foreign arch fails without QEMU emulation
+  # — harmless, this is already-open-source code with nothing to protect
+  # by shipping bytecode instead of plain source.
   build-linux-win:
     runs-on: ubuntu-latest
     steps:
@@ -29,7 +35,7 @@ jobs:
         working-directory: src/packages/binaries
       - run: npm run test:e2e
         working-directory: src/packages/binaries
-      - run: npm run build -- linux win
+      - run: npm run build -- linux linux-arm64 win win-arm64
         working-directory: src/packages/binaries
       - uses: actions/upload-artifact@v4
         with:
@@ -38,8 +44,18 @@ jobs:
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
         with:
+          name: pptxdiff-linux-arm64
+          path: src/packages/binaries/pptxdiff-linux/pptxdiff-linux-arm64
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
           name: pptxdiff-win
           path: src/packages/binaries/pptxdiff-win/pptxdiff-win.exe
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pptxdiff-win-arm64
+          path: src/packages/binaries/pptxdiff-win/pptxdiff-win-arm64.exe
           if-no-files-found: error
 
   # mac (both Intel x64 and Apple Silicon arm64) builds on a REAL macOS

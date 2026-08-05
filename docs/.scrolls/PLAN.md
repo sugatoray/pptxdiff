@@ -450,12 +450,41 @@ shim, not sequentially — that plan is what shipped below.
   mac targets.
 
 ## New tickets opened this session
-1. **P4 — Native Windows/Linux arm64 builds**, if ever asked for — `pkg` supports
-   `node22-win-arm64`/`node22-linux-arm64` equally well; not attempted since neither was asked about
-   and arm64 desktop/laptop usage is comparatively rare for those two OSes among this app's likely
-   users (see GAP_CONTEXT.md).
+1. ~~**P4 — Native Windows/Linux arm64 builds**, if ever asked for.~~ **[DONE, same day]** — see
+   below; the user asked directly in an immediate follow-up.
 2. **P4 — Investigate `ldid` for Linux-side ad-hoc signing of macOS binaries**, which `pkg`'s own
    error output suggests as an alternative to a real macOS CI runner — would let `build-mac` fold
    into the cross-compiled `build-linux-win` job (one CI job instead of two). Not pursued; a real
    `macos-latest` runner using Apple's own `codesign` was judged more trustworthy for a first pass —
    revisit if CI job count/time ever becomes a real constraint.
+
+## Done this session (native Windows/Linux arm64 builds: `pptxdiff-win-arm64.exe`, `pptxdiff-linux-arm64`)
+- [x] **P4 — Added `pptxdiff-win-arm64.exe` and `pptxdiff-linux-arm64`**, direct follow-up to "can we
+  support arm64 for windows and linux as well?" (immediately after the mac-only arm64 addition
+  above). Unlike macOS, neither needs a signing step, so both fold straight into the existing
+  `build-linux-win` CI job — `TARGET_MAP` gained `linux-arm64`/`win-arm64` entries sharing their
+  OS's `outDirKey`, `.github/workflows/binaries.yml`'s `build-linux-win` job now builds and uploads
+  all four Windows/Linux target/arch combos.
+- [x] **Found and fixed a genuine new build failure, not just "it worked because pkg supports arm64
+  targets."** First attempt (`pkg -t node22-linux-arm64 ...`) failed with `ERR_ASSERTION`; `--debug`
+  traced it to a real exec-format error — generating V8 bytecode for a foreign arch requires running
+  a matching-arch "fabricator" helper, which fails outright without QEMU/binfmt emulation (confirmed
+  absent in this sandbox: `which qemu-aarch64` and `/proc/sys/fs/binfmt_misc` both empty). `pkg`'s
+  own warning named the fix: `--fallback-to-source`, now applied unconditionally in `buildOne()`'s
+  pkg invocation (a no-op for same-arch builds, where bytecode generation just succeeds normally).
+- [x] **Verified via the real production `buildOne()` path** (not a bare smoke test): built
+  `node22-linux-arm64` and `node22-win-arm64` with the real asset config, confirmed via `file` genuine
+  `ELF ... ARM aarch64` / `PE32+ ... Aarch64` executables, confirmed binary SIZE is consistent with
+  real assets actually being embedded (72-75MB, matching the known-good x64 builds — not a
+  stripped-down failure artifact), confirmed each landed in its correct SHARED output folder without
+  disturbing the tracked `README.md`/`CHANGELOG.md` already there. Not run — no arm64 execution
+  emulation available in this sandbox; CI is what actually executes these for the first time.
+- [x] **Genuine RED→GREEN demonstrated on the new `--fallback-to-source` regression guard**:
+  temporarily removed the flag from `buildOne()`'s pkg invocation, confirmed the dedicated test
+  caught it (28/29), restored it, confirmed 29/29. `test_build_config.mjs` now 29 assertions (was 23).
+- [x] `test_build_e2e.mjs`'s host-target detection generalized from "arm64 only matters on darwin" to
+  checking `os.arch()` for every platform, so an arm64 Linux/Windows CI runner would also genuinely
+  exercise its native target rather than always falling back to x64.
+- [x] Per-OS win/linux `README.md`/`CHANGELOG.md`, the top-level `src/packages/binaries/README.md`,
+  root `CHANGELOG.md`, `SPEC.md` §32, `GAP_ANALYSIS.md`, and `GAP_CONTEXT.md` all updated — all six
+  targets now documented consistently.
