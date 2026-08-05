@@ -108,6 +108,12 @@ Concrete, testable gaps between what SPEC.md describes and a fully "real" implem
 - [ ] `pptxdiff` npm CLI (`bin/cli.js`) opens a browser tab, not a real native window (no dock/taskbar icon, no app-like process) -- not a true "desktop app" in the Electron/Tauri sense.
 - [x] The CLI required internet access at runtime -- CLOSED: React/ReactDOM/Babel-standalone/JSZip/pptx-renderer/Spectral font are all vendored locally under `src/pptxdiff/vendor/` and loaded from disk; zero CDN dependency remains for the app to boot and function. See SPEC.md §24 and GAP_CONTEXT.md for the reasoning (this reverses last session's deliberate "kept CDN-based" scope call, per this session's explicit user ask).
 
+## Chocolatey package (newly identified gaps, this session)
+- [ ] `src/packages/pptxdiff-chocolatey/` is authored but NOT submitted to / approved on the Chocolatey Community Repository -- `choco install pptxdiff` won't resolve publicly until a maintainer runs the manual `choco push` step (see the package's own README "Publishing" section).
+- [ ] Not tested end-to-end on a real Windows machine or CI runner -- this repo's dev/CI environment is Linux, so `choco pack`/`choco install`/`choco uninstall` have not actually been executed against this package, only reviewed as plain-text nuspec XML + PowerShell.
+- [ ] `pptxdiff.nuspec`'s `<version>` (and the matching fallback pin inside `tools/chocolateyinstall.ps1`) must be bumped by hand on every pptxdiff release -- no automated sync with the root `package.json` version yet, same class of gap as the pre-existing `pptxdiff-vscode` version-bump process.
+- [ ] Requires Node.js (>= 18) as a Chocolatey dependency (`nodejs`) since pptxdiff has no compiled native binary -- a heavier install footprint than a single self-contained `.exe`, though the same tradeoff the npm/npx install paths already carry.
+
 ## Documentation site (newly identified gap, this session)
 - [x] The `docs-site/` pages (`architecture.md`, `limitations.md`, `getting-started.md`, `index.md`, `faq.md`, `cli.md`, `features/rendering.md`) described the app as CDN-dependent/requiring internet access -- CLOSED: that content was written in a session that forked before the offline-vendoring work landed. Rebased this branch onto `master` (which had merged the docs-site) and corrected every stale CDN/internet-access claim across those 7 pages to match the now-vendored reality; re-verified with `mkdocs build --strict` (clean).
 

@@ -336,3 +336,10 @@ shim, not sequentially — that plan is what shipped below.
     the GUI's `slideDiffReviewerState_v1` shape so a human on the GUI and an agent on the API can
     collaborate on the same review. This is the design doc's most distinctive value beyond "diff as
     a service" (§8) — not started.
+
+## Done this session (Chocolatey package for pptxdiff)
+- [x] **P3 — New Chocolatey package** (`src/packages/pptxdiff-chocolatey/`): `pptxdiff.nuspec`, `tools/chocolateyinstall.ps1`/`chocolateyuninstall.ps1` (thin wrapper around `npm install --global pptxdiff` / `npm uninstall --global pptxdiff`, depending on the community `nodejs` package), `tools/VERIFICATION.txt`, package-local `README.md`/`CHANGELOG.md`. See SPEC.md §32, GAP_ANALYSIS.md/GAP_CONTEXT.md's new "Chocolatey package" entries.
+
+## New tickets opened this session
+1. **P2 — Submit the Chocolatey package to the Chocolatey Community Repository** (`choco push`) once a maintainer has a Chocolatey API key and has smoke-tested `choco pack`/`choco install`/`choco uninstall` on a real Windows machine — not done this session (Linux dev/CI environment, no `choco`/`pwsh` available to execute against).
+2. **P4 — Automate `pptxdiff.nuspec`'s `<version>` (and the install script's fallback pin) staying in sync with the root `package.json` version** on release, instead of a manual bump — same class of gap as `pptxdiff-vscode`'s existing manual version-bump process.
