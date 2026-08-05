@@ -15,6 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `depends_on "node"`, no `resource` blocks needed (the tarball has zero runtime dependencies), and
   a `test do` block that starts the real server and curls it. Not yet published to a real Homebrew
   tap -- see the package's own `README.md` for the direct-install command and version-bump steps.
+- `src/packages/pptxdiff-brew/test_formula.mjs` (`npm test`): a Red/Green TDD check for the
+  Homebrew formula, since real `brew` cannot run in this project's sandbox (Homebrew refuses to run
+  as root, and running it as an unprivileged user still hits a blocked `ghcr.io` for its
+  portable-ruby dependency -- both genuinely attempted, not assumed). Downloads the real pinned
+  tarball, verifies its sha256, cross-checks it against the npm registry, then replays the formula's
+  `install` method's exact `npm install --global --prefix=<libexec> ...` command against the real
+  tarball and runs/curls the resulting real `pptxdiff` binary.
 
 ## [0.7.0] - 2026-08-02
 

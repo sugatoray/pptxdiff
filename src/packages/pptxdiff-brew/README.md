@@ -13,10 +13,49 @@ that installs the tarball and symlinks its one bin entry, no `resource` blocks f
 dependencies.
 
 `Language::Node`-based Node CLI formulae like this one are more Homebrew-idiomatic on the
-maintainer's own machine than in CI here: this sandbox does not have Homebrew installed, so this
-formula has been checked with `ruby -c` (valid Ruby syntax) but not yet run through
-`brew audit`/`brew install`/`brew test` end-to-end. Do that once on a real macOS/Linuxbrew machine
-before treating it as done — see "Verifying locally" below.
+maintainer's own machine than in this sandbox: real `brew install`/`brew audit`/`brew test` have
+not been run here, and not for lack of trying — see "Why real `brew` doesn't run here" below for
+what was actually attempted and why it hit a hard wall. Do that once on a real macOS/Linuxbrew
+machine before treating this as fully done.
+
+## Why real `brew` doesn't run here
+
+Two real attempts were made to run actual Homebrew in this sandbox, not just assumed impossible:
+
+1. **As root** (the sandbox's only user): `brew` refuses outright — "Running Homebrew as root is
+   extremely dangerous and no longer supported," with no override flag in current Homebrew.
+2. **Under a fresh unprivileged user** (`useradd -m brewtest`, cloned `Homebrew/brew` directly,
+   ran as that user): `brew` itself ran, but installing anything requires Homebrew's
+   portable-ruby, fetched from `ghcr.io` — this environment's outbound proxy returns `403` for
+   that host (confirmed via `$HTTPS_PROXY/__agentproxy/status`, per the environment's own
+   instructions, not assumed or guessed at).
+
+Both attempts were cleaned up afterward (temp user and clone removed). Given that wall,
+`test_formula.mjs` (see below) proves everything that CAN be proven for real here instead of
+settling for a syntax-only check.
+
+## Red/Green TDD: `test_formula.mjs`
+
+Run from this directory:
+
+```sh
+npm test
+# or: node test_formula.mjs
+```
+
+Since real `brew` can't run here, this script proves the formula for real a different way — it
+downloads the actual pinned npm tarball, verifies its sha256 against the formula's pin, cross-checks
+the pin against the npm registry's own metadata, then **replays the formula's own `install` method's
+exact command** (`npm install --global --prefix=<libexec> --verbose --no-progress`, matching
+Homebrew's `std_npm_install_args`) against the real extracted tarball, symlinks the result exactly
+like `bin.install_symlink Dir["#{libexec}/bin/*"]` does, then **runs the real resulting `pptxdiff`
+binary and curls it** — the same functional proof `brew test` would give, just orchestrated by this
+script instead of `brew` itself.
+
+Demonstrated genuine RED before GREEN, not just asserted: temporarily corrupted the formula's
+`sha256` and deleted its `depends_on "node"` line, reran the test, confirmed exactly those 2 of 18
+assertions failed (16/18) while every other check — including the real npm install/run/curl —
+stayed green, then restored the formula and confirmed 18/18 again.
 
 ## Why this isn't `brew install pptxdiff` yet
 

@@ -345,8 +345,18 @@ shim, not sequentially — that plan is what shipped below.
 - [ ] **P3 — Create a real `sugatoray/homebrew-pptxdiff` tap repo** so `brew tap sugatoray/pptxdiff
   && brew install pptxdiff` works, instead of the current `brew install --formula <path>` direct
   install. Not started — see GAP_ANALYSIS.md.
-- [ ] **P2 — Run the Homebrew formula through real Homebrew** (`brew audit --strict --online`,
-  `brew install`, `brew test`) on a machine that actually has `brew` — this sandbox doesn't. Only
-  `ruby -c` syntax has been checked so far. See GAP_ANALYSIS.md.
+- [x] **P2 — Red/Green TDD for the Homebrew formula, given real `brew` genuinely can't run here.**
+  Attempted real `brew` twice (as root: refused outright; as a fresh unprivileged user: hit a `403`
+  from the outbound proxy on `ghcr.io`, needed for Homebrew's portable-ruby) — both attempts real,
+  documented, and cleaned up afterward. `src/packages/pptxdiff-brew/test_formula.mjs` (`npm test`)
+  replays the formula's `install` method's exact command against the real downloaded, sha256-verified
+  tarball, then runs the real resulting `pptxdiff` binary and curls it. Demonstrated genuine RED
+  before GREEN: corrupted `sha256` + deleted `depends_on "node"`, confirmed exactly 2/18 assertions
+  failed, restored, confirmed 18/18. See SPEC.md §32, GAP_CONTEXT.md's new "Why the Homebrew
+  formula's tests replay `install`'s exact mechanics instead of running real `brew`" entry.
+- [ ] **P2 — Still needs a real `brew audit`/`brew install`/`brew test` pass** on a machine with
+  working Homebrew and unblocked `ghcr.io` access — `test_formula.mjs` cannot substitute for
+  `brew audit`'s own style/lint rules or `brew`'s own dependency-resolution behavior. See
+  GAP_ANALYSIS.md.
 - [ ] **P4 — Homebrew formula for `pptxdiff-cli`**, once that package is published to npm (currently
   monorepo-local only — see its own README's `file:` dependency note).

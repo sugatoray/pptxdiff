@@ -2,6 +2,46 @@
 
 **Read `.scrolls/SPEC.md` first for the full feature list.** This file is the "what's the state of things right now" note — update it at the end of every session, keep it short and current (prune stale entries).
 
+## Update (2026-08-05 — Real Red/Green TDD for the Homebrew formula: `test_formula.mjs`)
+- Direct follow-up ask on the entry immediately below: "Make sure to use Red/Green TDD and update
+  the documents." The prior session had only run `ruby -c` (syntax-only) against the formula and
+  flagged real `brew` verification as an open gap — this session closed that gap as far as it
+  honestly can be closed in this sandbox.
+- **Genuinely attempted real `brew` twice, not assumed impossible**: (1) as root (this sandbox's
+  only user) — `brew` refuses outright, no override flag exists in current Homebrew; (2) created a
+  fresh unprivileged user (`useradd -m brewtest`), cloned `Homebrew/brew` directly, ran `brew` as
+  that user — it ran, but installing anything needs Homebrew's portable-ruby from `ghcr.io`, and
+  this environment's proxy returns `403` for that host (confirmed via
+  `$HTTPS_PROXY/__agentproxy/status`, per the environment's own instructions — `registry.npmjs.org`
+  is explicitly allowed, `ghcr.io` is not). Cleaned up both the temp user and the Homebrew clone
+  afterward — no sandbox debris left behind.
+- **`src/packages/pptxdiff-brew/test_formula.mjs`** (new, `npm test` via a new minimal
+  `package.json` for the package): since real `brew` can't run here, this replays what it would
+  actually do. Pure `parseFormula()` regex-checks the formula's structure (url/sha256/license/
+  homepage/`depends_on "node"`/`std_npm_install_args`/`bin.install_symlink`/`test do`/livecheck),
+  then real `ruby -c`, then downloads the REAL pinned tarball and verifies its sha256, cross-checks
+  against the npm registry's own metadata for that version (tarball url match, zero-dependencies
+  claim, bin field), then **replays the formula's `install` method's exact command**
+  (`npm install --global --prefix=<libexec> --verbose --no-progress`) against the real extracted
+  tarball, symlinks the result exactly like `bin.install_symlink Dir["#{libexec}/bin/*"]` does, then
+  runs the real resulting `pptxdiff` binary and curls it — the same functional proof `brew test`
+  would give.
+- **Demonstrated genuine RED before GREEN**: corrupted the formula's `sha256` pin and deleted its
+  `depends_on "node"` line, ran the test, confirmed exactly those 2 of 18 assertions failed (16/18,
+  with the failure message reporting the correct real sha256) while every other check — including
+  the real `npm install`/spawn/curl against the live tarball — stayed green. Restored the formula
+  from a backup, confirmed `diff` showed it byte-identical to the pre-break version, reran, confirmed
+  18/18.
+- **Docs updated to match**: SPEC.md §32 (new subsections on the two real `brew` attempts and the
+  RED/GREEN demonstration), GAP_ANALYSIS.md/GAP_CONTEXT.md (the "not run through real Homebrew" gap
+  narrowed to what's still actually missing — `brew audit`'s own lint rules, real `brew`'s own
+  dependency resolution — rather than claimed fully closed), PLAN.md's packaging tickets, root
+  `CHANGELOG.md`, and the package's own `README.md`/`CHANGELOG.md`.
+- **Not done**: real `brew audit --strict --online`/`brew install`/`brew test` still haven't run
+  against real Homebrew — that needs a machine with working Homebrew and unblocked `ghcr.io` access,
+  neither available here. `test_formula.mjs` is a genuine, real substitute for the install/run
+  mechanics, not a claim that Homebrew's own linting has been satisfied.
+
 ## Update (2026-08-05 — Homebrew formula for `pptxdiff`, new `src/packages/pptxdiff-brew/`)
 - Direct ask: "Create a brew package for pptxdiff. Make it available inside the folder
   `src/packages/pptxdiff-brew/`."

@@ -1,0 +1,31 @@
+{
+  "name": "pptxdiff-brew",
+  "version": "0.1.0",
+  "description": "Homebrew formula packaging for pptxdiff (Formula/pptxdiff.rb) — not an npm package itself, just a place to run its Red/Green test.",
+  "license": "Apache-2.0",
+  "private": true,
+  "author": {
+    "name": "Sugato Ray",
+    "email": "sugatoray.dev@gmail.com",
+    "url": "https://github.com/sugatoray"
+  },
+  "scripts": {
+    "test": "node test_formula.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sugatoray/pptxdiff.git",
+    "directory": "src/packages/pptxdiff-brew"
+  },
+  "homepage": "https://github.com/sugatoray/pptxdiff#readme",
+  "keywords": [
+    "pptx",
+    "powerpoint",
+    "diff",
+    "homebrew",
+    "formula"
+  ]
+}
