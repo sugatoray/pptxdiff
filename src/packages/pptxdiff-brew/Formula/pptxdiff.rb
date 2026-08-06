@@ -18,7 +18,7 @@ class Pptxdiff < Formula
     # (React, JSZip, pptx-renderer, ...) is already vendored under
     # src/pptxdiff/vendor. `npm install` here only links the package itself,
     # no network fetch of runtime deps is required.
-    system "npm", "install", *std_npm_install_args(libexec)
+    system "npm", "install", *std_npm_args(prefix: libexec)
     bin.install_symlink Dir["#{libexec}/bin/*"]
   end
 

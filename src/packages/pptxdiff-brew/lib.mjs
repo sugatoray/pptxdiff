@@ -23,7 +23,7 @@ export function parseFormula(rubySource) {
     homepage,
     version,
     dependsOnNode: /depends_on\s+"node"/.test(rubySource),
-    hasStdNpmInstall: /system\s+"npm",\s*"install",\s*\*std_npm_install_args\(libexec\)/.test(rubySource),
+    hasStdNpmInstall: /system\s+"npm",\s*"install",\s*\*std_npm_args\(prefix:\s*libexec\)/.test(rubySource),
     hasBinInstallSymlink: /bin\.install_symlink\s+Dir\[/.test(rubySource),
     hasTestBlock: /\btest\s+do\b/.test(rubySource),
     hasLivecheckNpm: /livecheck\s+do[\s\S]*?strategy\s+:npm/.test(rubySource),

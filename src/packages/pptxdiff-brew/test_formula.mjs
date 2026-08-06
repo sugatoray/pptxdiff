@@ -22,7 +22,7 @@
 ///     metadata for that version, independently of the formula file.
 //   5. Replays the formula's `install` method's actual command
 //      (`npm install --global --prefix=<libexec> --verbose --no-progress`,
-//      matching Homebrew's `std_npm_install_args`) against the real
+//      matching Homebrew's `std_npm_args(prefix: libexec)`) against the real
 //      extracted tarball, then runs the REAL resulting `pptxdiff` binary
 //      and curls it — the same functional proof `brew test` would give,
 //      just orchestrated by this script instead of `brew` itself.
@@ -74,7 +74,7 @@ async function main() {
   assert("has a license", f.license === "Apache-2.0");
   assert("homepage points at the real repo", f.homepage === "https://github.com/sugatoray/pptxdiff");
   assert('depends_on "node" is declared', f.dependsOnNode);
-  assert("install uses std_npm_install_args(libexec)", f.hasStdNpmInstall);
+  assert("install uses std_npm_args(prefix: libexec)", f.hasStdNpmInstall);
   assert("install symlinks libexec/bin/* into bin", f.hasBinInstallSymlink);
   assert("a test do block exists", f.hasTestBlock);
   assert("livecheck uses the npm strategy", f.hasLivecheckNpm);
@@ -120,7 +120,7 @@ async function main() {
   execFileSync("tar", ["xzf", tarballPath, "--strip-components=1", "-C", srcDir]);
 
   const libexec = path.join(workDir, "libexec");
-  // Mirrors `system "npm", "install", *std_npm_install_args(libexec)` from
+  // Mirrors `system "npm", "install", *std_npm_args(prefix: libexec)` from
   // the formula's `install` method exactly: run inside the extracted
   // package (matching Homebrew's build-directory cwd during `install`),
   // globally installing it into a `--prefix`, which is what actually
