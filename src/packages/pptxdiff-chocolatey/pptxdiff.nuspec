@@ -11,7 +11,7 @@
     <projectUrl>https://github.com/sugatoray/pptxdiff</projectUrl>
     <iconUrl>https://raw.githubusercontent.com/sugatoray/pptxdiff/master/docs/assets/icon_128x128.png</iconUrl>
     <copyright>Copyright (c) Sugato Ray</copyright>
-    <license type="expression">Apache-2.0</license>
+    <licenseUrl>https://www.apache.org/licenses/LICENSE-2.0</licenseUrl>
     <projectSourceUrl>https://github.com/sugatoray/pptxdiff</projectSourceUrl>
     <docsUrl>https://sugatoray.github.io/pptxdiff/</docsUrl>
     <bugTrackerUrl>https://github.com/sugatoray/pptxdiff/issues</bugTrackerUrl>

@@ -22,4 +22,17 @@ if ($LASTEXITCODE -ne 0) {
   throw "npm install --global $npmPackageName@$npmPackageVersion failed with exit code $LASTEXITCODE."
 }
 
+$npmPrefix = (& npm config get prefix)
+if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($npmPrefix)) {
+  throw "npm installed $npmPackageName, but 'npm config get prefix' failed; cannot verify the global command path."
+}
+
+$npmPrefix = $npmPrefix.Trim()
+$installedCommand = Join-Path $npmPrefix "$npmPackageName.cmd"
+if (-not (Test-Path $installedCommand)) {
+  throw "npm reported a successful install, but '$installedCommand' was not found."
+}
+
+Install-BinFile -Name $npmPackageName -Path $installedCommand
+
 Write-Host "$npmPackageName installed. Run 'pptxdiff' from any shell to start it."

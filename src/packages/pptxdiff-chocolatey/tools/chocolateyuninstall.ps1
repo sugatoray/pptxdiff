@@ -2,6 +2,8 @@ $ErrorActionPreference = 'Stop'
 
 $npmPackageName = 'pptxdiff'
 
+Uninstall-BinFile -Name $npmPackageName
+
 $npmCmd = Get-Command npm -ErrorAction SilentlyContinue
 if (-not $npmCmd) {
   $msg = "npm was not found on PATH; skipping 'npm uninstall --global $npmPackageName'. " +

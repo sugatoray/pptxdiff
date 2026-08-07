@@ -1,0 +1,2 @@
+## Ignore Chocolatey package artifacts
+*.nupkg
