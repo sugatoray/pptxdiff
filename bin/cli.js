@@ -27,13 +27,48 @@ const SECURITY_HEADERS = {
   "Cache-Control": "no-store",
 };
 
+function parseArgs(argv) {
+  const options = { browser: "default" };
+
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === "--browser") {
+      options.browser = argv[++i];
+    } else if (arg.startsWith("--browser=")) {
+      options.browser = arg.slice("--browser=".length);
+    } else {
+      throw new Error(`Unknown option: ${arg}`);
+    }
+  }
+
+  if (!["default", "chrome", "msedge"].includes(options.browser)) {
+    throw new Error(
+      `Unsupported --browser value: ${options.browser || "(empty)"}. Use default, chrome, or msedge.`
+    );
+  }
+
+  return options;
+}
+
 // Pure: decides how to launch a browser for `url` on `platform`, with the
 // url passed as its own argv element rather than shell-interpolated into a
 // command string. `start` is a cmd.exe built-in, not a standalone
 // executable, so Windows routes through cmd.exe; the leading `""` preserves
 // `start`'s own quirk of treating the first quoted argument as a window
 // title.
-function buildBrowserOpenCommand(platform, url) {
+function buildBrowserOpenCommand(platform, url, browser = "default") {
+  if (browser === "chrome") {
+    if (platform === "darwin") return { command: "open", args: ["-a", "Google Chrome", url] };
+    if (platform === "win32") return { command: "cmd.exe", args: ["/c", "start", "", "chrome", url] };
+    return { command: "google-chrome", args: [url] };
+  }
+
+  if (browser === "msedge") {
+    if (platform === "darwin") return { command: "open", args: ["-a", "Microsoft Edge", url] };
+    if (platform === "win32") return { command: "cmd.exe", args: ["/c", "start", "", "msedge", url] };
+    return { command: "microsoft-edge", args: [url] };
+  }
+
   if (platform === "darwin") return { command: "open", args: [url] };
   if (platform === "win32") return { command: "cmd.exe", args: ["/c", "start", "", url] };
   return { command: "xdg-open", args: [url] };
@@ -99,6 +134,14 @@ function startServer() {
 }
 
 if (require.main === module) {
+  let options;
+  try {
+    options = parseArgs(process.argv.slice(2));
+  } catch (e) {
+    console.error(e && e.message ? e.message : e);
+    process.exit(2);
+  }
+
   startServer().then(({ url: baseUrl }) => {
     const url = `${baseUrl}${LITE_MODE ? "/?lite=1" : ""}`;
     console.log(`pptxdiff running at ${url}`);
@@ -106,7 +149,7 @@ if (require.main === module) {
       console.log("PPTXDIFF_LITE_MODE is set — loading React/ReactDOM/Babel/JSZip/pptx-renderer/fonts from their original CDNs instead of the vendored local copies.");
     }
 
-    const { command, args } = buildBrowserOpenCommand(process.platform, url);
+    const { command, args } = buildBrowserOpenCommand(process.platform, url, options.browser);
     execFile(command, args, () => {}); // ignore failure (e.g. headless/no GUI) — URL is printed above regardless
   }).catch((e) => {
     console.error(e && e.message ? e.message : e);
@@ -114,4 +157,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { buildBrowserOpenCommand, isPathContained, startServer };
+module.exports = { buildBrowserOpenCommand, isPathContained, parseArgs, startServer };

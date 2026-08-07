@@ -66,6 +66,40 @@ assert(
   "bin/cli.js exports buildBrowserOpenCommand for unit testing",
   !!mod && typeof mod.buildBrowserOpenCommand === "function"
 );
+assert(
+  "bin/cli.js exports parseArgs for unit testing",
+  !!mod && typeof mod.parseArgs === "function"
+);
+
+if (mod && typeof mod.parseArgs === "function") {
+  const { parseArgs } = mod;
+
+  assert("parseArgs defaults to the system browser", parseArgs([]).browser === "default");
+  assert(
+    "parseArgs supports --browser=chrome",
+    parseArgs(["--browser=chrome"]).browser === "chrome"
+  );
+  assert(
+    "parseArgs supports --browser msedge",
+    parseArgs(["--browser", "msedge"]).browser === "msedge"
+  );
+
+  let invalidBrowser = null;
+  try {
+    parseArgs(["--browser=firefox"]);
+  } catch (e) {
+    invalidBrowser = e;
+  }
+  assert("parseArgs rejects unsupported browser values", invalidBrowser instanceof Error);
+
+  let unknownOption = null;
+  try {
+    parseArgs(["--wat"]);
+  } catch (e) {
+    unknownOption = e;
+  }
+  assert("parseArgs rejects unknown options", unknownOption instanceof Error);
+}
 
 if (mod && typeof mod.buildBrowserOpenCommand === "function") {
   const { buildBrowserOpenCommand } = mod;
@@ -98,6 +132,48 @@ if (mod && typeof mod.buildBrowserOpenCommand === "function") {
       win.args[1] === "start" &&
       win.args[2] === "" &&
       win.args[3] === injected
+  );
+
+  const macChrome = buildBrowserOpenCommand("darwin", injected, "chrome");
+  assert("darwin chrome: command is 'open'", macChrome.command === "open");
+  assert(
+    "darwin chrome: opens Google Chrome with url untouched",
+    JSON.stringify(macChrome.args) === JSON.stringify(["-a", "Google Chrome", injected])
+  );
+
+  const macEdge = buildBrowserOpenCommand("darwin", injected, "msedge");
+  assert("darwin msedge: command is 'open'", macEdge.command === "open");
+  assert(
+    "darwin msedge: opens Microsoft Edge with url untouched",
+    JSON.stringify(macEdge.args) === JSON.stringify(["-a", "Microsoft Edge", injected])
+  );
+
+  const winChrome = buildBrowserOpenCommand("win32", injected, "chrome");
+  assert("win32 chrome: command is 'cmd.exe'", winChrome.command === "cmd.exe");
+  assert(
+    "win32 chrome: routes start to chrome with url untouched",
+    JSON.stringify(winChrome.args) === JSON.stringify(["/c", "start", "", "chrome", injected])
+  );
+
+  const winEdge = buildBrowserOpenCommand("win32", injected, "msedge");
+  assert("win32 msedge: command is 'cmd.exe'", winEdge.command === "cmd.exe");
+  assert(
+    "win32 msedge: routes start to msedge with url untouched",
+    JSON.stringify(winEdge.args) === JSON.stringify(["/c", "start", "", "msedge", injected])
+  );
+
+  const linuxChrome = buildBrowserOpenCommand("linux", injected, "chrome");
+  assert("linux chrome: command is 'google-chrome'", linuxChrome.command === "google-chrome");
+  assert(
+    "linux chrome: args is exactly [url], untouched",
+    Array.isArray(linuxChrome.args) && linuxChrome.args.length === 1 && linuxChrome.args[0] === injected
+  );
+
+  const linuxEdge = buildBrowserOpenCommand("linux", injected, "msedge");
+  assert("linux msedge: command is 'microsoft-edge'", linuxEdge.command === "microsoft-edge");
+  assert(
+    "linux msedge: args is exactly [url], untouched",
+    Array.isArray(linuxEdge.args) && linuxEdge.args.length === 1 && linuxEdge.args[0] === injected
   );
 }
 
