@@ -12,6 +12,9 @@ node_modules
 ## Ignore vscode extension artifacts
 *.vsix
 
+## Ignore Chocolatey package artifacts
+*.nupkg
+
 ## Ignore .npm-cache folder
 .npm-cache
 
