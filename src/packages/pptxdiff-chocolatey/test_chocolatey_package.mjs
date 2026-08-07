@@ -105,8 +105,9 @@ assert(
   Boolean(extractNuspecTag(nuspec, "title"))
 );
 assert(
-  "nuspec declares an Apache-2.0 license expression",
-  /<license type="expression">Apache-2\.0<\/license>/.test(nuspec)
+  "nuspec uses Chocolatey-compatible <licenseUrl> instead of NuGet's unsupported <license> element",
+  /<licenseUrl>https:\/\/www\.apache\.org\/licenses\/LICENSE-2\.0<\/licenseUrl>/.test(nuspec) &&
+    !/<license(?:\s|>)/.test(nuspec)
 );
 
 // ---- Version sync (the real drift risk this package's own docs call out) ----
@@ -139,12 +140,29 @@ assert(
   /npm install --global "\$npmPackageName@\$npmPackageVersion"/.test(installPs1)
 );
 assert(
+  "chocolateyinstall.ps1 verifies npm's global pptxdiff command shim exists",
+  /Join-Path \$npmPrefix "\$npmPackageName\.cmd"/.test(installPs1) &&
+    /Test-Path \$installedCommand/.test(installPs1)
+);
+assert(
+  "chocolateyinstall.ps1 creates a Chocolatey bin shim to npm's .cmd shim",
+  /Install-BinFile -Name \$npmPackageName -Path \$installedCommand/.test(installPs1)
+);
+assert(
+  "chocolateyinstall.ps1 does not add npm's PowerShell shim directory to PATH",
+  !/Install-ChocolateyPath -PathToInstall \$npmPrefix/.test(installPs1)
+);
+assert(
   "chocolateyinstall.ps1 sets \\$ErrorActionPreference = 'Stop' (fail loudly, not silently)",
   /\$ErrorActionPreference\s*=\s*'Stop'/.test(installPs1)
 );
 assert(
   "chocolateyuninstall.ps1 uninstalls pptxdiff globally via npm",
   /npm uninstall --global \$npmPackageName/.test(uninstallPs1)
+);
+assert(
+  "chocolateyuninstall.ps1 removes the Chocolatey bin shim",
+  /Uninstall-BinFile -Name \$npmPackageName/.test(uninstallPs1)
 );
 assert(
   "chocolateyuninstall.ps1 sets \\$ErrorActionPreference = 'Stop'",
