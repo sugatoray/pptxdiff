@@ -8,11 +8,14 @@ doc_coverage:
   - id: static-sample-fixtures
     quality: complete
     anchor: try-it-with-the-bundled-sample-files
+  - id: homebrew-formula
+    quality: partial
+    anchor: option-d-homebrew
 ---
 
 # Getting started
 
-PptxDiff ships three equivalent ways to run it — pick whichever fits your workflow. All three serve the exact same `src/pptxdiff/index.html` app; none of them upload your files anywhere.
+PptxDiff ships several equivalent ways to run it — pick whichever fits your workflow. All of them serve the exact same `src/pptxdiff/index.html` app; none of them upload your files anywhere.
 
 ## Option A — npx (no install)
 
@@ -40,6 +43,15 @@ open src/pptxdiff/index.html   # or double-click it, or serve the folder statica
 ```
 
 Works even without Node — `index.html` is self-contained, and needs no internet connection to run (see below).
+
+## Option D — Homebrew
+
+```bash
+brew install --formula https://raw.githubusercontent.com/sugatoray/pptxdiff/HEAD/src/packages/pptxdiff-brew/Formula/pptxdiff.rb
+pptxdiff
+```
+
+Same behavior as Option B once installed — the formula packages the identical published npm tarball, just via `brew` instead of `npm`. Not yet in a real `brew tap` (so no plain `brew install pptxdiff` yet — the `--formula <url>` form above works today without one); see the [Homebrew formula](homebrew.md) page for full details and status.
 
 ## What happens on first load
 

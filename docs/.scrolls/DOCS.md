@@ -242,3 +242,47 @@ PUBLIC-docs-site side of that same rule.
   docs`, per §5/§13's existing note about avoiding the root `[project]` deps' torch/CUDA pull), the
   new page's `/headless-cli-api/index.html` present in the built `site/` output, and
   `sync_doc_coverage.py --check` passing (34 complete, 1 partial, 0 missing, structurally valid).
+
+## 15. New "Homebrew Formula" page + install-tab coverage for `src/packages/pptxdiff-brew/` (added this session)
+
+Follow-up to shipping the Homebrew formula and its tap-sync CI workflow across three prior
+sessions (SPEC.md §32/§33) — explicit ask to "update the documentation under pptxdiff/docs-site
+folder." Same pattern as §14: the `.scrolls/` working-memory docs were already current; this is the
+PUBLIC-docs-site side of the same rule.
+
+- **New page, `docs/homebrew.md`**, added to the nav right after "VS Code Extension" (both are
+  alternate distribution channels for the same app) — status (not yet a real tap, why, and the two
+  manual setup steps left), the working `brew install --formula <url>` command, what the formula
+  does, and a summary of the CI sync workflow. Marked `partial` in the coverage registry, same
+  convention as `headless-cli-api`/`npm-cli-packaging` — the PAGE is complete and accurate, the
+  underlying FEATURE (a real tapped `brew install pptxdiff`) is genuinely not finished yet.
+- **New changelog page, `docs/changelogs/pptxdiff-brew.md`**, transcluding
+  `src/packages/pptxdiff-brew/CHANGELOG.md` via `pymdownx.snippets` — same mechanism every other
+  package changelog page already uses (see §4). New nav group "Homebrew Formula(s):" added
+  alongside the existing "NPM Package(s):"/"VS Code Extension(s):" groups, one entry so far.
+- **Existing pages updated, not just the new one**: `index.md`'s "Install" tabbed block gained a
+  fourth "Homebrew" tab (honest about the `--formula` caveat, no `brew tap` claim);
+  `getting-started.md` gained "Option D — Homebrew" (its intro sentence changed from "three
+  equivalent ways" to "several equivalent ways" so it doesn't need editing again the next time an
+  install path is added); `architecture.md`'s packaging-layers diagram/prose updated from "four
+  surfaces" to "five," adding the Homebrew formula as a leaf under `bin/cli.js`; `limitations.md`
+  gained two new rows (tap doesn't exist yet; not verified against real `brew` locally, with the
+  honest root cause — root-refuses-to-run-brew + a blocked host for Homebrew's portable-ruby — not
+  glossed over).
+- **`scripts/coverage_registry.yml`**: two new ids, `homebrew-formula` (feature, source `SPEC.md
+  §32-§33`) and `homebrew-formula-limitations` (limitation, source `GAP_ANALYSIS.md "Packaging"`) —
+  same sourcing discipline as every other registry entry (curated from the existing `.scrolls/`
+  docs, not invented).
+- **Verified for real, in the same order every prior docs-site session in this file has used**:
+  `sync_doc_coverage.py --write` (40 items total, up from 38: 36 complete + 4 partial, 0 missing),
+  then `--check` (PASS). `mkdocs build --strict` initially ABORTED with 2 warnings — the
+  `git-revision-date-localized`/`git-authors` plugins correctly flag that the two brand-new files
+  (`homebrew.md`, `changelogs/pptxdiff-brew.md`) have no git history yet, and `--strict` treats that
+  as fatal. Not a real problem: committed the change (this is exactly what every other new page in
+  this file's history has needed, whether or not a past entry called it out explicitly), then reran
+  `mkdocs build --strict` — clean, both pages present in `site/`, zero warnings.
+- **Not touched this session, deliberately**: `faq.md` has no existing "which install method"
+  Q&A to extend (checked — its topics are behavior/security questions, not an install-method
+  index), so no FAQ change was needed; `docs/.scrolls/SPEC.md`/`GAP_ANALYSIS.md`/`GAP_CONTEXT.md`
+  already fully cover the underlying feature from the sessions that built it — this session's scope
+  was specifically the public docs site, per the explicit ask.

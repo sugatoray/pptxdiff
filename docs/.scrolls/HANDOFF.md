@@ -2,6 +2,197 @@
 
 **Read `.scrolls/SPEC.md` first for the full feature list.** This file is the "what's the state of things right now" note — update it at the end of every session, keep it short and current (prune stale entries).
 
+## Update (2026-08-05 — docs-site coverage for the Homebrew formula)
+- Direct ask: "Make sure to update the documentation under pptxdiff/docs-site folder." Read
+  `docs/.scrolls/DOCS.md` first per `STARTER.md`'s standing rule (this is more than a routine
+  single-page edit — new pages, nav restructuring, new registry ids).
+- New `docs/homebrew.md` page (nav, right after "VS Code Extension") + new
+  `docs/changelogs/pptxdiff-brew.md` transclusion page (new "Homebrew Formula(s):" nav group) +
+  updated `index.md` (Install tabs), `getting-started.md` (Option D), `architecture.md`
+  (packaging-layers diagram, four surfaces → five), `limitations.md` (two new honest rows), and
+  `scripts/coverage_registry.yml` (two new ids: `homebrew-formula`, `homebrew-formula-limitations`).
+- **Verified for real**: `sync_doc_coverage.py --write` (40 items, 36 complete/4 partial/0
+  missing) then `--check` (PASS). `mkdocs build --strict` initially ABORTED — the
+  `git-revision-date-localized`/`git-authors` plugins correctly flag that brand-new,
+  not-yet-committed files have no git history; committed the change, reran, clean (see below for
+  confirmation this was actually re-verified post-commit, not just asserted).
+- Docs updated: `docs/.scrolls/DOCS.md` §15 (full writeup), `docs-site/CHANGELOG.md` (dated entry).
+  No change needed to `SPEC.md`/`GAP_ANALYSIS.md`/`GAP_CONTEXT.md` — the underlying feature was
+  already fully documented there across the three prior sessions; this session's scope was
+  specifically the public docs site.
+
+## Update (2026-08-05 — LICENSE added to pptxdiff-brew; README/CHANGELOG/LICENSE now sync to the tap)
+- Direct two-part follow-up ask on the sync-automation work below: (1) "always include the main
+  LICENSE file from the repo ... inside the pptxdiff-brew folder," (2) "make sure that both the
+  README.md and CHANGELOG.md files along with the LICENSE file ... are pushed to the
+  homebrew-pptxdiff repo via the CI."
+- **`src/packages/pptxdiff-brew/LICENSE`** (new): a real copy (`cp`, not a symlink — same reasoning
+  as why the whole tap sync is a CI job rather than a git-level trick, see GAP_CONTEXT.md) of the
+  repo root's Apache-2.0 `LICENSE`, matching `pptxdiff-vscode/LICENSE`'s existing precedent for the
+  same "distributed as a standalone artifact" reason.
+- **`.github/workflows/sync-homebrew-tap.yml` reworked**: `bump-formula`'s staging step now copies
+  `Formula/pptxdiff.rb` + `README.md` + `CHANGELOG.md` + `LICENSE` into a flat `dist-tap/` staging
+  dir (avoids relying on `actions/upload-artifact`'s multi-path structure-preservation semantics,
+  which weren't worth the ambiguity for 4 known files) and uploads them as one
+  `pptxdiff-tap-files` artifact. `sync-tap-repo` copies the formula into the tap checkout's
+  `Formula/` and the other three into its repo root, one PR carrying all four.
+- **New `should_sync` job output** (`steps.sync.outputs.changed == 'true' || github.event_name ==
+  'workflow_dispatch'`) now gates the `brew-audit` and `sync-tap-repo` jobs, replacing the
+  pin-only `changed` gate. Reasoning: before this change, a docs-only edit (fixing README wording,
+  adding a CHANGELOG entry) could never reach the tap until the next real npm version bump, even via
+  a manual dispatch — `should_sync` fixes that by making a manual `workflow_dispatch` run always push
+  the current combined state, while a scheduled run still only does real work when the version pin
+  actually changed (no weekly no-op macOS run / empty-diff PR). The job-1-internal "open a PR
+  against this repo" step still gates on `changed` alone, unchanged — that PR is specifically about
+  the pin, not the docs sync.
+- Verified: YAML re-parsed cleanly with the same `python3 -c 'yaml.safe_load(...)'` check used for
+  the first version of this workflow; `should_sync`/`changed` output wiring re-read by hand against
+  both trigger types (`workflow_dispatch` always true; `schedule` mirrors `changed`) since this
+  sandbox still can't execute a real GitHub Actions run to confirm end-to-end — same "written and
+  syntax-checked, not yet fired for real" status as the rest of this workflow (see PLAN.md).
+- **`test_formula.mjs` gained a new "0." check** for the three tap-sync sibling files
+  (`README.md`/`CHANGELOG.md`/`LICENSE` exist) plus a real drift check (`LICENSE` byte-identical to
+  the repo root's). Caught a genuine bug in its own first draft via the RED demonstration: the
+  byte-identity assertion read the local `LICENSE` unconditionally inside an `&&` chain without
+  checking it existed first, so deleting the file crashed the whole script with an uncaught `ENOENT`
+  instead of failing that one assertion — fixed with the missing `fs.existsSync()` guard. Demonstrated
+  three real RED states before GREEN: file moved away (2/22 failed), file restored but
+  content-tampered i.e. drifted-not-missing (1/22 failed, correctly only the identity check), restored
+  byte-identical (22/22). Self-test count 18 → 22.
+- Docs updated to match: SPEC.md §33 (three new bullets), GAP_ANALYSIS.md (both packaging-gap entries
+  updated to mention the 4-file push; the `LICENSE`-drift gap revised to "detection exists, no
+  auto-fix" rather than "no check at all"), two new GAP_CONTEXT.md "why" entries, the package's own
+  README.md ("Publishing to a real tap" updated, new "License" section) and CHANGELOG.md.
+
+## Update (2026-08-05 — Homebrew tap sync automation: `sync-tap.mjs` + `sync-homebrew-tap.yml`)
+- Direct follow-up to a user question from the immediately-prior session (below): "What would be
+  needed to symlink the Homebrew formula into a new repo `sugatoray/homebrew-pptxdiff`? What about
+  git submodule or subtree?" Answered as a design discussion first (all three rejected: a cross-repo
+  symlink has nothing to resolve against after a plain `brew tap` clone; a submodule's content never
+  materializes because `brew tap` never runs `git submodule update --init`; a subtree copy is real
+  but static, still needs a script/CI job to actually keep it current) — then this session's direct
+  ask was "Create the sync script/CI workflow."
+- **`src/packages/pptxdiff-brew/lib.mjs`** (new): `parseFormula`/`fetch`/`sha256hex` moved out of
+  `test_formula.mjs` (not duplicated — `test_formula.mjs` now imports them), plus two new exports:
+  `resolveNpmVersion(packageName, version)` and pure `updateFormulaPin(rubySource, {url, sha256})`
+  (regex-replaces only the url/sha256 lines, idempotent).
+- **`src/packages/pptxdiff-brew/sync-tap.mjs`** (new CLI): `node sync-tap.mjs [--file <path>]
+  [--version <x.y.z>|latest]` — downloads the real target-version tarball, computes its real sha256,
+  updates the target formula file in place (no-op if already current), writes `changed`/`version` to
+  `$GITHUB_OUTPUT` when running under Actions. Verified for real against the live npm registry (not
+  just unit-tested): a no-op run against the current, already-correct formula printed "already up to
+  date" with zero write; a run against a scratch copy deliberately corrupted to a fake version/sha256
+  correctly restored it to the real, current `0.7.0` pin, confirmed byte-identical to the real
+  formula file afterward.
+- **`src/packages/pptxdiff-brew/test_sync_tap.mjs`** (new, network-free): Red/Green tests for
+  `updateFormulaPin` and `sync-tap.mjs`'s exported `parseArgs`. Demonstrated genuine RED before
+  GREEN: broke `updateFormulaPin`'s sha256-replacement regex so it could never match ever, confirmed
+  exactly 1 of 11 assertions failed, restored it, confirmed 11/11 — then re-ran `test_formula.mjs`
+  to confirm the `lib.mjs` extraction caused zero regression there (still 18/18). `package.json`'s
+  `test` script is now `test_sync_tap.mjs && test_formula.mjs`.
+- **`.github/workflows/sync-homebrew-tap.yml`** (new, repo root): three jobs — `bump-formula`
+  (ubuntu, runs `sync-tap.mjs` + `npm test` against this repo's own `Formula/pptxdiff.rb`, opens a PR
+  here if changed), `brew-audit` (macos-latest, needs a real change — runs actual `brew audit
+  --strict --online`/`brew install --formula`/`brew test`, the genuine real-Homebrew verification
+  this sandbox has never been able to do itself), `sync-tap-repo` (needs both — opens a PR against
+  `sugatoray/homebrew-pptxdiff` with the same file). Triggers: `workflow_dispatch` + a weekly
+  `schedule`, deliberately not a `package.json`-push trigger (npm publishing here is still manual,
+  no reliable "just published" event to hook without racing an unpublished version — see the
+  workflow file's own header comment). YAML syntax checked with `python3 -c 'yaml.safe_load(...)'`
+  in this sandbox (parses cleanly, including the expected `on:` → `True` PyYAML quirk that GitHub's
+  own parser handles fine, same as this repo's pre-existing `docs.yml`) — **not yet run by a real
+  GitHub Actions runner**, since that requires an actual trigger firing after this branch merges.
+- **Two things deliberately left as manual, human steps, not automated**: creating the
+  `sugatoray/homebrew-pptxdiff` repo itself, and adding a `HOMEBREW_TAP_TOKEN` secret (a PAT scoped
+  to that repo) to this repo's Actions secrets. Both are visible, credential-bearing, or
+  externally-visible actions outside the literal scope of "create the sync script/CI workflow" — see
+  GAP_CONTEXT.md's new "Why creating the tap repo and its access token were left as manual steps"
+  entry. Until both exist, jobs 1-2 of the workflow still run and are useful standalone.
+- Docs updated to match: SPEC.md §33 (new), GAP_ANALYSIS.md (both packaging gaps narrowed to reflect
+  what tooling now exists vs. what still needs the workflow to actually fire once, or the two manual
+  setup steps), two new GAP_CONTEXT.md "why" entries, PLAN.md's packaging tickets, the package's own
+  README.md ("Publishing to a real tap" section, "Bumping the version" rewritten to point at
+  `sync-tap.mjs`) and CHANGELOG.md, and root `CHANGELOG.md`.
+- **Next session, if picking this up**: once the maintainer creates the tap repo + secret, trigger
+  `sync-homebrew-tap.yml` via `workflow_dispatch` and check all three jobs' logs — especially
+  `brew-audit`'s, since that's the first time this formula will have been checked by real Homebrew
+  anywhere. If `brew audit --strict` flags anything (style/convention issues this session's
+  `test_formula.mjs` couldn't check), fix the formula and re-run.
+
+## Update (2026-08-05 — Real Red/Green TDD for the Homebrew formula: `test_formula.mjs`)
+- Direct follow-up ask on the entry immediately below: "Make sure to use Red/Green TDD and update
+  the documents." The prior session had only run `ruby -c` (syntax-only) against the formula and
+  flagged real `brew` verification as an open gap — this session closed that gap as far as it
+  honestly can be closed in this sandbox.
+- **Genuinely attempted real `brew` twice, not assumed impossible**: (1) as root (this sandbox's
+  only user) — `brew` refuses outright, no override flag exists in current Homebrew; (2) created a
+  fresh unprivileged user (`useradd -m brewtest`), cloned `Homebrew/brew` directly, ran `brew` as
+  that user — it ran, but installing anything needs Homebrew's portable-ruby from `ghcr.io`, and
+  this environment's proxy returns `403` for that host (confirmed via
+  `$HTTPS_PROXY/__agentproxy/status`, per the environment's own instructions — `registry.npmjs.org`
+  is explicitly allowed, `ghcr.io` is not). Cleaned up both the temp user and the Homebrew clone
+  afterward — no sandbox debris left behind.
+- **`src/packages/pptxdiff-brew/test_formula.mjs`** (new, `npm test` via a new minimal
+  `package.json` for the package): since real `brew` can't run here, this replays what it would
+  actually do. Pure `parseFormula()` regex-checks the formula's structure (url/sha256/license/
+  homepage/`depends_on "node"`/`std_npm_install_args`/`bin.install_symlink`/`test do`/livecheck),
+  then real `ruby -c`, then downloads the REAL pinned tarball and verifies its sha256, cross-checks
+  against the npm registry's own metadata for that version (tarball url match, zero-dependencies
+  claim, bin field), then **replays the formula's `install` method's exact command**
+  (`npm install --global --prefix=<libexec> --verbose --no-progress`) against the real extracted
+  tarball, symlinks the result exactly like `bin.install_symlink Dir["#{libexec}/bin/*"]` does, then
+  runs the real resulting `pptxdiff` binary and curls it — the same functional proof `brew test`
+  would give.
+- **Demonstrated genuine RED before GREEN**: corrupted the formula's `sha256` pin and deleted its
+  `depends_on "node"` line, ran the test, confirmed exactly those 2 of 18 assertions failed (16/18,
+  with the failure message reporting the correct real sha256) while every other check — including
+  the real `npm install`/spawn/curl against the live tarball — stayed green. Restored the formula
+  from a backup, confirmed `diff` showed it byte-identical to the pre-break version, reran, confirmed
+  18/18.
+- **Docs updated to match**: SPEC.md §32 (new subsections on the two real `brew` attempts and the
+  RED/GREEN demonstration), GAP_ANALYSIS.md/GAP_CONTEXT.md (the "not run through real Homebrew" gap
+  narrowed to what's still actually missing — `brew audit`'s own lint rules, real `brew`'s own
+  dependency resolution — rather than claimed fully closed), PLAN.md's packaging tickets, root
+  `CHANGELOG.md`, and the package's own `README.md`/`CHANGELOG.md`.
+- **Not done**: real `brew audit --strict --online`/`brew install`/`brew test` still haven't run
+  against real Homebrew — that needs a machine with working Homebrew and unblocked `ghcr.io` access,
+  neither available here. `test_formula.mjs` is a genuine, real substitute for the install/run
+  mechanics, not a claim that Homebrew's own linting has been satisfied.
+
+## Update (2026-08-05 — Homebrew formula for `pptxdiff`, new `src/packages/pptxdiff-brew/`)
+- Direct ask: "Create a brew package for pptxdiff. Make it available inside the folder
+  `src/packages/pptxdiff-brew/`."
+- Confirmed the root `pptxdiff` npm package is already published (`registry.npmjs.org/pptxdiff`,
+  latest `0.7.0`) — unlike `@pptxdiff/cli`/`@pptxdiff/server`, which are still monorepo-local. That
+  made this a straightforward npm-tarball-based formula rather than a source build: downloaded the
+  real `pptxdiff-0.7.0.tgz`, verified its sha256
+  (`b7bc10ffee012efa1d4914e53b264b338dfbb15dea0714f31c6f664023bff272`) against both the local
+  download and the registry's own reported shasum, and confirmed `package.json` has zero runtime
+  `dependencies` (only `devDependencies`) — every third-party lib the app needs is already vendored
+  under `src/pptxdiff/vendor/` and shipped inside the tarball, so no `resource` blocks were needed.
+- **New package `src/packages/pptxdiff-brew/`**: `Formula/pptxdiff.rb` (`depends_on "node"`,
+  `npm install` into `libexec` via `std_npm_install_args` + `bin.install_symlink`, a `livecheck`
+  block for automatic version-bump detection, and a `test do` block that actually starts the
+  installed binary, reads its printed `pptxdiff running at http://localhost:<port>` line to recover
+  the OS-assigned port — `pptxdiff` never exits on its own — then curls it and asserts real HTML
+  comes back before killing the process), plus `README.md` (status, direct-install command, why not
+  a real tap yet, version-bump procedure) and `CHANGELOG.md` (Keep a Changelog style, matching the
+  other packages under `src/packages/`).
+- **Not run through real Homebrew**: this sandbox has no `brew` binary. Verified the formula with
+  `ruby -c` (valid syntax) only — `brew audit`/`brew install`/`brew test` still need to run on a
+  real machine before this is fully done. New GAP_ANALYSIS.md entries flag this explicitly.
+- **Not a real tap yet, by design for this session**: `brew tap sugatoray/pptxdiff` needs a repo
+  literally named `homebrew-pptxdiff` with formulae at its own `Formula/` root — a subdirectory of
+  this monorepo can't be tapped that way. Documented `brew install --formula <path-or-URL>` as the
+  working install method today; creating a dedicated tap repo is a new PLAN.md ticket, not done this
+  session (see GAP_CONTEXT.md's "Why the Homebrew formula isn't in a real tap yet").
+- Docs updated to match: SPEC.md §32 (new), CHANGELOG.md's `[Unreleased]` section, PLAN.md's new
+  "Packaging tickets (this session)" section, two new GAP_ANALYSIS.md entries under "Packaging", two
+  new GAP_CONTEXT.md "why" entries.
+- Next session, if picking this up: get access to a real `brew` binary (or ask the user to run the
+  verification commands in `src/packages/pptxdiff-brew/README.md`) and decide whether to actually
+  create the `sugatoray/homebrew-pptxdiff` tap repo.
+
 ## Update (2026-08-02 — `@pptxdiff/server` scoped CLI dependency fix)
 
 - Last commit `452ba63` fixed a server-package break introduced by renaming the CLI package to `@pptxdiff/cli`: `src/packages/pptxdiff-server/lib/server.js` still required old `pptxdiff-cli/lib/index.js`, so fresh `npm install && npm test` failed with `MODULE_NOT_FOUND`.

@@ -336,3 +336,47 @@ shim, not sequentially — that plan is what shipped below.
     the GUI's `slideDiffReviewerState_v1` shape so a human on the GUI and an agent on the API can
     collaborate on the same review. This is the design doc's most distinctive value beyond "diff as
     a service" (§8) — not started.
+
+## Packaging tickets (this session)
+- [x] **P2 — Homebrew formula for `pptxdiff`.** `src/packages/pptxdiff-brew/Formula/pptxdiff.rb`,
+  pinned to the published `pptxdiff@0.7.0` npm tarball (verified sha256), `depends_on "node"`, no
+  `resource` blocks needed. See SPEC.md §32, GAP_CONTEXT.md's two new "Why the Homebrew formula..."
+  entries.
+- [x] **P2 — Red/Green TDD for the Homebrew formula, given real `brew` genuinely can't run here.**
+  Attempted real `brew` twice (as root: refused outright; as a fresh unprivileged user: hit a `403`
+  from the outbound proxy on `ghcr.io`, needed for Homebrew's portable-ruby) — both attempts real,
+  documented, and cleaned up afterward. `src/packages/pptxdiff-brew/test_formula.mjs` (`npm test`)
+  replays the formula's `install` method's exact command against the real downloaded, sha256-verified
+  tarball, then runs the real resulting `pptxdiff` binary and curls it. Demonstrated genuine RED
+  before GREEN: corrupted `sha256` + deleted `depends_on "node"`, confirmed exactly 2/18 assertions
+  failed, restored, confirmed 18/18. See SPEC.md §32, GAP_CONTEXT.md's new "Why the Homebrew
+  formula's tests replay `install`'s exact mechanics instead of running real `brew`" entry.
+- [x] **P2 — Sync tooling + CI workflow for a future tap repo.** Direct follow-up to a user question
+  comparing symlink/submodule/subtree approaches for syncing the formula into a separate
+  `sugatoray/homebrew-pptxdiff` tap repo — all three rejected on their mechanics (see
+  GAP_CONTEXT.md's new "Why the tap gets synced by a CI job..." entry). Built instead:
+  `src/packages/pptxdiff-brew/lib.mjs` (shared pure/network helpers, including new
+  `updateFormulaPin`), `sync-tap.mjs` (bumps a formula file's url/sha256 to a target npm version,
+  idempotent, verified for real against the live npm registry), `test_sync_tap.mjs` (network-free
+  Red/Green tests, genuine RED→GREEN demonstrated), and
+  `.github/workflows/sync-homebrew-tap.yml` (3 jobs: bump this repo's own formula + open a PR, real
+  `brew audit`/`brew install`/`brew test` on a macOS runner, then sync to the tap repo). See SPEC.md
+  §33.
+- [x] **P2 — `LICENSE` inside `pptxdiff-brew/`, and README/CHANGELOG/LICENSE all synced to the tap.**
+  Direct follow-up: `src/packages/pptxdiff-brew/LICENSE` (real copy of root `LICENSE`, matching
+  `pptxdiff-vscode/LICENSE`'s precedent) now exists, and `sync-homebrew-tap.yml` stages + pushes it
+  alongside `README.md`/`CHANGELOG.md`/`Formula/pptxdiff.rb` in one PR against the tap repo. Added a
+  `should_sync` job output so a manual `workflow_dispatch` always pushes the current combined state
+  even without a version-pin change (a docs-only edit), while a scheduled run still only does real
+  work on an actual version change. See SPEC.md §33, GAP_CONTEXT.md's two new "why" entries.
+- [ ] **P3 — Create the real `sugatoray/homebrew-pptxdiff` repo + add a `HOMEBREW_TAP_TOKEN` secret
+  to this repo.** The only two things left before `sync-homebrew-tap.yml`'s `sync-tap-repo` job (and
+  therefore `brew tap sugatoray/pptxdiff && brew install pptxdiff`) actually works — deliberately
+  left as manual/human steps, not automated by an agent (see GAP_CONTEXT.md). Not started.
+- [ ] **P2 — Confirm `.github/workflows/sync-homebrew-tap.yml` actually runs green** the first time
+  it fires (`workflow_dispatch` or its weekly `schedule`) — written and YAML-syntax-checked in this
+  sandbox, but never executed by a real GitHub Actions runner yet. The `brew-audit` job in particular
+  is the first genuine real-`brew` verification of this formula anywhere — check its logs the first
+  time it runs. See GAP_ANALYSIS.md.
+- [ ] **P4 — Homebrew formula for `pptxdiff-cli`**, once that package is published to npm (currently
+  monorepo-local only — see its own README's `file:` dependency note).

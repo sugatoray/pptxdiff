@@ -15,6 +15,9 @@ doc_coverage:
   - id: vscode-extension
     quality: partial
     anchor: packaging-layers
+  - id: homebrew-formula
+    quality: partial
+    anchor: packaging-layers
 ---
 
 # Architecture
@@ -53,10 +56,11 @@ src/pptxdiff/index.html  (the app: template + logic + diff engine)
   └── served unchanged by bin/cli.js (static file server, no app logic)
         ├── npx pptxdiff
         ├── npm install -g pptxdiff
-        └── VS Code extension (sugatoray.pptxdiff-vscode)
+        ├── VS Code extension (sugatoray.pptxdiff-vscode)
+        └── Homebrew formula (brew install --formula ...)
 ```
 
-All four surfaces above serve the identical app — none of them modify or rebuild it. Fixing a bug or shipping a feature happens exactly once, in `index.html`.
+All five surfaces above serve the identical app — none of them modify or rebuild it. Fixing a bug or shipping a feature happens exactly once, in `index.html`. The [Homebrew formula](homebrew.md) is a thin packaging layer on top of the already-published npm tarball, not a separate build.
 
 ## Testing philosophy
 

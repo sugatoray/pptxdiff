@@ -2,21 +2,21 @@
 title: Documentation Coverage
 render_macros: true
 coverage_summary:
-  generated_at: '2026-08-02T22:11:11Z'
+  generated_at: '2026-08-05T08:54:58Z'
   totals:
     overall:
-      items: 38
-      complete: 35
-      partial: 3
+      items: 40
+      complete: 36
+      partial: 4
       missing: 0
     feature:
-      items: 25
+      items: 26
       complete: 22
-      partial: 3
+      partial: 4
       missing: 0
     limitation:
-      items: 13
-      complete: 13
+      items: 14
+      complete: 14
       partial: 0
       missing: 0
   items:
@@ -87,6 +87,17 @@ coverage_summary:
     locations:
     - page: headless-cli-api.md
       anchor: pptxdiffcli
+  - id: homebrew-formula
+    kind: feature
+    title: Homebrew formula for pptxdiff
+    quality: partial
+    locations:
+    - page: architecture.md
+      anchor: packaging-layers
+    - page: getting-started.md
+      anchor: option-d-homebrew
+    - page: homebrew.md
+      anchor: null
   - id: keyboard-shortcuts
     kind: feature
     title: Keyboard shortcuts
@@ -263,6 +274,14 @@ coverage_summary:
   - id: headless-cli-api-limitations
     kind: limitation
     title: 'Headless CLI/API: not published, Phase 1 only, no server auth'
+    quality: complete
+    locations:
+    - page: limitations.md
+      anchor: null
+  - id: homebrew-formula-limitations
+    kind: limitation
+    title: 'Homebrew formula: not tapped anywhere yet, not verified against real brew
+      locally'
     quality: complete
     locations:
     - page: limitations.md
