@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>pptxdiff</id>
+    <version>0.7.0</version>
+    <packageSourceUrl>https://github.com/sugatoray/pptxdiff/tree/master/src/packages/pptxdiff-chocolatey</packageSourceUrl>
+    <owners>sugatoray</owners>
+
+    <title>pptxdiff</title>
+    <authors>Sugato Ray</authors>
+    <projectUrl>https://github.com/sugatoray/pptxdiff</projectUrl>
+    <iconUrl>https://raw.githubusercontent.com/sugatoray/pptxdiff/master/docs/assets/icon_128x128.png</iconUrl>
+    <copyright>Copyright (c) Sugato Ray</copyright>
+    <licenseUrl>https://www.apache.org/licenses/LICENSE-2.0</licenseUrl>
+    <projectSourceUrl>https://github.com/sugatoray/pptxdiff</projectSourceUrl>
+    <docsUrl>https://sugatoray.github.io/pptxdiff/</docsUrl>
+    <bugTrackerUrl>https://github.com/sugatoray/pptxdiff/issues</bugTrackerUrl>
+
+    <tags>pptx powerpoint diff compare presentation slides review cli foss cross-platform</tags>
+    <summary>A diff tool to compare two PowerPoint decks -- completely local, no cloud upload.</summary>
+    <description><![CDATA[
+pptxdiff is a single-file, client-side tool for comparing two PowerPoint decks (or many pairs at
+once), rendered with real fidelity and diffed on text, formatting, images, tables, charts,
+animations, transitions, speaker notes, and more -- with a full reviewer workflow (approvals,
+comments, history) built in. Nothing is ever uploaded anywhere; parsing, rendering, and diffing
+all run locally in your own browser.
+
+This package installs the [pptxdiff npm CLI](https://www.npmjs.com/package/pptxdiff) globally via
+`npm install --global pptxdiff`, the same command documented in the project's own README as
+"Option B -- npm (global install)". It requires Node.js (>= 18), pulled in automatically as a
+Chocolatey dependency on the `nodejs` package.
+
+## Usage
+
+After installing, run:
+
+    pptxdiff
+
+This starts a small local static-file server on an OS-assigned free port and opens the app in
+your default browser. There is no separate server/daemon left running afterward beyond that one
+process, and no data ever leaves your machine.
+
+## Features
+
+- High-fidelity `.pptx` rendering plus deep diffing: text (word-level highlighting), fonts,
+  color, alignment, position, borders, hyperlinks, images, charts, tables, backgrounds,
+  animations, transitions, speaker notes, embedded fonts, and slide master/layout inheritance.
+- Deck-level comparison (not just 1:1 pairs) -- added / removed / moved / changed / identical
+  slide detection, plus duplicate-slide detection.
+- A full reviewer workflow: multiple reviewers, per-slide and per-diff approve/reject, threaded
+  comments, and an approval history log.
+- Batch mode for comparing many deck pairs at once.
+- A three-way merge planner plus a real (beta) merged `.pptx` export.
+- Exports to PDF, standalone HTML, JSON, CSV, Markdown, Notion, Confluence, and more.
+- Fully offline-capable -- every runtime dependency (React, JSZip, the rendering library, fonts)
+  is vendored, not loaded from a CDN.
+
+See the project README (https://github.com/sugatoray/pptxdiff) and documentation site
+(https://sugatoray.github.io/pptxdiff/) for the full feature list.
+]]></description>
+    <releaseNotes>https://github.com/sugatoray/pptxdiff/blob/master/CHANGELOG.md</releaseNotes>
+
+    <dependencies>
+      <dependency id="nodejs" version="18.0.0" />
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

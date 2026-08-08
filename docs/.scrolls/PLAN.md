@@ -380,3 +380,14 @@ shim, not sequentially — that plan is what shipped below.
   time it runs. See GAP_ANALYSIS.md.
 - [ ] **P4 — Homebrew formula for `pptxdiff-cli`**, once that package is published to npm (currently
   monorepo-local only — see its own README's `file:` dependency note).
+
+## Done this session (Chocolatey package for pptxdiff)
+- [x] **P3 — New Chocolatey package** (`src/packages/pptxdiff-chocolatey/`): `pptxdiff.nuspec`, `tools/chocolateyinstall.ps1`/`chocolateyuninstall.ps1` (thin wrapper around `npm install --global pptxdiff` / `npm uninstall --global pptxdiff`, depending on the community `nodejs` package), `tools/VERIFICATION.txt`, package-local `README.md`/`CHANGELOG.md`. See SPEC.md §34, GAP_ANALYSIS.md/GAP_CONTEXT.md's new "Chocolatey package" entries.
+
+## New tickets opened this session
+1. **P2 — Submit the Chocolatey package to the Chocolatey Community Repository** (`choco push`) once a maintainer has a Chocolatey API key and has smoke-tested `choco pack`/`choco install`/`choco uninstall` on a real Windows machine — not done this session (Linux dev/CI environment, no `choco`/`pwsh` available to execute against).
+2. **P4 — Automate `pptxdiff.nuspec`'s `<version>` (and the install script's fallback pin) staying in sync with the root `package.json` version** on release, instead of a manual bump — same class of gap as `pptxdiff-vscode`'s existing manual version-bump process.
+
+## Done this session (Red/Green regression test for the Chocolatey package)
+- [x] **P2 — `test_chocolatey_package.mjs`**: pure-Node static-analysis regression test for `src/packages/pptxdiff-chocolatey/` (no `choco`/`pwsh` needed). 21 assertions covering version-sync across `pptxdiff.nuspec`/root `package.json`/the install script's fallback pin, the nuspec's `nodejs` dependency version, both `.ps1` scripts' npm commands, the cmdlet-argument-mode `+`-concatenation bug staying absent, `tools/LICENSE.txt` staying byte-identical to root `LICENSE`, and required companion files existing. Genuinely demonstrated RED (18/21, 3 real failures) before GREEN (21/21) by temporarily reintroducing a version mismatch and the PowerShell bug, then restoring both.
+- [x] Ticket 2 above ("Automate version sync") is now PARTIALLY addressed: still a manual bump, but drift is caught automatically by the new test instead of shipping silently — see GAP_ANALYSIS.md's updated entry.
