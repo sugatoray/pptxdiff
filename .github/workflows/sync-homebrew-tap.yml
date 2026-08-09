@@ -126,8 +126,16 @@ jobs:
           name: pptxdiff-tap-files
           path: .
 
+      # `brew audit` no longer accepts a bare file path (Homebrew/brew#18873:
+      # "Calling `brew audit [path ...]` is disabled! Use `brew audit
+      # [name ...]` instead.") -- it now requires the formula to live in a
+      # tap so it can be addressed by name. Stand up a throwaway local tap,
+      # drop the formula into it, and audit it by its tap-qualified name.
       - name: brew audit --strict --online
-        run: brew audit --strict --online ./pptxdiff.rb
+        run: |
+          brew tap-new local/pptxdiff-ci --no-git
+          cp ./pptxdiff.rb "$(brew --repository)/Library/Taps/local/homebrew-pptxdiff-ci/Formula/pptxdiff.rb"
+          brew audit --strict --online local/pptxdiff-ci/pptxdiff
 
       - name: brew install --formula
         run: brew install --formula ./pptxdiff.rb

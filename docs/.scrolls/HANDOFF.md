@@ -2,6 +2,27 @@
 
 **Read `.scrolls/SPEC.md` first for the full feature list.** This file is the "what's the state of things right now" note — update it at the end of every session, keep it short and current (prune stale entries).
 
+## Update (2026-08-09 — fixed the sync-homebrew-tap.yml `brew-audit` job)
+- Direct ask: "the brew github actions pipeline ... did not succeed. Fix it." The workflow's first
+  real `workflow_dispatch` run (2026-08-08) failed at the `brew-audit` (macOS) job's `brew audit
+  --strict --online ./pptxdiff.rb` step: `##[error]Calling \`brew audit [path ...]\` is disabled!
+  Use \`brew audit [name ...]\` instead.` — a Homebrew CLI change (Homebrew/brew#18873) that landed
+  after this workflow was originally written, disallowing path-based `brew audit` invocations
+  entirely (install/test are unaffected — only `audit`).
+- Fix: `.github/workflows/sync-homebrew-tap.yml`'s `brew-audit` job now stands up a throwaway local
+  tap (`brew tap-new local/pptxdiff-ci --no-git`), copies the staged `pptxdiff.rb` into that tap's
+  `Formula/` directory, and audits it by tap-qualified name (`local/pptxdiff-ci/pptxdiff`) instead of
+  by path. `brew install --formula ./pptxdiff.rb` and `brew test pptxdiff` steps left unchanged (not
+  affected by the breaking change).
+- Confirmed root cause against the actual failed run's logs (`gh`/GitHub MCP `get_job_logs`, run id
+  31236058133) rather than guessing, then verified the fix pattern against Homebrew's own guidance
+  (Homebrew org discussion #4864) and a real-world precedent (`homebrew-releaser`'s CI) before
+  applying it. New WISDOM.md trap entry added so this isn't re-discovered from scratch next time
+  Homebrew ships another audit-CLI breaking change.
+- Not yet re-verified end-to-end with a real `workflow_dispatch` run (this session can push the fix
+  but the maintainer needs to trigger the workflow to confirm green) — next session/maintainer
+  should re-run `sync-homebrew-tap` manually and confirm all three jobs pass.
+
 ## Update (2026-08-05 — docs-site coverage for the Homebrew formula)
 - Direct ask: "Make sure to update the documentation under pptxdiff/docs-site folder." Read
   `docs/.scrolls/DOCS.md` first per `STARTER.md`'s standing rule (this is more than a routine
