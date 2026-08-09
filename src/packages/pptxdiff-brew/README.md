@@ -6,17 +6,19 @@ from `npm install -g pptxdiff`, wrapped so `brew install` works too.
 
 ## Status
 
-Not yet published to a real Homebrew tap. `pptxdiff` (the root npm package this formula wraps) is
+Published to a real Homebrew tap, [`sugatoray/homebrew-pptxdiff`](https://github.com/sugatoray/homebrew-pptxdiff)
+(see "Installing" below — one PR there, `homebrew-pptxdiff#1`, still needs merging for `brew
+install pptxdiff` to resolve). `pptxdiff` (the root npm package this formula wraps) is
 zero-runtime-dependency — every third-party library it needs (React, JSZip, pptx-renderer, ...) is
 already vendored under `src/pptxdiff/vendor` — so packaging it for Homebrew only needed a formula
 that installs the tarball and symlinks its one bin entry, no `resource` blocks for npm
 dependencies.
 
-`Language::Node`-based Node CLI formulae like this one are more Homebrew-idiomatic on the
-maintainer's own machine than in this sandbox: real `brew install`/`brew audit`/`brew test` have
-not been run here, and not for lack of trying — see "Why real `brew` doesn't run here" below for
-what was actually attempted and why it hit a hard wall. Do that once on a real macOS/Linuxbrew
-machine before treating this as fully done.
+Real `brew audit --strict --online`/`brew install`/`brew test` now run for real in CI
+(`.github/workflows/sync-homebrew-tap.yml`'s `brew-audit` job, on GitHub's `macos-latest`
+runners) and pass — this sandbox still can't run real Homebrew itself (see "Why real `brew`
+doesn't run here" below), but that gap is closed by CI rather than by hand on a maintainer
+machine.
 
 ## Why real `brew` doesn't run here
 
@@ -57,32 +59,37 @@ Demonstrated genuine RED before GREEN, not just asserted: temporarily corrupted 
 assertions failed (16/18) while every other check — including the real npm install/run/curl —
 stayed green, then restored the formula and confirmed 18/18 again.
 
-## Why this isn't `brew install pptxdiff` yet
-
-Homebrew resolves a short tap name like `sugatoray/pptxdiff` to a repo literally named
-`homebrew-pptxdiff`, with formulae living at that repo's own `Formula/` directory — not a
-subdirectory of an unrelated monorepo. Two paths forward, neither taken yet:
-
-1. **Install directly from this file**, no tap required (works today):
-
-   ```sh
-   brew install --formula https://raw.githubusercontent.com/sugatoray/pptxdiff/HEAD/src/packages/pptxdiff-brew/Formula/pptxdiff.rb
-   ```
-
-   or, from a local checkout of this repo:
-
-   ```sh
-   brew install --formula src/packages/pptxdiff-brew/Formula/pptxdiff.rb
-   ```
-
-2. **A dedicated `sugatoray/homebrew-pptxdiff` tap repo** that vendors (or symlinks in CI to) this
-   same `Formula/pptxdiff.rb`, so `brew tap sugatoray/pptxdiff && brew install pptxdiff` works.
-   Not created yet — this formula is the source of truth to copy into that tap once it exists.
-
 ## Installing
+
+**Via the tap** (`sugatoray/homebrew-pptxdiff`, kept in sync with this formula by
+`.github/workflows/sync-homebrew-tap.yml` — see "Publishing to a real tap" below):
+
+```sh
+brew tap sugatoray/pptxdiff
+brew install pptxdiff
+```
+
+Homebrew resolves the short tap name `sugatoray/pptxdiff` to the repo
+[`sugatoray/homebrew-pptxdiff`](https://github.com/sugatoray/homebrew-pptxdiff), pulling
+`Formula/pptxdiff.rb` from its `Formula/` directory. Note: the tap repo's very first sync PR
+(`homebrew-pptxdiff#1`) needs to be merged before `brew install pptxdiff` finds the formula —
+`brew tap` will succeed regardless, but install fails with "no formula found" until that PR lands.
+
+**Directly from this file**, no tap required (works even before the tap PR above merges):
+
+```sh
+brew install --formula https://raw.githubusercontent.com/sugatoray/pptxdiff/HEAD/src/packages/pptxdiff-brew/Formula/pptxdiff.rb
+```
+
+or, from a local checkout of this repo:
 
 ```sh
 brew install --formula src/packages/pptxdiff-brew/Formula/pptxdiff.rb
+```
+
+Either way:
+
+```sh
 pptxdiff
 ```
 
@@ -160,20 +167,17 @@ open an empty-diff PR. See the workflow file's own header comment for why it doe
 `package.json` push (npm publishing here is still a manual step, so there's no reliable "just
 published" CI event to race against).
 
-**Two things still need one-time manual setup before job 3 can succeed** (deliberately not done by
-an agent — creating a new public repo and a cross-repo credential are both real, visible actions a
-human should take explicitly):
+Both one-time manual setup steps are done: the `sugatoray/homebrew-pptxdiff` repo exists (with a
+`HOMEBREW_TAP_TOKEN` secret on this repo scoped to it), and it has an initial commit on `master` so
+`actions/checkout` has a branch to target. All three jobs now run end-to-end for real, including
+job 3 opening a real PR against the tap repo (see "Installing" above for the current tap state).
 
-1. **Create the `sugatoray/homebrew-pptxdiff` repo** (empty is fine — the first sync PR will add
-   `Formula/pptxdiff.rb`).
-2. **Add a `HOMEBREW_TAP_TOKEN` secret to this repo** (Settings -> Secrets and variables -> Actions):
-   a token with write + pull-request access scoped to `sugatoray/homebrew-pptxdiff` (a fine-grained
-   PAT limited to that one repo is the least-privilege option; the default `GITHUB_TOKEN` cannot
-   reach a different repository).
-
-Until both exist, jobs 1 and 2 still run and are useful on their own (keeping this repo's formula
-current, with real macOS `brew` verification on every version bump); job 3 fails at the checkout step
-with a clear "repository not found" / auth error rather than doing anything silently wrong.
+Along the way, three more real Homebrew-CLI checks turned up that this workflow now handles —
+`brew audit`/`brew install` no longer accept a bare formula path (must reference a tap-qualified
+name), a freshly created local tap is untrusted until `brew trust`'d, and `brew audit --strict`
+enforces formula-component ordering (`livecheck` before `depends_on`) — see `WISDOM.md` in the
+monorepo root's `docs/.scrolls/` for the full trap writeups if this breaks again after a future
+Homebrew release.
 
 ## License
 
