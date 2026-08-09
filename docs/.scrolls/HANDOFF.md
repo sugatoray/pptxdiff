@@ -40,10 +40,20 @@
   sequence, each only reachable once the prior one was fixed (path→tap→trust→audit-content). Treat
   "the previous error is gone" as progress, not proof of green — always re-dispatch for real after
   each fix and read the new logs rather than assuming the job now passes end-to-end.
-- Not yet re-verified end-to-end with a real `workflow_dispatch` run after THIS third fix — next
+- **Third follow-up (same day):** dispatched again after the livecheck-ordering fix. `brew audit
+  --strict --online` PASSED this time (first time this job got past audit at all). But
+  `brew install --formula ./pptxdiff.rb` then failed with "Homebrew requires formulae to be in a
+  tap, rejecting: ./pptxdiff.rb" — the same underlying tap requirement as the `brew audit [path]`
+  change, just enforced by `install` too and only reachable once `audit` stopped being the first
+  failure. Fixed by installing via the same tap-qualified name (`brew install --formula
+  local/pptxdiff-ci/pptxdiff`) instead of the bare path, reusing the tap already created/trusted for
+  the audit step. `brew test pptxdiff` left as-is (short name, not path-based, unaffected).
+- Not yet re-verified end-to-end with a real `workflow_dispatch` run after THIS fourth fix — next
   session/maintainer should re-run `sync-homebrew-tap` manually again and confirm all three jobs
   actually go green (bump-formula → brew-audit → sync-tap-repo, including the real push to
-  `sugatoray/homebrew-pptxdiff`).
+  `sugatoray/homebrew-pptxdiff`). Given the pattern of one fix exposing the next real check, don't
+  be surprised if `brew test` or the `sync-tap-repo` job surfaces something new too — re-check logs,
+  don't assume.
 
 ## Update (2026-08-05 — docs-site coverage for the Homebrew formula)
 - Direct ask: "Make sure to update the documentation under pptxdiff/docs-site folder." Read

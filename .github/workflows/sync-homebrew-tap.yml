@@ -146,8 +146,12 @@ jobs:
           brew trust --formula local/pptxdiff-ci/pptxdiff
           brew audit --strict --online local/pptxdiff-ci/pptxdiff
 
+      # `brew install` also now rejects a bare formula path ("Homebrew
+      # requires formulae to be in a tap, rejecting: ./pptxdiff.rb") -- same
+      # underlying tap requirement as `audit` above. Install by the same
+      # tap-qualified name from the local tap created/trusted above.
       - name: brew install --formula
-        run: brew install --formula ./pptxdiff.rb
+        run: brew install --formula local/pptxdiff-ci/pptxdiff
 
       - name: brew test
         run: brew test pptxdiff
