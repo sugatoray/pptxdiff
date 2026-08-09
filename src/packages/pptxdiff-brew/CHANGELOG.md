@@ -10,6 +10,20 @@ root `CHANGELOG.md` for that).
 
 ## [Unreleased] (continued)
 
+### Added
+
+- `brew_README.md` — a minimal, tap-facing install doc (`brew tap` + `brew install` + basic usage),
+  copied by `.github/workflows/sync-homebrew-tap.yml` into `sugatoray/homebrew-pptxdiff` as that
+  repo's `README.md`. Deliberately separate from this package's own `README.md`, which documents
+  the formula/package itself (Red/Green TDD, CI pipeline internals, etc.) and isn't meant to ship
+  as the tap repo's front page.
+
+### Changed
+
+- `.github/workflows/sync-homebrew-tap.yml` no longer stages or copies `CHANGELOG.md` to the tap
+  repo — the tap doesn't carry a changelog copy. The `README.md` it copies now comes from
+  `brew_README.md` instead of this package's own `README.md`.
+
 ### Fixed
 
 - `.github/workflows/sync-homebrew-tap.yml`'s `brew-audit` job, which failed on its first four real

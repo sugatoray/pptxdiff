@@ -144,10 +144,12 @@ Homebrew-native signal, independent of `sync-tap.mjs`.
 1. **`bump-formula`** (ubuntu, runs `sync-tap.mjs` against this repo's own `Formula/pptxdiff.rb`,
    then `npm test` for real verification) — opens a PR against **this** repo if the pin changed, so
    the monorepo's source-of-truth copy stays current release-over-release instead of drifting stale
-   between manual bumps. Also stages `Formula/pptxdiff.rb` **plus this directory's `README.md`,
-   `CHANGELOG.md`, and `LICENSE`** as a build artifact for the next two jobs — the tap repo needs its
-   own copies of all four as a standalone repo, same reason `pptxdiff-vscode` carries its own copy of
-   the root `LICENSE`.
+   between manual bumps. Also stages `Formula/pptxdiff.rb`, this directory's **`brew_README.md`**
+   (copied into the tap as its `README.md` — a minimal, tap-facing install doc, deliberately not
+   this package's own longer `README.md`), and **`LICENSE`** as a build artifact for the next two
+   jobs — the tap repo needs its own copies of all three as a standalone repo, same reason
+   `pptxdiff-vscode` carries its own copy of the root `LICENSE`. `CHANGELOG.md` is NOT staged or
+   copied to the tap — it's monorepo-internal history, not something the tap repo carries.
 2. **`brew-audit`** (macOS, needs step 1's `should_sync` output) — runs actual
    `brew audit --strict --online`, `brew install --formula`, and `brew test` against the staged
    formula. GitHub's `macos-latest` runners ship with Homebrew preinstalled as a normal (non-root)
@@ -155,8 +157,8 @@ Homebrew-native signal, independent of `sync-tap.mjs`.
    `test_formula.mjs`'s own doc comment for why) — once this workflow runs for real, it closes that
    gap for good.
 3. **`sync-tap-repo`** (needs both above) — checks out `sugatoray/homebrew-pptxdiff`, copies
-   `Formula/pptxdiff.rb` into its `Formula/` directory and `README.md`/`CHANGELOG.md`/`LICENSE` into
-   its repo root, and opens a PR there with all four.
+   `Formula/pptxdiff.rb` into its `Formula/` directory and `README.md`/`LICENSE` into its repo root,
+   and opens a PR there with all three.
 
 Triggers and the `should_sync` gate, deliberate: `workflow_dispatch` (run by hand, optionally pinning
 an exact version) **always** runs jobs 2 and 3 — even if the version pin itself didn't change — so a
