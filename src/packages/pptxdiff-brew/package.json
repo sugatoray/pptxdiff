@@ -1,6 +1,6 @@
 {
   "name": "pptxdiff-brew",
-  "version": "0.1.0",
+  "version": "0.7.0-20260809",
   "description": "Homebrew formula packaging for pptxdiff (Formula/pptxdiff.rb) and its version-bump sync tooling (sync-tap.mjs) — not an npm package itself, just a place to run its Red/Green tests.",
   "license": "Apache-2.0",
   "private": true,

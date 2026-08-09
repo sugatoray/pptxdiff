@@ -2,6 +2,12 @@
 
 All notable changes to the pptxdiff VS Code extension will be documented in this file.
 
+## [0.4.0] - 2026-08-09
+
+### Added
+
+- Bundled upstream `pptxdiff` app `0.8.0` into the extension package.
+
 ## [0.3.0] - 2026-08-02
 
 ### Added

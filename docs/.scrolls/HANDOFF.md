@@ -2,6 +2,20 @@
 
 **Read `.scrolls/SPEC.md` first for the full feature list.** This file is the "what's the state of things right now" note — update it at the end of every session, keep it short and current (prune stale entries).
 
+## Update (2026-08-09 — version bump `0.7.0` → `0.8.0`)
+- Direct ask: bump the root `pptxdiff` package version and update the changelog. Bumped
+  `package.json`/`package-lock.json` to `0.8.0`, and in root `CHANGELOG.md` moved the accumulated
+  `[Unreleased]` entries (the Homebrew formula work: `pptxdiff-brew`, `sync-tap.mjs`, the CI workflow,
+  and the `LICENSE` sync) under a new `## [0.8.0] - 2026-08-09` heading, leaving `[Unreleased]` empty.
+- Checked `src/pptxdiff/docs-site/` for anything needing a matching edit: none did. Its changelog
+  pages (`docs/changelog.md` and the per-package `docs/changelogs/*.md`) use a
+  `--8<-- "CHANGELOG.md"`-style snippet include of the real root `CHANGELOG.md`, so they pick up the
+  new `0.8.0` section automatically at build time — no manual sync step exists or is needed. No other
+  docs-site page hardcodes the app version.
+- Left `src/packages/pptxdiff-brew/Formula/pptxdiff.rb`'s npm tarball pin at `0.7.0` deliberately: it
+  tracks the actually-*published* npm version, not the local `package.json`, and updates only via
+  `sync-tap.mjs` once `0.8.0` is really published to the registry.
+
 ## Update (2026-08-09 — fixed the sync-homebrew-tap.yml `brew-audit` job)
 - Direct ask: "the brew github actions pipeline ... did not succeed. Fix it." The workflow's first
   real `workflow_dispatch` run (2026-08-08) failed at the `brew-audit` (macOS) job's `brew audit
