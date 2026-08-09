@@ -27,9 +27,23 @@
   necessary but not sufficient: moving to a tap-qualified name tripped a second, separate check.
   Fixed by adding `brew trust --formula local/pptxdiff-ci/pptxdiff` right after copying the formula
   into the tap, before `brew audit` references it by that name. See WISDOM.md's new trap entry.
-- Still not yet re-verified end-to-end with a real `workflow_dispatch` run after THIS second fix —
-  next session/maintainer should re-run `sync-homebrew-tap` manually again and confirm all three jobs
-  actually go green this time (don't assume — the first "fix" looked complete too and wasn't).
+- **Second follow-up (same day):** dispatched the workflow again (from this session, with explicit
+  user go-ahead) against the tap-trust fix. Progress — `tap-new`/`brew trust` both succeeded this
+  time — but `brew audit --strict --online` then failed on a real, pre-existing formula lint issue
+  it could finally reach: "`livecheck` (line 10) should be put before `depends_on` (line 8)".
+  Homebrew enforces a canonical formula-component order under `--strict`. Fixed by reordering
+  `Formula/pptxdiff.rb` (`livecheck` block now above `depends_on "node"`) — confirmed
+  `lib.mjs`'s regex-based parse/pin-update logic is order-agnostic (grepped for `livecheck`/
+  `depends_on`/`url`/`sha256` across `lib.mjs`/`test_formula.mjs`/`test_sync_tap.mjs`), then reran
+  `npm test` locally: 33/33 (11 `test_sync_tap` + 22 `test_formula`) still green.
+- **Pattern worth naming**: this job has now failed on three DIFFERENT real Homebrew-CLI checks in
+  sequence, each only reachable once the prior one was fixed (path→tap→trust→audit-content). Treat
+  "the previous error is gone" as progress, not proof of green — always re-dispatch for real after
+  each fix and read the new logs rather than assuming the job now passes end-to-end.
+- Not yet re-verified end-to-end with a real `workflow_dispatch` run after THIS third fix — next
+  session/maintainer should re-run `sync-homebrew-tap` manually again and confirm all three jobs
+  actually go green (bump-formula → brew-audit → sync-tap-repo, including the real push to
+  `sugatoray/homebrew-pptxdiff`).
 
 ## Update (2026-08-05 — docs-site coverage for the Homebrew formula)
 - Direct ask: "Make sure to update the documentation under pptxdiff/docs-site folder." Read
