@@ -16,7 +16,7 @@ since the binaries have no independent feature set of their own.
 ### Added
 
 - First standalone Windows executable, built via `@yao-pkg/pkg` (see
-  `../README.md` and `docs/.scrolls/SPEC.md` §32) — download
+  `../README.md` and `docs/.scrolls/SPEC.md` §36) — download
   `pptxdiff-win.exe`, run it. A true single file (Node runtime and the
   static app files it serves are both embedded inside it) — no separate
   Node.js install, no companion folder needed.

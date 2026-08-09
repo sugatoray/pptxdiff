@@ -2,21 +2,21 @@
 title: Documentation Coverage
 render_macros: true
 coverage_summary:
-  generated_at: '2026-08-05T06:08:51Z'
+  generated_at: '2026-08-09T03:15:30Z'
   totals:
     overall:
-      items: 40
-      complete: 36
-      partial: 4
+      items: 42
+      complete: 37
+      partial: 5
       missing: 0
     feature:
-      items: 26
+      items: 27
       complete: 22
-      partial: 4
+      partial: 5
       missing: 0
     limitation:
-      items: 14
-      complete: 14
+      items: 15
+      complete: 15
       partial: 0
       missing: 0
   items:
@@ -129,7 +129,7 @@ coverage_summary:
     quality: partial
     locations:
     - page: getting-started.md
-      anchor: option-d-standalone-binary-no-nodejs-at-all
+      anchor: option-e-standalone-binary-no-nodejs-at-all
   - id: npm-cli-packaging
     kind: feature
     title: npm CLI (bin/cli.js)

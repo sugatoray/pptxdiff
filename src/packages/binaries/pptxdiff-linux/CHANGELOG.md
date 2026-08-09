@@ -16,7 +16,7 @@ since the binaries have no independent feature set of their own.
 ### Added
 
 - First standalone Linux executable, built via `@yao-pkg/pkg` (see
-  `../README.md` and `docs/.scrolls/SPEC.md` §32) — download
+  `../README.md` and `docs/.scrolls/SPEC.md` §36) — download
   `pptxdiff-linux`, `chmod +x pptxdiff-linux && ./pptxdiff-linux`. A true
   single file (Node runtime and the static app files it serves are both
   embedded inside it) — no separate Node.js install, no companion folder

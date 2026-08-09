@@ -424,7 +424,7 @@ shim, not sequentially — that plan is what shipped below.
   confirming both docs files survive. `src/packages/binaries/pptxdiff-{win,mac,linux}/CHANGELOG.md`
   added (Keep a Changelog format, tracks the bundled `pptxdiff` app version). Root `CHANGELOG.md`
   `[Unreleased]` section filled in for this whole feature (previously an empty placeholder). See
-  SPEC.md §32, WISDOM.md's new "clean the output dir" trap entry.
+  SPEC.md §36, WISDOM.md's new "clean the output dir" trap entry.
 
 ## New tickets opened this session
 1. **P2 — Attach the built binaries to GitHub Releases**, not just CI workflow artifacts. Needs a
@@ -500,7 +500,7 @@ shim, not sequentially — that plan is what shipped below.
   `buildOne()`'s `outDir` computation to use the `osKey` argument instead of `target.outDirKey`,
   confirmed the dedicated regression test caught it (22/23), restored it, confirmed 23/23.
 - [x] Per-OS mac `README.md`/`CHANGELOG.md`, the top-level `src/packages/binaries/README.md`, root
-  `CHANGELOG.md`, `SPEC.md` §32, `GAP_ANALYSIS.md`, and `GAP_CONTEXT.md` all updated to describe both
+  `CHANGELOG.md`, `SPEC.md` §36, `GAP_ANALYSIS.md`, and `GAP_CONTEXT.md` all updated to describe both
   mac targets.
 
 ## New tickets opened this session
@@ -540,5 +540,5 @@ shim, not sequentially — that plan is what shipped below.
   checking `os.arch()` for every platform, so an arm64 Linux/Windows CI runner would also genuinely
   exercise its native target rather than always falling back to x64.
 - [x] Per-OS win/linux `README.md`/`CHANGELOG.md`, the top-level `src/packages/binaries/README.md`,
-  root `CHANGELOG.md`, `SPEC.md` §32, `GAP_ANALYSIS.md`, and `GAP_CONTEXT.md` all updated — all six
+  root `CHANGELOG.md`, `SPEC.md` §36, `GAP_ANALYSIS.md`, and `GAP_CONTEXT.md` all updated — all six
   targets now documented consistently.
