@@ -19,9 +19,17 @@
   (Homebrew org discussion #4864) and a real-world precedent (`homebrew-releaser`'s CI) before
   applying it. New WISDOM.md trap entry added so this isn't re-discovered from scratch next time
   Homebrew ships another audit-CLI breaking change.
-- Not yet re-verified end-to-end with a real `workflow_dispatch` run (this session can push the fix
-  but the maintainer needs to trigger the workflow to confirm green) — next session/maintainer
-  should re-run `sync-homebrew-tap` manually and confirm all three jobs pass.
+- **Follow-up (same day):** maintainer ran `workflow_dispatch` for real against this fix and it
+  failed again, at the same `brew audit --strict --online local/pptxdiff-ci/pptxdiff` line, with a
+  NEW error: "Refusing to load formula local/pptxdiff-ci/pptxdiff from untrusted tap
+  local/pptxdiff-ci." — Homebrew's Tap Trust feature (third-party tap Ruby is unsandboxed code, so a
+  freshly `tap-new`'d local tap is untrusted until explicitly trusted). The path-fix above was
+  necessary but not sufficient: moving to a tap-qualified name tripped a second, separate check.
+  Fixed by adding `brew trust --formula local/pptxdiff-ci/pptxdiff` right after copying the formula
+  into the tap, before `brew audit` references it by that name. See WISDOM.md's new trap entry.
+- Still not yet re-verified end-to-end with a real `workflow_dispatch` run after THIS second fix —
+  next session/maintainer should re-run `sync-homebrew-tap` manually again and confirm all three jobs
+  actually go green this time (don't assume — the first "fix" looked complete too and wasn't).
 
 ## Update (2026-08-05 — docs-site coverage for the Homebrew formula)
 - Direct ask: "Make sure to update the documentation under pptxdiff/docs-site folder." Read
