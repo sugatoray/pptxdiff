@@ -35,6 +35,22 @@ No changes yet.
 ### Changed
 
 - `index.md`'s Install tabs gained a "Homebrew" option; `getting-started.md` gained "Option D — Homebrew" (intro sentence reworded from "three equivalent ways" to "several," so it won't need editing again next time); `architecture.md`'s packaging-layers diagram now shows five surfaces instead of four; `limitations.md` gained two new rows (tap doesn't exist yet; not verified against real `brew` locally, with the real root cause explained).
+## 2026-08-05 — Content updates + new changelog subpage for standalone native binaries
+
+### Added
+
+- `getting-started.md`: new "Option E — standalone binary (no Node.js at all)" section (rebased after master's Homebrew work claimed "Option D" first); `cli.md` gained a one-paragraph cross-link to it.
+- `limitations.md`: new row for the standalone binaries' own limitations (unsigned/ad-hoc-signed, not on GitHub Releases yet).
+- New changelog subpage `changelogs/pptxdiff-binaries.md`, added to nav — structurally different from every other subpage since it transcludes THREE per-OS `CHANGELOG.md` files (no single package-level one exists for this package) under `## Windows` / `## macOS` / `## Linux` subheadings.
+- New `documentation-coverage.md` registry entries: `native-binaries` (feature, `partial`) and `native-binaries-limitations` (limitation, `complete`).
+
+### Fixed
+
+- The three per-OS `CHANGELOG.md` files' relative link back to the root `CHANGELOG.md` broke once transcluded into the new changelog subpage (`pymdownx.snippets` doesn't rewrite relative links for their new location) — caught by `mkdocs build --strict`, fixed by swapping to an absolute GitHub URL at the source.
+
+### Changed
+
+- `index.md`'s "No install required" card now mentions the binaries option.
 
 See `docs/.scrolls/DOCS.md` §15 for the full reasoning.
 

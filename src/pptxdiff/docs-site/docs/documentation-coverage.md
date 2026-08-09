@@ -2,21 +2,21 @@
 title: Documentation Coverage
 render_macros: true
 coverage_summary:
-  generated_at: '2026-08-05T08:54:58Z'
+  generated_at: '2026-08-09T03:15:30Z'
   totals:
     overall:
-      items: 40
-      complete: 36
-      partial: 4
+      items: 42
+      complete: 37
+      partial: 5
       missing: 0
     feature:
-      items: 26
+      items: 27
       complete: 22
-      partial: 4
+      partial: 5
       missing: 0
     limitation:
-      items: 14
-      complete: 14
+      items: 15
+      complete: 15
       partial: 0
       missing: 0
   items:
@@ -123,6 +123,13 @@ coverage_summary:
     locations:
     - page: features/exports.md
       anchor: live-push
+  - id: native-binaries
+    kind: feature
+    title: Standalone native binaries (@pptxdiff/binaries, x64+arm64 for win/mac/linux)
+    quality: partial
+    locations:
+    - page: getting-started.md
+      anchor: option-e-standalone-binary-no-nodejs-at-all
   - id: npm-cli-packaging
     kind: feature
     title: npm CLI (bin/cli.js)
@@ -289,6 +296,14 @@ coverage_summary:
   - id: lite-mode-limitations
     kind: limitation
     title: Lite mode is all 5 dependencies at once, no per-dependency mixing
+    quality: complete
+    locations:
+    - page: limitations.md
+      anchor: null
+  - id: native-binaries-limitations
+    kind: limitation
+    title: 'Standalone binaries: unsigned/ad-hoc-signed, macOS not cross-compiled,
+      not on GitHub Releases'
     quality: complete
     locations:
     - page: limitations.md
