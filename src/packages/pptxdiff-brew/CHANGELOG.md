@@ -8,7 +8,21 @@ intends to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html) onc
 real tap. Entries here track the formula itself, not the underlying `pptxdiff` npm package (see the
 root `CHANGELOG.md` for that).
 
-## [Unreleased] (continued)
+Versions here follow `{pptxdiff-version}-{calver}` (see `CLAUDE.md` in this directory for the full
+methodology) — not plain SemVer, since this package tracks someone else's release, not its own.
+`pptxdiff-version` and `calver` for each entry below reflect what was true at the commit(s) that
+introduced it, not the date this changelog was last edited.
+
+## [Unreleased]
+
+## [0.7.0-20260809] - 2026-08-09
+
+### Added
+
+- Adopted the `{pptxdiff-version}-{calver}` versioning methodology for this package (`package.json`
+  `version` + this file's headings), documented in a new `CLAUDE.md` in this directory.
+
+## [0.7.0-20260808] - 2026-08-08
 
 ### Added
 
@@ -23,6 +37,11 @@ root `CHANGELOG.md` for that).
 - `.github/workflows/sync-homebrew-tap.yml` no longer stages or copies `CHANGELOG.md` to the tap
   repo — the tap doesn't carry a changelog copy. The `README.md` it copies now comes from
   `brew_README.md` instead of this package's own `README.md`.
+- `README.md`: "Installing" now leads with the real `brew tap sugatoray/pptxdiff && brew install
+  pptxdiff` path (noting the one still-open sync PR, `homebrew-pptxdiff#1`, that needs merging for
+  install to resolve), demoted the direct-file install to a fallback; "Status" and "Publishing to a
+  real tap" updated to reflect that both one-time setup steps (repo + `HOMEBREW_TAP_TOKEN`) are done
+  and the pipeline has run green end-to-end for real, not just been written and syntax-checked.
 
 ### Fixed
 
@@ -38,15 +57,7 @@ root `CHANGELOG.md` for that).
   `sync-tap-repo`'s `actions/checkout` step ("couldn't find remote ref refs/heads/master"). Given an
   initial commit (README) directly, unblocking the workflow's own PR-opening step.
 
-### Changed
-
-- `README.md`: "Installing" now leads with the real `brew tap sugatoray/pptxdiff && brew install
-  pptxdiff` path (noting the one still-open sync PR, `homebrew-pptxdiff#1`, that needs merging for
-  install to resolve), demoted the direct-file install to a fallback; "Status" and "Publishing to a
-  real tap" updated to reflect that both one-time setup steps (repo + `HOMEBREW_TAP_TOKEN`) are done
-  and the pipeline has run green end-to-end for real, not just been written and syntax-checked.
-
-## [Unreleased]
+## [0.7.0-20260805] - 2026-08-05
 
 ### Added
 
@@ -69,18 +80,6 @@ root `CHANGELOG.md` for that).
   resulting real `pptxdiff` binary — the same functional proof `brew test` would give.
 - `package.json` (private, no publish) so `npm test` works the same way it does in the other
   `src/packages/*` directories.
-
-### Verified
-
-- Demonstrated genuine RED before GREEN: corrupted the formula's `sha256` pin and deleted its
-  `depends_on "node"` line, ran `test_formula.mjs`, confirmed exactly those 2 of 18 assertions
-  failed (16/18) while every other check — including the real `npm install`/run/curl against the
-  live tarball — stayed green; restored the formula and confirmed 18/18 again.
-
-## [Unreleased] (continued)
-
-### Added
-
 - `lib.mjs` — shared pure/network helpers (`parseFormula`, `fetch`, `sha256hex`,
   `resolveNpmVersion`, and a new `updateFormulaPin`) factored out of `test_formula.mjs` so
   `sync-tap.mjs` doesn't duplicate the same formula-parsing/network logic.
@@ -108,11 +107,6 @@ root `CHANGELOG.md` for that).
   and the two manual one-time setup steps (repo + secret) still needed before job 3 can succeed.
 - `README.md`: new "Publishing to a real tap" section; "Bumping the version" rewritten to point at
   `sync-tap.mjs` instead of manual editing.
-
-## [Unreleased] (continued)
-
-### Added
-
 - `LICENSE` — a real copy (not a symlink) of the repo root's Apache-2.0 `LICENSE`, matching
   `pptxdiff-vscode`'s existing precedent of carrying its own copy for the same reason: this
   directory's content is pushed into the separate `sugatoray/homebrew-pptxdiff` repo by CI, which
@@ -141,6 +135,10 @@ root `CHANGELOG.md` for that).
 
 ### Verified
 
+- Demonstrated genuine RED before GREEN: corrupted the formula's `sha256` pin and deleted its
+  `depends_on "node"` line, ran `test_formula.mjs`, confirmed exactly those 2 of 18 assertions
+  failed (16/18) while every other check — including the real `npm install`/run/curl against the
+  live tarball — stayed green; restored the formula and confirmed 18/18 again.
 - Three real RED states demonstrated before the final GREEN: `LICENSE` moved away entirely (2/22
   failed: existence + identity); `LICENSE` restored but then content-tampered, i.e. drifted rather
   than missing (1/22 failed: identity only, existence correctly passed); restored to genuinely
