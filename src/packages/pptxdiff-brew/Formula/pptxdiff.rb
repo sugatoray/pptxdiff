@@ -5,12 +5,12 @@ class Pptxdiff < Formula
   sha256 "b7bc10ffee012efa1d4914e53b264b338dfbb15dea0714f31c6f664023bff272"
   license "Apache-2.0"
 
-  depends_on "node"
-
   livecheck do
     url :stable
     strategy :npm
   end
+
+  depends_on "node"
 
   def install
     # The published tarball has zero runtime "dependencies" (only devDependencies

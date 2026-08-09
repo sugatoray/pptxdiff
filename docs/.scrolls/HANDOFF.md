@@ -2,6 +2,59 @@
 
 **Read `.scrolls/SPEC.md` first for the full feature list.** This file is the "what's the state of things right now" note — update it at the end of every session, keep it short and current (prune stale entries).
 
+## Update (2026-08-09 — fixed the sync-homebrew-tap.yml `brew-audit` job)
+- Direct ask: "the brew github actions pipeline ... did not succeed. Fix it." The workflow's first
+  real `workflow_dispatch` run (2026-08-08) failed at the `brew-audit` (macOS) job's `brew audit
+  --strict --online ./pptxdiff.rb` step: `##[error]Calling \`brew audit [path ...]\` is disabled!
+  Use \`brew audit [name ...]\` instead.` — a Homebrew CLI change (Homebrew/brew#18873) that landed
+  after this workflow was originally written, disallowing path-based `brew audit` invocations
+  entirely (install/test are unaffected — only `audit`).
+- Fix: `.github/workflows/sync-homebrew-tap.yml`'s `brew-audit` job now stands up a throwaway local
+  tap (`brew tap-new local/pptxdiff-ci --no-git`), copies the staged `pptxdiff.rb` into that tap's
+  `Formula/` directory, and audits it by tap-qualified name (`local/pptxdiff-ci/pptxdiff`) instead of
+  by path. `brew install --formula ./pptxdiff.rb` and `brew test pptxdiff` steps left unchanged (not
+  affected by the breaking change).
+- Confirmed root cause against the actual failed run's logs (`gh`/GitHub MCP `get_job_logs`, run id
+  31236058133) rather than guessing, then verified the fix pattern against Homebrew's own guidance
+  (Homebrew org discussion #4864) and a real-world precedent (`homebrew-releaser`'s CI) before
+  applying it. New WISDOM.md trap entry added so this isn't re-discovered from scratch next time
+  Homebrew ships another audit-CLI breaking change.
+- **Follow-up (same day):** maintainer ran `workflow_dispatch` for real against this fix and it
+  failed again, at the same `brew audit --strict --online local/pptxdiff-ci/pptxdiff` line, with a
+  NEW error: "Refusing to load formula local/pptxdiff-ci/pptxdiff from untrusted tap
+  local/pptxdiff-ci." — Homebrew's Tap Trust feature (third-party tap Ruby is unsandboxed code, so a
+  freshly `tap-new`'d local tap is untrusted until explicitly trusted). The path-fix above was
+  necessary but not sufficient: moving to a tap-qualified name tripped a second, separate check.
+  Fixed by adding `brew trust --formula local/pptxdiff-ci/pptxdiff` right after copying the formula
+  into the tap, before `brew audit` references it by that name. See WISDOM.md's new trap entry.
+- **Second follow-up (same day):** dispatched the workflow again (from this session, with explicit
+  user go-ahead) against the tap-trust fix. Progress — `tap-new`/`brew trust` both succeeded this
+  time — but `brew audit --strict --online` then failed on a real, pre-existing formula lint issue
+  it could finally reach: "`livecheck` (line 10) should be put before `depends_on` (line 8)".
+  Homebrew enforces a canonical formula-component order under `--strict`. Fixed by reordering
+  `Formula/pptxdiff.rb` (`livecheck` block now above `depends_on "node"`) — confirmed
+  `lib.mjs`'s regex-based parse/pin-update logic is order-agnostic (grepped for `livecheck`/
+  `depends_on`/`url`/`sha256` across `lib.mjs`/`test_formula.mjs`/`test_sync_tap.mjs`), then reran
+  `npm test` locally: 33/33 (11 `test_sync_tap` + 22 `test_formula`) still green.
+- **Pattern worth naming**: this job has now failed on three DIFFERENT real Homebrew-CLI checks in
+  sequence, each only reachable once the prior one was fixed (path→tap→trust→audit-content). Treat
+  "the previous error is gone" as progress, not proof of green — always re-dispatch for real after
+  each fix and read the new logs rather than assuming the job now passes end-to-end.
+- **Third follow-up (same day):** dispatched again after the livecheck-ordering fix. `brew audit
+  --strict --online` PASSED this time (first time this job got past audit at all). But
+  `brew install --formula ./pptxdiff.rb` then failed with "Homebrew requires formulae to be in a
+  tap, rejecting: ./pptxdiff.rb" — the same underlying tap requirement as the `brew audit [path]`
+  change, just enforced by `install` too and only reachable once `audit` stopped being the first
+  failure. Fixed by installing via the same tap-qualified name (`brew install --formula
+  local/pptxdiff-ci/pptxdiff`) instead of the bare path, reusing the tap already created/trusted for
+  the audit step. `brew test pptxdiff` left as-is (short name, not path-based, unaffected).
+- Not yet re-verified end-to-end with a real `workflow_dispatch` run after THIS fourth fix — next
+  session/maintainer should re-run `sync-homebrew-tap` manually again and confirm all three jobs
+  actually go green (bump-formula → brew-audit → sync-tap-repo, including the real push to
+  `sugatoray/homebrew-pptxdiff`). Given the pattern of one fix exposing the next real check, don't
+  be surprised if `brew test` or the `sync-tap-repo` job surfaces something new too — re-check logs,
+  don't assume.
+
 ## Update (2026-08-05 — docs-site coverage for the Homebrew formula)
 - Direct ask: "Make sure to update the documentation under pptxdiff/docs-site folder." Read
   `docs/.scrolls/DOCS.md` first per `STARTER.md`'s standing rule (this is more than a routine

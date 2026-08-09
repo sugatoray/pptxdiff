@@ -8,6 +8,44 @@ intends to follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html) onc
 real tap. Entries here track the formula itself, not the underlying `pptxdiff` npm package (see the
 root `CHANGELOG.md` for that).
 
+## [Unreleased] (continued)
+
+### Added
+
+- `brew_README.md` — a minimal, tap-facing install doc (`brew tap` + `brew install` + basic usage),
+  copied by `.github/workflows/sync-homebrew-tap.yml` into `sugatoray/homebrew-pptxdiff` as that
+  repo's `README.md`. Deliberately separate from this package's own `README.md`, which documents
+  the formula/package itself (Red/Green TDD, CI pipeline internals, etc.) and isn't meant to ship
+  as the tap repo's front page.
+
+### Changed
+
+- `.github/workflows/sync-homebrew-tap.yml` no longer stages or copies `CHANGELOG.md` to the tap
+  repo — the tap doesn't carry a changelog copy. The `README.md` it copies now comes from
+  `brew_README.md` instead of this package's own `README.md`.
+
+### Fixed
+
+- `.github/workflows/sync-homebrew-tap.yml`'s `brew-audit` job, which failed on its first four real
+  `workflow_dispatch` runs against real Homebrew-CLI behavior changes: `brew audit`/`brew install`
+  no longer accept a bare formula path (fixed by staging the formula into a throwaway local tap and
+  addressing it by tap-qualified name); a freshly created local tap is untrusted by default (fixed
+  with `brew trust --formula`); `brew audit --strict` enforces `livecheck` coming before
+  `depends_on` in `Formula/pptxdiff.rb` (reordered). All three jobs (`bump-formula` → `brew-audit` →
+  `sync-tap-repo`) now pass end-to-end for real, including a genuine PR opened against
+  `sugatoray/homebrew-pptxdiff` (`homebrew-pptxdiff#1`).
+- `sugatoray/homebrew-pptxdiff` itself had no commits/branches yet, which separately blocked
+  `sync-tap-repo`'s `actions/checkout` step ("couldn't find remote ref refs/heads/master"). Given an
+  initial commit (README) directly, unblocking the workflow's own PR-opening step.
+
+### Changed
+
+- `README.md`: "Installing" now leads with the real `brew tap sugatoray/pptxdiff && brew install
+  pptxdiff` path (noting the one still-open sync PR, `homebrew-pptxdiff#1`, that needs merging for
+  install to resolve), demoted the direct-file install to a fallback; "Status" and "Publishing to a
+  real tap" updated to reflect that both one-time setup steps (repo + `HOMEBREW_TAP_TOKEN`) are done
+  and the pipeline has run green end-to-end for real, not just been written and syntax-checked.
+
 ## [Unreleased]
 
 ### Added

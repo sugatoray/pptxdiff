@@ -1,12 +1,14 @@
 name: sync-homebrew-tap
 
 # Keeps a separate sugatoray/homebrew-pptxdiff tap repo in sync with this
-# monorepo's src/packages/pptxdiff-brew/ -- both the formula's url/sha256
-# pin AND the package's README.md/CHANGELOG.md/LICENSE, which the tap repo
-# needs as its own top-level files once it's a standalone repo (LICENSE in
-# particular: the tap repo distributes the same Apache-2.0-licensed formula
-# content, so it needs its own copy, same as pptxdiff-vscode already
-# carries its own copy of the root LICENSE for the same reason).
+# monorepo's src/packages/pptxdiff-brew/ -- the formula's url/sha256 pin,
+# plus LICENSE and a tap-specific brew_README.md (pushed to the tap as its
+# README.md; the package's own README.md/CHANGELOG.md are monorepo-internal
+# docs and deliberately NOT copied to the tap -- see brew_README.md's own
+# doc comment for why a separate minimal file exists). LICENSE is a real
+# copy because the tap repo distributes the same Apache-2.0-licensed formula
+# content and needs its own, same as pptxdiff-vscode already carries its own
+# copy of the root LICENSE for the same reason.
 #
 # Trigger choice, deliberate: npm publishing from this repo is still a
 # manual `npm publish` step (see root package.json's `build:npm` -- it only
@@ -14,10 +16,10 @@ name: sync-homebrew-tap
 # happened" CI event to hook. Rather than race a push-to-master trigger
 # against an unpublished version, this runs on:
 #   - workflow_dispatch: the maintainer runs it by hand, optionally pinning
-#     an exact version. ALWAYS syncs current README/CHANGELOG/LICENSE/
-#     formula state to the tap on this trigger, even if the version pin
-#     itself didn't change -- this is the "I just edited the README, push
-#     it to the tap" path, a deliberate human action.
+#     an exact version. ALWAYS syncs current README/LICENSE/formula state to
+#     the tap on this trigger, even if the version pin itself didn't change
+#     -- this is the "I just edited the README, push it to the tap" path, a
+#     deliberate human action.
 #   - schedule (weekly): a safety net that catches version drift
 #     automatically even if the manual dispatch is forgotten, the same way
 #     `brew livecheck` periodically checks upstream versions in real
@@ -51,14 +53,14 @@ permissions:
 
 jobs:
   bump-formula:
-    name: Bump formula + stage README/CHANGELOG/LICENSE
+    name: Bump formula + stage README/LICENSE
     runs-on: ubuntu-latest
     outputs:
       changed: ${{ steps.sync.outputs.changed }}
       version: ${{ steps.sync.outputs.version }}
       # true if the formula pin actually changed, OR this run was a manual
       # workflow_dispatch (an explicit human action that should always push
-      # the current README/CHANGELOG/LICENSE/formula state to the tap, even
+      # the current README/LICENSE/formula state to the tap, even
       # when the version pin itself is unchanged). A scheduled run with no
       # pin change stays false -- no point opening PRs / spinning up a
       # macOS runner for a no-op weekly check.
@@ -80,13 +82,18 @@ jobs:
         working-directory: src/packages/pptxdiff-brew
         run: npm test
 
-      - name: Stage Formula/pptxdiff.rb + README.md + CHANGELOG.md + LICENSE for downstream jobs
+      # dist-tap/README.md comes from brew_README.md (a minimal, tap-facing
+      # install doc), NOT the package's own README.md -- that file documents
+      # this monorepo package itself (Red/Green TDD, CI pipeline internals,
+      # etc.) and is not meant to ship as the tap repo's README. CHANGELOG.md
+      # is intentionally not staged/copied at all -- the tap repo doesn't
+      # carry a changelog copy.
+      - name: Stage Formula/pptxdiff.rb + README.md + LICENSE for downstream jobs
         if: steps.sync.outputs.changed == 'true' || github.event_name == 'workflow_dispatch'
         run: |
           mkdir -p dist-tap
           cp src/packages/pptxdiff-brew/Formula/pptxdiff.rb dist-tap/pptxdiff.rb
-          cp src/packages/pptxdiff-brew/README.md dist-tap/README.md
-          cp src/packages/pptxdiff-brew/CHANGELOG.md dist-tap/CHANGELOG.md
+          cp src/packages/pptxdiff-brew/brew_README.md dist-tap/README.md
           cp src/packages/pptxdiff-brew/LICENSE dist-tap/LICENSE
 
       - name: Upload the staged files for downstream jobs
@@ -126,11 +133,32 @@ jobs:
           name: pptxdiff-tap-files
           path: .
 
+      # `brew audit` no longer accepts a bare file path (Homebrew/brew#18873:
+      # "Calling `brew audit [path ...]` is disabled! Use `brew audit
+      # [name ...]` instead.") -- it now requires the formula to live in a
+      # tap so it can be addressed by name. Stand up a throwaway local tap
+      # and drop the formula into it.
+      #
+      # A freshly created local tap is untrusted by default (Homebrew's Tap
+      # Trust feature, https://docs.brew.sh/Tap-Trust -- third-party tap
+      # Ruby is arbitrary/unsandboxed code, so Homebrew refuses to load it
+      # from a tap-qualified name until explicitly trusted: "Refusing to
+      # load formula local/pptxdiff-ci/pptxdiff from untrusted tap
+      # local/pptxdiff-ci."). Trust just this one formula (narrower than
+      # trusting the whole tap) before auditing it by name.
       - name: brew audit --strict --online
-        run: brew audit --strict --online ./pptxdiff.rb
+        run: |
+          brew tap-new local/pptxdiff-ci --no-git
+          cp ./pptxdiff.rb "$(brew --repository)/Library/Taps/local/homebrew-pptxdiff-ci/Formula/pptxdiff.rb"
+          brew trust --formula local/pptxdiff-ci/pptxdiff
+          brew audit --strict --online local/pptxdiff-ci/pptxdiff
 
+      # `brew install` also now rejects a bare formula path ("Homebrew
+      # requires formulae to be in a tap, rejecting: ./pptxdiff.rb") -- same
+      # underlying tap requirement as `audit` above. Install by the same
+      # tap-qualified name from the local tap created/trusted above.
       - name: brew install --formula
-        run: brew install --formula ./pptxdiff.rb
+        run: brew install --formula local/pptxdiff-ci/pptxdiff
 
       - name: brew test
         run: brew test pptxdiff
@@ -140,7 +168,7 @@ jobs:
         run: brew uninstall --force pptxdiff || true
 
   sync-tap-repo:
-    name: Push formula + README/CHANGELOG/LICENSE to sugatoray/homebrew-pptxdiff
+    name: Push formula + README/LICENSE to sugatoray/homebrew-pptxdiff
     needs: [bump-formula, brew-audit]
     if: needs.bump-formula.outputs.should_sync == 'true'
     runs-on: ubuntu-latest
@@ -163,12 +191,11 @@ jobs:
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           path: homebrew-pptxdiff
 
-      - name: Copy the formula into Formula/, README/CHANGELOG/LICENSE into the repo root
+      - name: Copy the formula into Formula/, README/LICENSE into the repo root
         run: |
           mkdir -p homebrew-pptxdiff/Formula
           cp pptxdiff-tap-files/pptxdiff.rb homebrew-pptxdiff/Formula/pptxdiff.rb
           cp pptxdiff-tap-files/README.md homebrew-pptxdiff/README.md
-          cp pptxdiff-tap-files/CHANGELOG.md homebrew-pptxdiff/CHANGELOG.md
           cp pptxdiff-tap-files/LICENSE homebrew-pptxdiff/LICENSE
 
       - name: Open a PR against the tap repo
@@ -181,8 +208,8 @@ jobs:
           body: |
             Automated sync from `sugatoray/pptxdiff`'s
             `.github/workflows/sync-homebrew-tap.yml`, source of truth at
-            `src/packages/pptxdiff-brew/` (`Formula/pptxdiff.rb`, `README.md`,
-            `CHANGELOG.md`, `LICENSE`).
+            `src/packages/pptxdiff-brew/` (`Formula/pptxdiff.rb`,
+            `brew_README.md` -> `README.md`, `LICENSE`).
 
             Already verified in that run: real Red/Green tests
             (`src/packages/pptxdiff-brew/test_formula.mjs` +
@@ -193,5 +220,4 @@ jobs:
           add-paths: |
             Formula/pptxdiff.rb
             README.md
-            CHANGELOG.md
             LICENSE
