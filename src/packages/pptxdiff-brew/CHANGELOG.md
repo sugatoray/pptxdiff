@@ -15,6 +15,24 @@ introduced it, not the date this changelog was last edited.
 
 ## [Unreleased]
 
+## [0.7.0-20260810] - 2026-08-10
+
+### Fixed
+
+- `.github/workflows/sync-homebrew-tap.yml`'s `bump-formula` job's "Open a PR against this repo
+  with the bumped pin" step failed for real on its first live run (PR #60) with "GitHub Actions is
+  not permitted to create or approve pull requests" — a repo-level policy gate on
+  `GITHUB_TOKEN`-authored PRs, not fixable via the workflow's `permissions:` block. The step now
+  authenticates with `${{ secrets.REPO_PR_TOKEN || github.token }}`, so an optional `REPO_PR_TOKEN`
+  PAT secret (not yet created) bypasses the gate when present, falling back to the default token
+  otherwise. See `docs/.scrolls/WISDOM.md` (monorepo root) for the full trap writeup and this
+  package's own `README.md` "Publishing to a real tap" section for the required one-time setup
+  (either enable the repo's "Allow GitHub Actions to create and approve pull requests" setting, or
+  add the `REPO_PR_TOKEN` secret).
+- Corrected `package.json`'s `version` field, which had drifted to `0.8.0` (not following this
+  directory's own `{pptxdiff-version}-{calver}` convention — see `CLAUDE.md`) — restored to
+  `0.7.0-20260810` (formula pin unchanged at `0.7.0`, `calver` bumped to today).
+
 ## [0.7.0-20260809] - 2026-08-09
 
 ### Added

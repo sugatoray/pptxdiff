@@ -7,7 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-...
+### Fixed
+
+- `.github/workflows/sync-homebrew-tap.yml`'s `bump-formula` job could not open its own PR against
+  this repo (`GitHub Actions is not permitted to create or approve pull requests` — a repo-level
+  policy gate, not a workflow bug). The step now authenticates with an optional `REPO_PR_TOKEN` PAT
+  secret when present, falling back to the default token otherwise
+  (`token: ${{ secrets.REPO_PR_TOKEN || github.token }}`). See
+  `src/packages/pptxdiff-brew/README.md`'s "Publishing to a real tap" section for the still-required
+  one-time setup (enable the repo's "Allow GitHub Actions to create and approve pull requests"
+  setting, or add the `REPO_PR_TOKEN` secret).
 
 ## [0.8.0] - 2026-08-09
 

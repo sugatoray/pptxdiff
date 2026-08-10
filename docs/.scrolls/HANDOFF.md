@@ -2,6 +2,47 @@
 
 **Read `.scrolls/SPEC.md` first for the full feature list.** This file is the "what's the state of things right now" note — update it at the end of every session, keep it short and current (prune stale entries).
 
+## Update (2026-08-10 — fixed sync-homebrew-tap.yml's bump-formula PR-creation step)
+- Direct ask: "The pipeline for brew is broken. Fix it," pointing at PR #60 and a specific failed
+  run/job/step (run 31345478010, job 93326493175, step 8). Pulled the real job log via the GitHub
+  MCP `get_job_logs` rather than guessing: `##[error]GitHub Actions is not permitted to create or
+  approve pull requests.` at the `bump-formula` job's "Open a PR against this repo with the bumped
+  pin" step (`peter-evans/create-pull-request@v7`, authenticating with the default `GITHUB_TOKEN`).
+- Root cause confirmed as a repo-level policy gate, not a workflow bug: Settings → Actions →
+  General → Workflow permissions → "Allow GitHub Actions to create and approve pull requests" is
+  off (the default for new repos), and this gate applies to `GITHUB_TOKEN`-authored PRs
+  specifically, regardless of the workflow's own `permissions:` block (already correctly declared
+  `pull-requests: write`). Verified I have no way to read or flip that setting from this session —
+  a direct `curl` to `GET /repos/.../actions/permissions/workflow` with the session's own
+  `GITHUB_TOKEN` returned a proxy-level 403 ("Access to this GitHub Actions path is not permitted
+  through this proxy"), so this genuinely needs a human with repo-admin access, not a missed API
+  call.
+- Fix applied: `.github/workflows/sync-homebrew-tap.yml`'s `bump-formula` job's create-pull-request
+  step now sets `token: ${{ secrets.REPO_PR_TOKEN || github.token }}` — GitHub's gate doesn't apply
+  to PAT-authored PRs, so an optional `REPO_PR_TOKEN` secret (not yet created) bypasses it
+  entirely when present, while falling back to the default token (works for free once the repo
+  setting is enabled) when it isn't. Deliberately did NOT reuse the existing `HOMEBREW_TAP_TOKEN` —
+  that PAT is scoped to the separate `sugatoray/homebrew-pptxdiff` tap repo and isn't guaranteed to
+  also have write access to `sugatoray/pptxdiff` itself.
+- **Still needs one human action to actually go green**: either enable the repo setting above, or
+  create the `REPO_PR_TOKEN` secret. Asked the user which they preferred via `AskUserQuestion`
+  twice (both times unanswered — this appears to be a non-interactive/automated session) before
+  proceeding with the code-side fix that supports either path without needing to guess further.
+  Documented both options in `src/packages/pptxdiff-brew/README.md`'s "Publishing to a real tap"
+  section and in this file's WISDOM.md trap entry. **Not yet re-verified with a real
+  `workflow_dispatch` run** — that needs the repo setting/secret to exist first; next
+  session/maintainer should flip one of the two, re-run, and confirm the `bump-formula` job's PR
+  step (and everything downstream — `brew-audit`, `sync-tap-repo`) actually goes green, per the
+  same "don't assume one fix means the whole job passes" lesson the 2026-08-09 entry below already
+  learned the hard way for this same workflow.
+- `src/packages/pptxdiff-brew/`'s own `CLAUDE.md` versioning convention (`{pptxdiff-version}-
+  {calver}`) applies here: no formula-pin change, so `package.json`'s `version` bumps only its
+  `calver` half. Also corrected a pre-existing drift found while doing this: `package.json`'s
+  `version` field was `0.8.0` — not `0.7.0-<calver>` as the convention requires given the formula
+  pin is still `0.7.0` (this looks like a leftover from the unrelated 2026-08-09 ROOT-package
+  version-bump session, which was about the root repo's `package.json`, not this directory's).
+  Corrected to `0.7.0-20260810`.
+
 ## Update (2026-08-09 — version bump `0.7.0` → `0.8.0`)
 - Direct ask: bump the root `pptxdiff` package version and update the changelog. Bumped
   `package.json`/`package-lock.json` to `0.8.0`, and in root `CHANGELOG.md` moved the accumulated

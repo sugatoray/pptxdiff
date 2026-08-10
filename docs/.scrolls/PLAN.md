@@ -373,11 +373,17 @@ shim, not sequentially — that plan is what shipped below.
   to this repo.** The only two things left before `sync-homebrew-tap.yml`'s `sync-tap-repo` job (and
   therefore `brew tap sugatoray/pptxdiff && brew install pptxdiff`) actually works — deliberately
   left as manual/human steps, not automated by an agent (see GAP_CONTEXT.md). Not started.
-- [ ] **P2 — Confirm `.github/workflows/sync-homebrew-tap.yml` actually runs green** the first time
-  it fires (`workflow_dispatch` or its weekly `schedule`) — written and YAML-syntax-checked in this
-  sandbox, but never executed by a real GitHub Actions runner yet. The `brew-audit` job in particular
-  is the first genuine real-`brew` verification of this formula anywhere — check its logs the first
-  time it runs. See GAP_ANALYSIS.md.
+- [ ] **P2 — Confirm `.github/workflows/sync-homebrew-tap.yml` actually runs green** end-to-end.
+  Progress as of 2026-08-10: the `bump-formula` job's own "open a PR against this repo" step has now
+  run for real (PR #60) and failed with "GitHub Actions is not permitted to create or approve pull
+  requests" — a repo-level policy gate, fixed in code with a `REPO_PR_TOKEN`-or-default-token
+  fallback (see WISDOM.md's trap entry), but the gate/secret itself still needs one human action
+  (enable the repo setting, or add the `REPO_PR_TOKEN` secret) before this job can actually open its
+  PR. `brew-audit`/`sync-tap-repo` remain unverified beyond the 2026-08-08/09 fixes below, since
+  they're gated behind this job. Next session/maintainer: pick one of the two fixes, re-dispatch, and
+  check the logs all the way through — don't assume this one fix is the last blocker (see the
+  2026-08-09 HANDOFF.md entries for how many distinct real Homebrew-CLI issues this same job has
+  already surfaced one at a time).
 - [ ] **P4 — Homebrew formula for `pptxdiff-cli`**, once that package is published to npm (currently
   monorepo-local only — see its own README's `file:` dependency note).
 

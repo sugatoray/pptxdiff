@@ -104,10 +104,29 @@ jobs:
           path: dist-tap
           retention-days: 7
 
+      # `peter-evans/create-pull-request` defaults to authenticating with the
+      # ambient GITHUB_TOKEN. That fails outright on repos where "Allow
+      # GitHub Actions to create and approve pull requests" (Settings ->
+      # Actions -> General -> Workflow permissions) is off -- the default for
+      # new repos -- with "GitHub Actions is not permitted to create or
+      # approve pull requests," REGARDLESS of this workflow's own `permissions:`
+      # block (that setting is a hard, separate gate GitHub enforces
+      # server-side on GITHUB_TOKEN-authored PRs specifically; declaring
+      # `pull-requests: write` here does not override it). Bit this job for
+      # real on PR #60 (run 31345478010, job 93326493175). A PAT is NOT
+      # subject to that gate, so this falls back to an optional
+      # `REPO_PR_TOKEN` secret (a PAT with write access to THIS repo,
+      # sugatoray/pptxdiff -- distinct from `HOMEBREW_TAP_TOKEN` below, which
+      # is scoped to the separate homebrew-pptxdiff tap repo and can't be
+      # relied on to also cover this one) when present, and otherwise still
+      # tries the default token so this keeps working with zero secrets once
+      # the repo setting above is enabled -- see WISDOM.md's trap entry for
+      # the full writeup and the two ways to fix this.
       - name: Open a PR against this repo with the bumped pin
         if: steps.sync.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v7
         with:
+          token: ${{ secrets.REPO_PR_TOKEN || github.token }}
           commit-message: "chore(pptxdiff-brew): bump formula to pptxdiff@${{ steps.sync.outputs.version }}"
           title: "chore(pptxdiff-brew): bump formula to pptxdiff@${{ steps.sync.outputs.version }}"
           body: |

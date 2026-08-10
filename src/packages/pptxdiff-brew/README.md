@@ -174,6 +174,20 @@ Both one-time manual setup steps are done: the `sugatoray/homebrew-pptxdiff` rep
 `actions/checkout` has a branch to target. All three jobs now run end-to-end for real, including
 job 3 opening a real PR against the tap repo (see "Installing" above for the current tap state).
 
+**A third one-time manual step, discovered when job 1 actually ran for real (PR #60, 2026-08-10):**
+job 1's own "open a PR against this repo" step needs one of the following, or it fails with
+"GitHub Actions is not permitted to create or approve pull requests" — a repo-level policy gate on
+`GITHUB_TOKEN`-authored PRs that a workflow's `permissions:` block cannot override:
+
+- Enable **Settings → Actions → General → Workflow permissions → "Allow GitHub Actions to create
+  and approve pull requests"** on `sugatoray/pptxdiff` (simplest, no new secret), or
+- Add a `REPO_PR_TOKEN` secret (a PAT with write access to `sugatoray/pptxdiff` itself — the
+  existing `HOMEBREW_TAP_TOKEN` is scoped to the separate tap repo and isn't guaranteed to cover
+  this one). The workflow already prefers this secret when present (`secrets.REPO_PR_TOKEN ||
+  github.token`), so adding it needs no further workflow edit.
+
+See `WISDOM.md` in the monorepo root's `docs/.scrolls/` for the full trap writeup.
+
 Along the way, three more real Homebrew-CLI checks turned up that this workflow now handles —
 `brew audit`/`brew install` no longer accept a bare formula path (must reference a tap-qualified
 name), a freshly created local tap is untrusted until `brew trust`'d, and `brew audit --strict`
