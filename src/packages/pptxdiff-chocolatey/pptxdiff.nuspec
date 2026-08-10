@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
   <metadata>
     <id>pptxdiff</id>
-    <version>0.7.0</version>
+    <version>0.8.0</version>
     <packageSourceUrl>https://github.com/sugatoray/pptxdiff/tree/master/src/packages/pptxdiff-chocolatey</packageSourceUrl>
     <owners>sugatoray</owners>
 
@@ -61,7 +61,7 @@ See the project README (https://github.com/sugatoray/pptxdiff) and documentation
     <releaseNotes>https://github.com/sugatoray/pptxdiff/blob/master/CHANGELOG.md</releaseNotes>
 
     <dependencies>
-      <dependency id="nodejs" version="18.0.0" />
+      <dependency id="nodejs" version="[18.0.0,)" />
     </dependencies>
   </metadata>
   <files>
