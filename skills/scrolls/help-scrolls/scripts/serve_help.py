@@ -112,6 +112,9 @@ def render_markdown(md: str) -> str:
     return "\n".join(out)
 
 
+# A plain placeholder + str.replace (not .format()) — the inline <script>
+# below is full of braces, and escaping every one of them for .format()
+# would be a maintenance trap.
 PAGE_TEMPLATE = """<!doctype html>
 <html lang="en">
 <head>
@@ -119,39 +122,88 @@ PAGE_TEMPLATE = """<!doctype html>
 <title>Scrolls — Command Reference</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-:root {{
+/* Light values live on bare :root. The dark media query is guarded by
+   :not([data-theme="light"]) so an explicit light choice can override the
+   system preference; :root[data-theme="dark"] does the same in the other
+   direction. This is what lets the toggle button below win either way,
+   while a visitor who's never touched it still gets the system default. */
+:root {
   color-scheme: light dark;
   --fg: #1a1a1a; --bg: #ffffff; --muted: #6b7280; --border: #e5e7eb;
   --code-bg: #f3f4f6; --link: #2563eb;
-}}
-@media (prefers-color-scheme: dark) {{
-  :root {{ --fg: #e5e7eb; --bg: #0f1115; --muted: #9ca3af; --border: #2a2e37; --code-bg: #1a1d24; --link: #60a5fa; }}
-}}
-body {{
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --fg: #e5e7eb; --bg: #0f1115; --muted: #9ca3af; --border: #2a2e37; --code-bg: #1a1d24; --link: #60a5fa;
+  }
+}
+:root[data-theme="dark"] {
+  --fg: #e5e7eb; --bg: #0f1115; --muted: #9ca3af; --border: #2a2e37; --code-bg: #1a1d24; --link: #60a5fa;
+}
+body {
   margin: 0; padding: 2.5rem 1.25rem 5rem; background: var(--bg); color: var(--fg);
   font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-}}
-main {{ max-width: 780px; margin: 0 auto; }}
-h1 {{ font-size: 1.75rem; margin-bottom: 0.25rem; }}
-h2 {{ font-size: 1.25rem; margin-top: 2.5rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--border); }}
-h3 {{ font-size: 1.05rem; margin-top: 1.5rem; }}
-code {{ background: var(--code-bg); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }}
-pre {{ background: var(--code-bg); padding: 0.9rem 1rem; border-radius: 8px; overflow-x: auto; }}
-pre code {{ background: none; padding: 0; }}
-table {{ border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.92rem; }}
-th, td {{ border: 1px solid var(--border); padding: 0.5rem 0.65rem; text-align: left; vertical-align: top; }}
-th {{ background: var(--code-bg); }}
-ul {{ padding-left: 1.4rem; }}
-li {{ margin: 0.3rem 0; }}
-hr {{ border: none; border-top: 1px solid var(--border); margin: 2rem 0; }}
-a {{ color: var(--link); }}
+}
+main { max-width: 780px; margin: 0 auto; }
+h1 { font-size: 1.75rem; margin-bottom: 0.25rem; }
+h2 { font-size: 1.25rem; margin-top: 2.5rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--border); }
+h3 { font-size: 1.05rem; margin-top: 1.5rem; }
+code { background: var(--code-bg); padding: 0.15em 0.4em; border-radius: 4px; font-size: 0.9em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+pre { background: var(--code-bg); padding: 0.9rem 1rem; border-radius: 8px; overflow-x: auto; }
+pre code { background: none; padding: 0; }
+table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.92rem; }
+th, td { border: 1px solid var(--border); padding: 0.5rem 0.65rem; text-align: left; vertical-align: top; }
+th { background: var(--code-bg); }
+ul { padding-left: 1.4rem; }
+li { margin: 0.3rem 0; }
+hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+a { color: var(--link); }
+#theme-toggle {
+  position: fixed; top: 1rem; right: 1rem; z-index: 1;
+  padding: 0.4rem 0.8rem; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--code-bg); color: var(--fg); font-size: 0.85rem; line-height: 1.2;
+  cursor: pointer;
+}
+#theme-toggle:hover { opacity: 0.85; }
 </style>
 </head>
 <body>
+<button id="theme-toggle" type="button" aria-label="Toggle light/dark theme" title="Toggle light/dark theme">···</button>
 <main>
-{body}
+__BODY__
 </main>
+<script>
+(function () {
+  var KEY = "scrolls-help-theme";
+  var root = document.documentElement;
+  var btn = document.getElementById("theme-toggle");
+
+  var stored = localStorage.getItem(KEY);
+  if (stored === "light" || stored === "dark") {
+    root.setAttribute("data-theme", stored);
+  }
+
+  function effectiveTheme() {
+    var explicit = root.getAttribute("data-theme");
+    if (explicit) return explicit;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+
+  function render() {
+    btn.textContent = effectiveTheme() === "dark" ? "☀️ Light" : "🌙 Dark";
+  }
+
+  btn.addEventListener("click", function () {
+    var next = effectiveTheme() === "dark" ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    localStorage.setItem(KEY, next);
+    render();
+  });
+
+  render();
+})();
+</script>
 </body>
 </html>
 """
@@ -160,7 +212,7 @@ a {{ color: var(--link); }}
 def main() -> None:
     with open(HELP_MD, encoding="utf-8") as f:
         md = f.read()
-    page = PAGE_TEMPLATE.format(body=render_markdown(md)).encode("utf-8")
+    page = PAGE_TEMPLATE.replace("__BODY__", render_markdown(md)).encode("utf-8")
 
     class Handler(http.server.BaseHTTPRequestHandler):
         def do_GET(self):
