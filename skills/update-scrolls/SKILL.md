@@ -1,6 +1,6 @@
 ---
 name: update-scrolls
-description: "Updates an existing docs/.scrolls/ project-memory system (STARTER.md, SPEC.md, HANDOFF.md, GAP_ANALYSIS.md, GAP_CONTEXT.md, PLAN.md, WISDOM.md, and any project-specific scrolls beyond that core set) to reflect what actually happened in the current session, following each file's own update rule instead of appending blindly. Use this whenever the user runs /update-scrolls, or asks to update the scrolls, refresh HANDOFF.md, write session handoff notes, record what was just done, close out or wrap up a session, log a new gap or trap, or update project memory / STARTER.md's docs. This is the counterpart to /setup-scrolls (which creates the system once) — use this one for every session afterward. If docs/.scrolls/ doesn't exist yet, say so and point at /setup-scrolls instead of inventing files here."
+description: "Updates an existing docs/.scrolls/ project-memory system (STARTER.md, SPEC.md, HANDOFF.md, GAP_ANALYSIS.md, GAP_CONTEXT.md, PLAN.md, WISDOM.md, and any project-specific scrolls beyond that core set) to reflect what actually happened in the current session, following each file's own update rule instead of appending blindly. Use this whenever the user runs /update-scrolls, or asks to update the scrolls, refresh HANDOFF.md, write session handoff notes, record what was just done, close out or wrap up a session, log a new gap or trap, or update project memory / STARTER.md's docs. This is the counterpart to /setup-scrolls (which creates the system once) — use this one for every session afterward. Supports -p/--path when the scrolls live somewhere other than ./docs (e.g. a monorepo package). If no scrolls folder is found, say so and point at /setup-scrolls instead of inventing files here."
 ---
 
 # Updating docs/.scrolls/
@@ -9,11 +9,15 @@ description: "Updates an existing docs/.scrolls/ project-memory system (STARTER.
 
 **Files are updated relative to the current working directory** — the project root, not this skill's own location.
 
+## Options
+
+Read the invocation text for an optional **`-p <path>` / `--path=<path>` / `--path <path>`** — the docs folder to look in, relative to the current working directory unless given as an absolute path. Defaults to `docs`. There's no `-u`/`--unhide` option here — this skill locates whichever scrolls folder already exists rather than choosing between them (see step 1).
+
 ## Steps
 
-### 1. Confirm the scrolls exist
+### 1. Locate the scrolls, trying both names
 
-If `docs/.scrolls/` isn't present at the target root, don't create it here — tell the user this project hasn't been set up yet and point them at `/setup-scrolls`. This skill only maintains an existing system.
+Let `DOCS_BASE` be the `--path` value, or `docs` if not given. The scrolls folder under it may be named either `.scrolls` (hidden, the default from `/setup-scrolls`) or `scrolls` (after `/unhide-scrolls`, or `--unhide` at setup time) — check for `DOCS_BASE/.scrolls` first, then `DOCS_BASE/scrolls`. Whichever exists is `SCROLLS_PATH` for the rest of this skill. If neither exists, don't create one here — tell the user this project (or this path) hasn't been set up yet and point them at `/setup-scrolls`. If somehow *both* exist, stop and ask the user which one is current — that's an inconsistent state this skill shouldn't silently paper over.
 
 ### 2. Read STARTER.md as the authoritative map
 
@@ -24,7 +28,7 @@ Don't assume the minimal six-file set from `/setup-scrolls` is still the whole s
 Conversation context is the primary source — you were there. But don't rely on it alone, especially if context has been compacted, the session was resumed, or you're being asked to update scrolls for work that happened before this conversation started. Run the bundled script to cross-check against git:
 
 ```
-bash <skill-dir>/scripts/session_diff.sh [path/to/docs/.scrolls]
+bash <skill-dir>/scripts/session_diff.sh SCROLLS_PATH
 ```
 
 It shows uncommitted changes, commits since `docs/.scrolls/` was last touched, and a stat summary of what files changed — enough to catch things conversation memory missed, without dumping full diffs into context. Pull specific `git diff`/`git log -p` slices yourself if you need more detail on a particular change.
