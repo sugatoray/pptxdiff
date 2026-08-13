@@ -2,6 +2,8 @@
 
 Scrolls are a small, checked-in `docs/.scrolls/` (or `docs/scrolls/`) file set that gives Claude cross-session memory for a project — what it does, what state it's in, what's known-missing, what's next, and what traps to avoid — plus a `CLAUDE.md` pointer that makes every future session read it first instead of re-discovering everything from scratch.
 
+Every command here works the same way on macOS, Linux, and Windows — each bundled script ships as both a bash (`.sh`) and a PowerShell (`.ps1`, PowerShell 7+) version with identical flags and behavior, and Claude picks whichever matches the current environment. Nothing about the examples below changes per platform.
+
 **Prefer a formatted page over chat text?** `/scrolls-help -e` (or `--online`) serves this same content locally and opens it in your browser.
 
 ## Quick start

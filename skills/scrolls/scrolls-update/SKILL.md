@@ -1,11 +1,15 @@
 ---
 name: scrolls-update
-description: "Updates an existing docs/.scrolls/ project-memory system (STARTER.md, SPEC.md, HANDOFF.md, GAP_ANALYSIS.md, GAP_CONTEXT.md, PLAN.md, WISDOM.md, and any project-specific scrolls beyond that core set) to reflect what actually happened in the current session, following each file's own update rule instead of appending blindly. Use this whenever the user runs /scrolls-update, or asks to update the scrolls, refresh HANDOFF.md, write session handoff notes, record what was just done, close out or wrap up a session, log a new gap or trap, or update project memory / STARTER.md's docs. This is the counterpart to /scrolls-setup (which creates the system once) — use this one for every session afterward. Supports -p/--path for a custom docs location, -t/--reporoot to look under the git repository's top level regardless of which subdirectory you're in, -l/--local to look explicitly in the current directory, and -r/--recurse to search recursively for the scrolls folder if it isn't at the obvious exact location. Defaults to the current directory, but warns first if that differs from the repo root so a subdirectory invocation doesn't silently miss the real scrolls. If no scrolls folder is found, say so and point at /scrolls-setup instead of inventing files here."
+description: "Updates an existing docs/.scrolls/ project-memory system (STARTER.md, SPEC.md, HANDOFF.md, GAP_ANALYSIS.md, GAP_CONTEXT.md, PLAN.md, WISDOM.md, and any project-specific scrolls beyond that core set) to reflect what actually happened in the current session, following each file's own update rule instead of appending blindly. Use this whenever the user runs /scrolls-update, or asks to update the scrolls, refresh HANDOFF.md, write session handoff notes, record what was just done, close out or wrap up a session, log a new gap or trap, or update project memory / STARTER.md's docs. This is the counterpart to /scrolls-setup (which creates the system once) — use this one for every session afterward. Supports -p/--path for a custom docs location, -t/--reporoot to look under the git repository's top level regardless of which subdirectory you're in, -l/--local to look explicitly in the current directory, and -r/--recurse to search recursively for the scrolls folder if it isn't at the obvious exact location. Defaults to the current directory, but warns first if that differs from the repo root so a subdirectory invocation doesn't silently miss the real scrolls. Works on macOS, Linux, and Windows (bash or PowerShell). If no scrolls folder is found, say so and point at /scrolls-setup instead of inventing files here."
 ---
 
 # Updating docs/.scrolls/
 
 `docs/.scrolls/` only stays useful if it reflects reality. This skill applies the update rules `STARTER.md` already defines for each file — it does not invent new conventions. The point isn't to touch every file every time; it's to touch exactly the files that something actually happened to, using the update discipline that file's own convention calls for (overwrite vs. append vs. add/remove in lockstep).
+
+## Cross-platform
+
+The one bundled script (step 3) ships in two forms: `session_diff.sh` (bash — macOS, Linux, or Windows with Git Bash/WSL) and `session_diff.ps1` (PowerShell 7+ — Windows, or macOS/Linux with `pwsh` installed). Everything else in this skill — the flags, `BASE_DIR` resolution, locating the scrolls folder — is plain prose you follow directly; it only ever invokes `git`, which behaves identically regardless of which shell is running it, so none of that needs a shell-specific variant. Pick the script by what's actually available: try `bash --version`; if that succeeds, use the `.sh` script; otherwise use the `.ps1` script via `pwsh` (preferred — install from https://aka.ms/powershell if missing) or, only if `pwsh` genuinely isn't available, the built-in Windows PowerShell `powershell.exe` (untested against that older version; `pwsh` is what this was written and verified against).
 
 ## Options
 
@@ -43,10 +47,11 @@ Don't assume the minimal six-file set from `/scrolls-setup` is still the whole s
 
 ### 3. Establish what actually happened this session
 
-Conversation context is the primary source — you were there. But don't rely on it alone, especially if context has been compacted, the session was resumed, or you're being asked to update scrolls for work that happened before this conversation started. Run the bundled script to cross-check against git:
+Conversation context is the primary source — you were there. But don't rely on it alone, especially if context has been compacted, the session was resumed, or you're being asked to update scrolls for work that happened before this conversation started. Run the bundled script to cross-check against git — pick whichever of the two ships in `<skill-dir>/scripts/` matches the current environment (see "Cross-platform" below):
 
 ```
 bash <skill-dir>/scripts/session_diff.sh SCROLLS_PATH
+pwsh <skill-dir>/scripts/session_diff.ps1 -ScrollsDir SCROLLS_PATH
 ```
 
 It shows uncommitted changes, commits since `docs/.scrolls/` was last touched, and a stat summary of what files changed — enough to catch things conversation memory missed, without dumping full diffs into context. Pull specific `git diff`/`git log -p` slices yourself if you need more detail on a particular change.
