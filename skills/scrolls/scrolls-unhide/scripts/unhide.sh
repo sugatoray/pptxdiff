@@ -187,9 +187,17 @@ handle_match() {
   local raw_dir="$1"
   local dir
   dir="$(normalize_path "$raw_dir")"
-  [ -f "$dir/STARTER.md" ] || return
+  # Bare `return` after a FAILED test propagates that test's nonzero exit
+  # status as this function's return code — under `set -e`, a plain
+  # function-call statement returning nonzero kills the whole script, not
+  # just this candidate. That silently aborted the entire run (skipping
+  # every remaining -p root, or the rest of a -r sweep) whenever a
+  # candidate lacked STARTER.md, which is exactly the common "nothing here"
+  # case this guard exists to handle gracefully. `return 0` makes clear
+  # this is "skip this candidate," never a script-level error.
+  [ -f "$dir/STARTER.md" ] || return 0
   if [ -n "${seen[$dir]:-}" ]; then
-    return
+    return 0
   fi
   seen[$dir]=1
   found_any=1
