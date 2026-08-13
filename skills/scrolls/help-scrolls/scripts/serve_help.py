@@ -31,6 +31,33 @@ def inline(text: str) -> str:
     return text
 
 
+# Every fenced block in HELP.md is a shell command example (a slash-command,
+# its flags, and sometimes a trailing "# comment"), never general-purpose
+# source — so a small hand-rolled tokenizer covers it, in the spirit of a
+# Pygments/pymdown-extensions lexer (https://facelessuser.github.io/pymdown-extensions/)
+# without pulling in that dependency. Runs on the RAW (unescaped) line so it
+# can escape literal text and matched tokens separately — no risk of a later
+# regex pass matching inside an already-inserted <span> from an earlier one.
+SHELL_TOKEN_RE = re.compile(
+    r"(?P<comment>#.*$)"
+    r"|(?P<cmd>(?<![\w/])/[a-zA-Z][\w-]*)"
+    r"|(?P<flag>(?<!\w)(?:--[a-zA-Z][\w-]*|-[a-zA-Z]))",
+    re.MULTILINE,
+)
+
+
+def highlight_shell(code: str) -> str:
+    out = []
+    pos = 0
+    for m in SHELL_TOKEN_RE.finditer(code):
+        out.append(_html.escape(code[pos:m.start()]))
+        token_html = _html.escape(m.group(0))
+        out.append(f'<span class="tok-{m.lastgroup}">{token_html}</span>')
+        pos = m.end()
+    out.append(_html.escape(code[pos:]))
+    return "".join(out)
+
+
 def render_markdown(md: str) -> str:
     """Small hand-rolled converter for the specific subset of markdown
     HELP.md actually uses: headings, bold, inline/fenced code, tables,
@@ -56,7 +83,7 @@ def render_markdown(md: str) -> str:
             while i < len(lines) and not lines[i].strip().startswith("```"):
                 code_lines.append(lines[i])
                 i += 1
-            out.append("<pre><code>" + _html.escape("\n".join(code_lines)) + "</code></pre>")
+            out.append("<pre><code>" + highlight_shell("\n".join(code_lines)) + "</code></pre>")
             i += 1
             continue
 
@@ -116,7 +143,7 @@ def render_markdown(md: str) -> str:
 # below is full of braces, and escaping every one of them for .format()
 # would be a maintenance trap.
 PAGE_TEMPLATE = """<!doctype html>
-<html lang="en">
+<html lang="en" class="colorize">
 <head>
 <meta charset="utf-8">
 <title>Scrolls — Command Reference</title>
@@ -126,19 +153,26 @@ PAGE_TEMPLATE = """<!doctype html>
    :not([data-theme="light"]) so an explicit light choice can override the
    system preference; :root[data-theme="dark"] does the same in the other
    direction. This is what lets the toggle button below win either way,
-   while a visitor who's never touched it still gets the system default. */
+   while a visitor who's never touched it still gets the system default.
+   --tok-* are the code-block token colors — a small GitHub-syntax-inspired
+   palette (in the spirit of a Pygments/pymdown-extensions theme:
+   https://facelessuser.github.io/pymdown-extensions/) with its own light
+   and dark values, following the exact same three-layer pattern. */
 :root {
   color-scheme: light dark;
   --fg: #1a1a1a; --bg: #ffffff; --muted: #6b7280; --border: #e5e7eb;
   --code-bg: #f3f4f6; --link: #2563eb;
+  --tok-cmd: #6f42c1; --tok-flag: #d73a49;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --fg: #e5e7eb; --bg: #0f1115; --muted: #9ca3af; --border: #2a2e37; --code-bg: #1a1d24; --link: #60a5fa;
+    --tok-cmd: #d2a8ff; --tok-flag: #ff7b72;
   }
 }
 :root[data-theme="dark"] {
   --fg: #e5e7eb; --bg: #0f1115; --muted: #9ca3af; --border: #2a2e37; --code-bg: #1a1d24; --link: #60a5fa;
+  --tok-cmd: #d2a8ff; --tok-flag: #ff7b72;
 }
 body {
   margin: 0; padding: 2.5rem 1.25rem 5rem; background: var(--bg); color: var(--fg);
@@ -159,29 +193,46 @@ ul { padding-left: 1.4rem; }
 li { margin: 0.3rem 0; }
 hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
 a { color: var(--link); }
-#theme-toggle {
-  position: fixed; top: 1rem; right: 1rem; z-index: 1;
+/* Token colors only apply with the "colorize" class on <html> (the default,
+   set server-side so there's no flash of uncolored code on first paint);
+   toggling it off falls every token back to plain inherited text. */
+.tok-cmd, .tok-flag, .tok-comment { color: inherit; font-weight: inherit; font-style: inherit; }
+html.colorize .tok-comment { color: var(--muted); font-style: italic; }
+html.colorize .tok-cmd { color: var(--tok-cmd); font-weight: 600; }
+html.colorize .tok-flag { color: var(--tok-flag); }
+#toolbar { position: fixed; top: 1rem; right: 1rem; z-index: 1; display: flex; gap: 0.5rem; }
+#toolbar button {
   padding: 0.4rem 0.8rem; border-radius: 999px; border: 1px solid var(--border);
   background: var(--code-bg); color: var(--fg); font-size: 0.85rem; line-height: 1.2;
   cursor: pointer;
 }
-#theme-toggle:hover { opacity: 0.85; }
+#toolbar button:hover { opacity: 0.85; }
 </style>
 </head>
 <body>
-<button id="theme-toggle" type="button" aria-label="Toggle light/dark theme" title="Toggle light/dark theme">···</button>
+<div id="toolbar">
+  <button id="colorize-toggle" type="button" aria-label="Toggle code colorization" title="Toggle code colorization">···</button>
+  <button id="theme-toggle" type="button" aria-label="Toggle light/dark theme" title="Toggle light/dark theme">···</button>
+</div>
 <main>
 __BODY__
 </main>
 <script>
 (function () {
-  var KEY = "scrolls-help-theme";
+  var THEME_KEY = "scrolls-help-theme";
+  var COLOR_KEY = "scrolls-help-colorize";
   var root = document.documentElement;
-  var btn = document.getElementById("theme-toggle");
+  var themeBtn = document.getElementById("theme-toggle");
+  var colorBtn = document.getElementById("colorize-toggle");
 
-  var stored = localStorage.getItem(KEY);
-  if (stored === "light" || stored === "dark") {
-    root.setAttribute("data-theme", stored);
+  var storedTheme = localStorage.getItem(THEME_KEY);
+  if (storedTheme === "light" || storedTheme === "dark") {
+    root.setAttribute("data-theme", storedTheme);
+  }
+  // The class defaults to present (colorized) in the served HTML; only
+  // override it if the visitor previously chose to turn it off.
+  if (localStorage.getItem(COLOR_KEY) === "off") {
+    root.classList.remove("colorize");
   }
 
   function effectiveTheme() {
@@ -190,18 +241,30 @@ __BODY__
     return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
   }
 
-  function render() {
-    btn.textContent = effectiveTheme() === "dark" ? "☀️ Light" : "🌙 Dark";
+  function renderTheme() {
+    themeBtn.textContent = effectiveTheme() === "dark" ? "☀️ Light" : "🌙 Dark";
   }
 
-  btn.addEventListener("click", function () {
+  function renderColorize() {
+    colorBtn.textContent = root.classList.contains("colorize") ? "⬜ Plain" : "🎨 Colorize";
+  }
+
+  themeBtn.addEventListener("click", function () {
     var next = effectiveTheme() === "dark" ? "light" : "dark";
     root.setAttribute("data-theme", next);
-    localStorage.setItem(KEY, next);
-    render();
+    localStorage.setItem(THEME_KEY, next);
+    renderTheme();
   });
 
-  render();
+  colorBtn.addEventListener("click", function () {
+    var next = !root.classList.contains("colorize");
+    root.classList.toggle("colorize", next);
+    localStorage.setItem(COLOR_KEY, next ? "on" : "off");
+    renderColorize();
+  });
+
+  renderTheme();
+  renderColorize();
 })();
 </script>
 </body>
