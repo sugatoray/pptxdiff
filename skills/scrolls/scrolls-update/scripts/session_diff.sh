@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Summarizes what changed since docs/.scrolls/ was last updated, as evidence
-# for /update-scrolls. Conversation context is the primary source of truth;
+# for /scrolls-update. Conversation context is the primary source of truth;
 # this is a cross-check for when that context is thin, compacted, or the
 # scrolls are being updated for work done outside the current conversation.
 set -euo pipefail
@@ -13,7 +13,7 @@ if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
 fi
 
 if [ ! -d "$SCROLLS_DIR" ]; then
-  echo "No $SCROLLS_DIR directory found here. Run /setup-scrolls first — there's nothing to update yet."
+  echo "No $SCROLLS_DIR directory found here. Run /scrolls-setup first — there's nothing to update yet."
   exit 1
 fi
 

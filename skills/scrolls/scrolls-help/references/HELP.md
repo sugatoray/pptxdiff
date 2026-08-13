@@ -2,13 +2,13 @@
 
 Scrolls are a small, checked-in `docs/.scrolls/` (or `docs/scrolls/`) file set that gives Claude cross-session memory for a project — what it does, what state it's in, what's known-missing, what's next, and what traps to avoid — plus a `CLAUDE.md` pointer that makes every future session read it first instead of re-discovering everything from scratch.
 
-**Prefer a formatted page over chat text?** `/help-scrolls -e` (or `--online`) serves this same content locally and opens it in your browser.
+**Prefer a formatted page over chat text?** `/scrolls-help -e` (or `--online`) serves this same content locally and opens it in your browser.
 
 ## Quick start
 
 ```
-/setup-scrolls          # once, the first time in a project
-/update-scrolls         # at the end of every session after that
+/scrolls-setup          # once, the first time in a project
+/scrolls-update         # at the end of every session after that
 ```
 
 That covers the typical single-repo workflow completely. Everything below is for less common cases: running from a subdirectory, monorepos, and toggling the folder's visibility.
@@ -17,12 +17,12 @@ That covers the typical single-repo workflow completely. Everything below is for
 
 | Command | Does |
 |---|---|
-| `/setup-scrolls` | Creates the scrolls system for a project that doesn't have one yet. |
-| `/update-scrolls` | Updates an existing scrolls system to reflect what happened this session — the one to run regularly. |
-| `/hide-scrolls` | Renames an existing `scrolls/` folder to dotfile-hidden `.scrolls/`. |
-| `/unhide-scrolls` | Renames an existing `.scrolls/` folder to visible `scrolls/`. |
+| `/scrolls-setup` | Creates the scrolls system for a project that doesn't have one yet. |
+| `/scrolls-update` | Updates an existing scrolls system to reflect what happened this session — the one to run regularly. |
+| `/scrolls-hide` | Renames an existing `scrolls/` folder to dotfile-hidden `.scrolls/`. |
+| `/scrolls-unhide` | Renames an existing `.scrolls/` folder to visible `scrolls/`. |
 
-`/hide-scrolls` and `/unhide-scrolls` are retrofit tools — for a brand-new project, `/setup-scrolls -u` already creates it visible in one step, no separate toggle needed.
+`/scrolls-hide` and `/scrolls-unhide` are retrofit tools — for a brand-new project, `/scrolls-setup -u` already creates it visible in one step, no separate toggle needed.
 
 ## Flags
 
@@ -39,51 +39,51 @@ All four commands share the same location flags. `-u` only makes sense on `setup
 `-p`, `-t`, and `-l` are three ways to answer the same question ("where?") — pick at most one. `-r` is independent and stacks with any of them, or with none.
 
 **What `-r`/`--recurse` does on each command**, since it's the one flag that isn't a location picker:
-- `/setup-scrolls -r` — before creating anything, scans recursively for a scrolls folder that already exists nearby, and checks with you rather than silently creating a disconnected duplicate.
-- `/update-scrolls -r` — if nothing's at the exact expected spot, searches recursively instead of just reporting "not set up" (and asks you to pick if it finds more than one).
-- `/hide-scrolls -r` / `/unhide-scrolls -r` — without it, these check exactly one location; with it, they sweep an entire directory tree for every matching folder (e.g. every package in a monorepo, in one run).
+- `/scrolls-setup -r` — before creating anything, scans recursively for a scrolls folder that already exists nearby, and checks with you rather than silently creating a disconnected duplicate.
+- `/scrolls-update -r` — if nothing's at the exact expected spot, searches recursively instead of just reporting "not set up" (and asks you to pick if it finds more than one).
+- `/scrolls-hide -r` / `/scrolls-unhide -r` — without it, these check exactly one location; with it, they sweep an entire directory tree for every matching folder (e.g. every package in a monorepo, in one run).
 
-**Default, with no flags at all**: everything happens relative to the current directory. If that's not the git repository's root, `/setup-scrolls` and `/update-scrolls` say so and check with you before proceeding — cwd still wins if you don't have a preference, it just won't happen silently.
+**Default, with no flags at all**: everything happens relative to the current directory. If that's not the git repository's root, `/scrolls-setup` and `/scrolls-update` say so and check with you before proceeding — cwd still wins if you don't have a preference, it just won't happen silently.
 
 ## Examples
 
 **First time in a new project, standing at the repo root:**
 ```
-/setup-scrolls
+/scrolls-setup
 ```
 
 **First time, but you're a couple of directories deep and want it at the repo root:**
 ```
-/setup-scrolls -t
+/scrolls-setup -t
 ```
 
 **Setting up scrolls for one package inside a monorepo:**
 ```
-/setup-scrolls -p packages/api/docs
+/scrolls-setup -p packages/api/docs
 ```
 
 **Wrapping up a work session:**
 ```
-/update-scrolls
+/scrolls-update
 ```
 Not sure exactly where the scrolls live relative to here:
 ```
-/update-scrolls -r
+/scrolls-update -r
 ```
 
 **Want the scrolls folder visible in a normal directory listing instead of dotfile-hidden:**
 ```
-/unhide-scrolls
+/scrolls-unhide
 ```
 
 **Convert every scrolls folder in a monorepo to visible, in one shot, from anywhere in the repo:**
 ```
-/unhide-scrolls -t -r
+/scrolls-unhide -t -r
 ```
 
 **Put it back to hidden, same way:**
 ```
-/hide-scrolls -t -r
+/scrolls-hide -t -r
 ```
 
 ## How the pieces fit together
@@ -94,6 +94,6 @@ Not sure exactly where the scrolls live relative to here:
 
 ## Troubleshooting
 
-- **"It created a second scrolls system in a subdirectory I didn't expect."** You ran `/setup-scrolls` or `/update-scrolls` from somewhere other than the repo root without `-t`. Re-run with `-t` to target the repo root, or `-p`/`-l` to be explicit about where you meant.
+- **"It created a second scrolls system in a subdirectory I didn't expect."** You ran `/scrolls-setup` or `/scrolls-update` from somewhere other than the repo root without `-t`. Re-run with `-t` to target the repo root, or `-p`/`-l` to be explicit about where you meant.
 - **"hide/unhide didn't find anything."** By default they check exactly one location (`<base>/docs/.scrolls` or `.../scrolls`). Add `-r` to search recursively, or `-t` if you meant the repo root.
 - **"A monorepo package's `CLAUDE.md` got the wrong text after a sweep."** Shouldn't happen — hide/unhide only ever touch the one `CLAUDE.md` that's a direct sibling of the `docs` folder being renamed, never a broader search, specifically to avoid cross-wiring sibling packages that happen to share the same short reference text. If this happens, it's a bug worth reporting.

@@ -4,7 +4,7 @@
 # mentions it. Reports (never auto-edits) any other stray references
 # it finds nearby.
 #
-# The exact mirror of unhide-scrolls's unhide.sh, in the opposite
+# The exact mirror of scrolls-unhide's unhide.sh, in the opposite
 # direction — see that script's header for the full option/discovery
 # rationale, which applies here unchanged.
 #
@@ -25,7 +25,7 @@
 # Without -r (default): for each BASE_DIR, checks exactly one spot —
 # BASE_DIR itself if it already IS a scrolls folder (has STARTER.md),
 # otherwise BASE_DIR/docs/scrolls. This matches the location
-# setup-scrolls/update-scrolls use by default, so a bare invocation
+# scrolls-setup/scrolls-update use by default, so a bare invocation
 # targets the obvious place first, like `rm`/`cp` without -r.
 #
 # With -r/--recurse: searches a bounded number of levels deep under
@@ -100,7 +100,7 @@ escape_for_sed() {
   printf '%s' "$1" | sed -e 's/[.[\*^$()+?{|/]/\\&/g'
 }
 
-# References written by setup/update-scrolls are always relative to the
+# References written by setup/scrolls-update are always relative to the
 # project root (cwd). Normalize whatever form we ended up with — absolute
 # (e.g. from -t) or "./"-prefixed — to that same cwd-relative form, so
 # grep/sed line up with the on-disk text.
@@ -123,8 +123,8 @@ process_one() {
   base_dir="$(dirname "$docs_dir")"        # whatever contains "docs" — where CLAUDE.md should live
   docs_name="$(basename "$docs_dir")"      # normally "docs", but honors a custom --path basename
   new_dir="${docs_dir}/${TO_NAME}"
-  short_old="${docs_name}/${FROM_NAME}"    # e.g. "docs/scrolls" — the portable form setup-scrolls
-  short_new="${docs_name}/${TO_NAME}"      # writes for -t/-l/default (see setup-scrolls step 3)
+  short_old="${docs_name}/${FROM_NAME}"    # e.g. "docs/scrolls" — the portable form scrolls-setup
+  short_new="${docs_name}/${TO_NAME}"      # writes for -t/-l/default (see scrolls-setup step 3)
 
   if [ -e "$new_dir" ]; then
     echo "SKIP: $old_dir -> $new_dir already exists"
@@ -159,7 +159,7 @@ process_one() {
   done < <(grep -rlF -e "$old_dir" -e "$short_old" "$new_dir" 2>/dev/null || true)
 
   # CLAUDE.md is always an exact, direct sibling of "docs" by construction
-  # (that's the whole point of the short-form convention setup-scrolls
+  # (that's the whole point of the short-form convention scrolls-setup
   # writes) — check that ONE specific file, never a recursive search.
   # A recursive search scoped to base_dir sounds safe but isn't: when
   # base_dir is itself the repo root (the common case), "scoped to
@@ -228,6 +228,6 @@ if [ "$found_any" -eq 0 ]; then
   if [ "$recurse" -eq 0 ]; then
     echo "Checked the exact default location only — pass -r/--recurse to search recursively instead."
   fi
-  echo "If this project hasn't been set up yet, run /setup-scrolls first."
+  echo "If this project hasn't been set up yet, run /scrolls-setup first."
   exit 1
 fi
