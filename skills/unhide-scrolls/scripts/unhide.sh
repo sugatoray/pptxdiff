@@ -1,29 +1,35 @@
 #!/usr/bin/env bash
-# Finds .scrolls folders under one or more roots and renames each to
-# scrolls (visible), rewriting the path references inside the moved
-# folder and in any CLAUDE.md that mentions it. Reports (never
-# auto-edits) any other stray references it finds nearby.
+# Renames .scrolls folder(s) to scrolls (visible), rewriting the path
+# references inside the moved folder and in any CLAUDE.md that mentions
+# it. Reports (never auto-edits) any other stray references it finds
+# nearby.
 #
 # Usage:
-#   unhide.sh [-p ROOT | --path=ROOT | --path ROOT] ...
-#   unhide.sh -r | --reporoot
-#   unhide.sh -l | --local
+#   unhide.sh [-p ROOT | --path=ROOT | --path ROOT] ... [-r|--recurse]
+#   unhide.sh -t | --reporoot [-r|--recurse]
+#   unhide.sh -l | --local    [-r|--recurse]
 #
 # -p/--path may be repeated to target multiple locations in one run.
-# -r/-l each resolve to a single root (the git repo's top level, or the
-# current directory) and cannot be combined with -p or with each other.
+# -t/-l each resolve to a single BASE_DIR (the git repo's top level, or
+# the current directory) and cannot be combined with -p or with each
+# other. -r/--recurse is an independent modifier, combinable with any
+# of the above (or with none, recursing from cwd).
 #
-# Default (no flags at all): $DEFAULT_SCROLLS_RELPATH if set, else the
-# current directory — and if that default is about to search only a
-# subdirectory of a git repo (not the repo's top level), a note is
-# printed pointing at -r as an alternative, since scrolls elsewhere in
-# the repo would otherwise be silently out of scope.
+# Default (no -p/-t/-l): $DEFAULT_SCROLLS_RELPATH if set, else the
+# current directory, used as BASE_DIR.
 #
-# Each root is searched a bounded number of levels deep (common
-# vendor/build dirs pruned) for directories literally named ".scrolls"
-# containing a STARTER.md — that guard means passing a broad root (even
-# ".") is safe: only real scrolls folders match, and a root that IS a
-# scrolls folder itself also matches directly.
+# Without -r (default): for each BASE_DIR, checks exactly one spot —
+# BASE_DIR itself if it already IS a scrolls folder (has STARTER.md),
+# otherwise BASE_DIR/docs/.scrolls. This matches the location
+# setup-scrolls/update-scrolls use by default, so a bare invocation
+# targets the obvious place first, like `rm`/`cp` without -r.
+#
+# With -r/--recurse: searches a bounded number of levels deep under
+# BASE_DIR (common vendor/build dirs pruned) for ANY directory
+# literally named ".scrolls" containing a STARTER.md — for a
+# monorepo-wide sweep. If BASE_DIR wasn't given explicitly (no -p/-t/-l)
+# and differs from the git repo root, a note points at -t as well, in
+# case the repo root should be included in the sweep too.
 set -euo pipefail
 
 FROM_NAME=".scrolls"
@@ -32,11 +38,12 @@ MAXDEPTH=8
 PRUNE_NAMES=(.git node_modules vendor dist build .venv venv __pycache__ target .next .cache)
 
 roots=()
-mode=""   # "", "path", "reporoot", "local"
+mode=""      # "", "path", "reporoot", "local"
+recurse=0
 
 conflict_check() {
   if [ -n "$mode" ] && [ "$mode" != "$1" ]; then
-    echo "Cannot combine -p/--path with -r/--reporoot or -l/--local — pick one way to target a location." >&2
+    echo "Cannot combine -p/--path with -t/--reporoot or -l/--local — pick one way to target a location." >&2
     exit 2
   fi
   mode="$1"
@@ -48,30 +55,31 @@ while [ $# -gt 0 ]; do
     --path) conflict_check path; roots+=("$2"); shift 2 ;;
     --path=*) conflict_check path; roots+=("${1#--path=}"); shift ;;
     -p=*) conflict_check path; roots+=("${1#-p=}"); shift ;;
-    -r|--reporoot)
+    -t|--reporoot)
       conflict_check reporoot
       repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
-        echo "-r/--reporoot requires being inside a git repository; none was detected here." >&2
+        echo "-t/--reporoot requires being inside a git repository; none was detected here." >&2
         exit 2
       }
-      roots=("${repo_root}/docs")
+      roots=("$repo_root")
       shift
       ;;
     -l|--local)
       conflict_check local
-      roots=("docs")
+      roots=(".")
       shift
       ;;
+    -r|--recurse) recurse=1; shift ;;
     *) echo "Unrecognized argument: $1" >&2; exit 2 ;;
   esac
 done
 
 if [ ${#roots[@]} -eq 0 ]; then
-  if [ -z "${DEFAULT_SCROLLS_RELPATH:-}" ]; then
+  if [ -z "${DEFAULT_SCROLLS_RELPATH:-}" ] && [ "$recurse" -eq 0 ]; then
     repo_root=$(git rev-parse --show-toplevel 2>/dev/null || true)
     if [ -n "$repo_root" ] && [ "$repo_root" != "$(pwd)" ]; then
-      echo "Note: searching from $(pwd), not the repo root ($repo_root)." >&2
-      echo "Pass -r/--reporoot to search the repo root's docs instead, or -l/--local to pin this explicitly to $(pwd)/docs." >&2
+      echo "Note: checking $(pwd)/docs only — not the repo root ($repo_root), not recursively." >&2
+      echo "Pass -t/--reporoot to check the repo root's docs instead, -r/--recurse to search recursively under here, or both to sweep the whole repo." >&2
       echo >&2
     fi
   fi
@@ -89,9 +97,9 @@ escape_for_sed() {
 }
 
 # References written by setup/update-scrolls are always relative to the
-# project root (cwd). Normalize whatever form `find` handed back — absolute
-# (when a root defaulted to $(pwd)) or "./"-prefixed (when a root was ".")
-# — to that same cwd-relative form, so grep/sed line up with the on-disk text.
+# project root (cwd). Normalize whatever form we ended up with — absolute
+# (e.g. from -t) or "./"-prefixed — to that same cwd-relative form, so
+# grep/sed line up with the on-disk text.
 normalize_path() {
   local p="$1" cwd
   cwd="$(pwd)"
@@ -112,7 +120,7 @@ process_one() {
   docs_name="$(basename "$docs_dir")"      # normally "docs", but honors a custom --path basename
   new_dir="${docs_dir}/${TO_NAME}"
   short_old="${docs_name}/${FROM_NAME}"    # e.g. "docs/.scrolls" — the portable form setup-scrolls
-  short_new="${docs_name}/${TO_NAME}"      # writes for -r/-l/default (see setup-scrolls step 3)
+  short_new="${docs_name}/${TO_NAME}"      # writes for -t/-l/default (see setup-scrolls step 3)
 
   if [ -e "$new_dir" ]; then
     echo "SKIP: $old_dir -> $new_dir already exists"
@@ -135,7 +143,7 @@ process_one() {
 
   # A scrolls folder's own references (e.g. inside STARTER.md) may be written
   # either as the full path from wherever this was invoked (old_dir) or as
-  # the short form relative to base_dir (short_old, what -r/-l/default use)
+  # the short form relative to base_dir (short_old, what -t/-l/default use)
   # — try both; whichever isn't present is simply a no-op substitution.
   rewrite_file() {
     sed -i -e "s#${old_re}#${new_dir}#g" -e "s#${short_re}#${short_new}#g" "$1"
@@ -146,22 +154,25 @@ process_one() {
     rewrite_file "$f"
   done < <(grep -rlF -e "$old_dir" -e "$short_old" "$new_dir" 2>/dev/null || true)
 
-  # Scoped to base_dir (the directory containing "docs"), not the whole repo:
-  # in a multi-location sweep, different scrolls folders can independently
-  # use the same short reference string, so a repo-wide search would offer
-  # up (and risk rewriting) an unrelated folder's CLAUDE.md.
-  local claude_files
-  claude_files=$(grep -rlF -e "$old_dir" -e "$short_old" "$base_dir" --include='CLAUDE.md' 2>/dev/null || true)
-  if [ -n "$claude_files" ]; then
-    while IFS= read -r f; do
-      [ -z "$f" ] && continue
-      rewrite_file "$f"
-    done <<< "$claude_files"
+  # CLAUDE.md is always an exact, direct sibling of "docs" by construction
+  # (that's the whole point of the short-form convention setup-scrolls
+  # writes) — check that ONE specific file, never a recursive search.
+  # A recursive search scoped to base_dir sounds safe but isn't: when
+  # base_dir is itself the repo root (the common case), "scoped to
+  # base_dir" is no restriction at all, and a sibling package's CLAUDE.md
+  # sharing the same short reference string would get wrongly rewritten.
+  local claude_md="${base_dir}/CLAUDE.md"
+  if [ -f "$claude_md" ] && grep -qF -e "$old_dir" -e "$short_old" "$claude_md" 2>/dev/null; then
+    rewrite_file "$claude_md"
   fi
 
+  # Leftover-reference reporting is read-only, so a false positive here is
+  # just noise, not a correctness risk — but still exclude other scrolls
+  # folders' own internal self-references, the most common source of noise
+  # under the shared short-form convention.
   echo "  Other references (within $base_dir) left for manual review:"
   local leftover
-  leftover=$(grep -rlF -e "$old_dir" -e "$short_old" "$base_dir" --exclude-dir=.git 2>/dev/null || true)
+  leftover=$(grep -rlF -e "$old_dir" -e "$short_old" "$base_dir" --exclude-dir=.git --exclude-dir=.scrolls --exclude-dir=scrolls 2>/dev/null || true)
   if [ -n "$leftover" ]; then
     echo "$leftover" | sed 's/^/    /'
   else
@@ -172,6 +183,21 @@ process_one() {
 declare -A seen=()
 found_any=0
 
+handle_match() {
+  local raw_dir="$1"
+  local dir
+  dir="$(normalize_path "$raw_dir")"
+  [ -f "$dir/STARTER.md" ] || return
+  if [ -n "${seen[$dir]:-}" ]; then
+    return
+  fi
+  seen[$dir]=1
+  found_any=1
+  echo
+  echo "== $dir =="
+  process_one "$dir"
+}
+
 for root in "${roots[@]}"; do
   root="${root%/}"
   [ -z "$root" ] && root="."
@@ -180,22 +206,24 @@ for root in "${roots[@]}"; do
     continue
   fi
 
-  while IFS= read -r -d '' raw_dir; do
-    dir="$(normalize_path "$raw_dir")"
-    [ -f "$dir/STARTER.md" ] || continue
-    if [ -n "${seen[$dir]:-}" ]; then
-      continue
+  if [ "$recurse" -eq 1 ]; then
+    while IFS= read -r -d '' raw_dir; do
+      handle_match "$raw_dir"
+    done < <(find "$root" -maxdepth "$MAXDEPTH" \( "${prune_expr[@]}" \) -prune -o -type d -name "$FROM_NAME" -print0)
+  else
+    if [ -f "$root/STARTER.md" ]; then
+      handle_match "$root"
+    else
+      handle_match "${root}/docs/${FROM_NAME}"
     fi
-    seen[$dir]=1
-    found_any=1
-    echo
-    echo "== $dir =="
-    process_one "$dir"
-  done < <(find "$root" -maxdepth "$MAXDEPTH" \( "${prune_expr[@]}" \) -prune -o -type d -name "$FROM_NAME" -print0)
+  fi
 done
 
 if [ "$found_any" -eq 0 ]; then
-  echo "No $FROM_NAME folders found under: ${roots[*]}"
+  echo "No $FROM_NAME folder found under: ${roots[*]}"
+  if [ "$recurse" -eq 0 ]; then
+    echo "Checked the exact default location only — pass -r/--recurse to search recursively instead."
+  fi
   echo "If this project hasn't been set up yet, run /setup-scrolls first."
   exit 1
 fi

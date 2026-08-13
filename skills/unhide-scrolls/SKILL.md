@@ -1,40 +1,45 @@
 ---
 name: unhide-scrolls
-description: "Converts an already-set-up docs/.scrolls/ working-memory folder from dotfile-hidden (.scrolls) to visible (scrolls), renaming the folder and rewriting the path references inside it and in CLAUDE.md so nothing breaks. Works across one or many locations in a single run (e.g. every package in a monorepo). Use this whenever the user runs /unhide-scrolls, or asks to unhide, un-dot, or show the scrolls folder, stop hiding project memory / docs/.scrolls, or rename .scrolls to scrolls. This is the retrofit path for a project that was set up hidden and now wants it visible — for a brand-new project, /setup-scrolls's own -u/--unhide flag does this in one step and this skill isn't needed. Supports repeatable -p/--path to target specific locations, -r/--reporoot to target the git repository's top level regardless of which subdirectory you're in, -l/--local to target the current directory explicitly, and the DEFAULT_SCROLLS_RELPATH environment variable to change the default search root. Defaults to the current directory, but notes when that differs from the repo root so scrolls elsewhere in the repo aren't silently missed. The opposite of /hide-scrolls."
+description: "Converts an already-set-up docs/.scrolls/ working-memory folder from dotfile-hidden (.scrolls) to visible (scrolls), renaming the folder and rewriting the path references inside it and in CLAUDE.md so nothing breaks. Use this whenever the user runs /unhide-scrolls, or asks to unhide, un-dot, or show the scrolls folder, stop hiding project memory / docs/.scrolls, or rename .scrolls to scrolls. This is the retrofit path for a project that was set up hidden and now wants it visible — for a brand-new project, /setup-scrolls's own -u/--unhide flag does this in one step and this skill isn't needed. By default checks one exact location (docs/.scrolls under the current directory); supports -r/--recurse to sweep an entire directory tree instead (e.g. every package in a monorepo in one run), repeatable -p/--path to target specific locations, -t/--reporoot to target the git repository's top level regardless of which subdirectory you're in, -l/--local to target the current directory explicitly, and the DEFAULT_SCROLLS_RELPATH environment variable to change the default location. The opposite of /hide-scrolls."
 ---
 
 # Unhiding docs/.scrolls/
 
 `/setup-scrolls` defaults to a dotfile-hidden `.scrolls` folder. Some projects would rather have it visible in a normal directory listing — this skill renames `.scrolls` → `scrolls` on an existing setup and fixes every reference to the old path that it can find with confidence, without guessing at edits to files outside its scope. It's the mirror image of `/hide-scrolls`.
 
-**Everything operates relative to the current working directory** unless `-r`/`--reporoot` says otherwise — not relative to this skill's own location.
+**Everything operates relative to the current working directory** unless `-t`/`--reporoot` says otherwise — not relative to this skill's own location.
 
 ## Options
 
 Read the invocation text for these, in any order — there's no real argv parser here, so pull them out of the plain text yourself:
 
-- **`-p <path>` / `--path=<path>` / `--path <path>`** — a *root to search within* for scrolls folders, not necessarily the exact parent directory. Repeatable, to target several locations in one run (e.g. `-p packages/api -p packages/web` in a monorepo, or `-p docs/.scrolls` to target one exact folder).
-- **`-r` / `--reporoot`** — search `$(git rev-parse --show-toplevel)/docs` specifically, regardless of which subdirectory you actually invoked this from. Fails with a clear message if the current directory isn't inside a git repository.
-- **`-l` / `--local`** — search `<cwd>/docs` explicitly. This is close to the default behavior, but narrower: the plain default sweeps the whole current directory tree, while `-l` pins specifically to its `docs` subfolder.
+- **`-p <path>` / `--path=<path>` / `--path <path>`** — a base directory to operate on, instead of the current directory. Repeatable, to target several locations in one run (e.g. `-p packages/api -p packages/web` in a monorepo).
+- **`-t` / `--reporoot`** — use the git repository's top level (`$(git rev-parse --show-toplevel)`) as the base directory, regardless of which subdirectory you actually invoked this from. Fails with a clear message if the current directory isn't inside a git repository.
+- **`-l` / `--local`** — use the current working directory as the base directory explicitly. This is what happens by default anyway when none of `-p`/`-t`/`-l` are given — the flag exists to say so on purpose.
+- **`-r` / `--recurse`** — search recursively under the base directory for scrolls folders, instead of checking only its exact `docs/.scrolls`. Matches the usual meaning of `-r` on tools like `grep`/`cp`/`rm`: off by default, opt in to widen the blast radius. Combine with any of the above (or with none, recursing from cwd).
 
-`-p`, `-r`, and `-l` are three different ways to pick a location — `-r` and `-l` each resolve to a single root and can't be combined with `-p` or with each other; pass `-p` (repeatably) for anything more specific. If none of these are given, the bundled script defaults to the `DEFAULT_SCROLLS_RELPATH` environment variable if the user has it set, otherwise the current directory — and if that default differs from the repo's top level (in a git repo), the script prints a note pointing at `-r` as an alternative, since a scrolls folder that lives at the repo root instead would otherwise be silently out of scope (not an error — the sweep still runs, just narrower than it might need to be).
+`-p`, `-t`, and `-l` are three different ways to pick a base directory — `-t` and `-l` each resolve to a single one and can't be combined with `-p` or with each other; pass `-p` (repeatably) for anything more specific. `-r` is independent and stacks with any of them. If no base directory is given, the bundled script defaults to the `DEFAULT_SCROLLS_RELPATH` environment variable if the user has it set, otherwise the current directory — and if that default isn't recursive and differs from the repo's top level (in a git repo), the script prints a note about `-t`/`-r` as alternatives, since a scrolls folder living elsewhere in the repo would otherwise go unnoticed rather than erroring.
 
 ## Steps
 
 ### 1. Run the bundled script
 
 ```
-bash <skill-dir>/scripts/unhide.sh [-p ROOT ...] | [-r] | [-l]
+bash <skill-dir>/scripts/unhide.sh [-p BASE ...] [-t] [-l] [-r]
 ```
 
-Pass through whatever flags the user gave, in the same forms. Omit them entirely to use the default. The script:
+Pass through whatever flags the user gave, in the same forms. Omit them entirely to use the default. The script, for each resolved base directory:
 
-1. Under each resolved root, searches a bounded number of levels deep for directories literally named `.scrolls` that contain a `STARTER.md` — that guard is what makes a broad root (even the whole repo) safe to search: coincidentally-named directories without a `STARTER.md` are ignored, and common heavy/vendor directories (`node_modules`, `.git`, `vendor`, `dist`, `build`, `.venv`, `venv`, `__pycache__`, `target`, `.next`, `.cache`) are pruned rather than descended into. A root that *is* itself a scrolls folder also matches directly.
-2. For each match: skips it (reporting why) if a `scrolls` folder already sits alongside it; otherwise renames it with `git mv` when the repo and file are git-tracked (preserving history), falling back to a plain `mv` otherwise.
-3. Rewrites the reference to the old path inside the *moved folder's own files* (this catches `STARTER.md`, which references its own path throughout) and inside any `CLAUDE.md` it finds referencing it, **scoped to the directory containing `docs`** — not the whole repo. `/setup-scrolls` writes a short, portable reference (`docs/.scrolls`) relative to wherever `CLAUDE.md` itself lives, so in a multi-location sweep two different scrolls folders can legitimately share that same short string; scoping the rewrite locally is what keeps a monorepo sweep from cross-wiring one package's fix into another's files. (It also tries the full path as discovered, for scrolls folders set up with a custom `--path` under the older convention.)
-4. Prints any other files within that same scope that still mention the old path — these are **reported, not edited**. The script deliberately doesn't touch files outside the scrolls folder and `CLAUDE.md`, since rewriting arbitrary prose (READMEs, CI configs, other docs) without reading it first risks corrupting unrelated content.
+- **Without `-r` (default)**: checks exactly one spot — the base directory itself if it already *is* a scrolls folder (has `STARTER.md`), otherwise `<base>/docs/.scrolls`. Fast, and matches the location `/setup-scrolls`/`/update-scrolls` use by default, so a bare invocation targets the obvious place first.
+- **With `-r`/`--recurse`**: searches a bounded number of levels deep under the base directory for directories literally named `.scrolls` containing a `STARTER.md` — that guard is what makes recursing from a broad base (even the whole repo) safe: coincidentally-named directories without a `STARTER.md` are ignored, and common heavy/vendor directories (`node_modules`, `.git`, `vendor`, `dist`, `build`, `.venv`, `venv`, `__pycache__`, `target`, `.next`, `.cache`) are pruned rather than descended into.
 
-Exits with an error if a given root has no matching folder anywhere under it — that's the signal to check the path (or try `-r` if you expected the repo root) or point the user at `/setup-scrolls` instead.
+For each match found (either way):
+
+1. Skips it (reporting why) if a `scrolls` folder already sits alongside it; otherwise renames it with `git mv` when the repo and file are git-tracked (preserving history), falling back to a plain `mv` otherwise.
+2. Rewrites the reference to the old path inside the *moved folder's own files* (this catches `STARTER.md`, which references its own path throughout) and, if present, in the one `CLAUDE.md` file that's an exact sibling of `docs` for that folder — never a broader search for `CLAUDE.md`. `/setup-scrolls` writes a short, portable reference (`docs/.scrolls`) relative to wherever `CLAUDE.md` itself lives, so in a multi-location sweep two different scrolls folders can legitimately share that exact same short string; a "helpfully" broader search for matching `CLAUDE.md` files would risk rewriting an unrelated sibling package's file. (The rewrite also tries the full path as discovered, for scrolls folders set up with a custom `--path` under the older convention.)
+3. Prints any other files nearby that still mention the old path — these are **reported, not edited**, and are excluded from *inside* other scrolls folders (a common source of false positives under the shared short-form convention) but can still include a false-positive sibling `CLAUDE.md` occasionally — that's expected, see step 2 below. The script deliberately doesn't touch files outside the scrolls folder and its own `CLAUDE.md`, since rewriting arbitrary prose (READMEs, CI configs, other docs) without reading it first risks corrupting unrelated content.
+
+Exits with an error if a given base directory has no matching folder — without `-r`, that's the signal to check the path, try `-t` if you expected the repo root, or add `-r` if it might be nested deeper; otherwise point the user at `/setup-scrolls`.
 
 ### 2. Handle the leftover references it reports
 

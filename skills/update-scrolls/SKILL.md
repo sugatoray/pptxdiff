@@ -1,6 +1,6 @@
 ---
 name: update-scrolls
-description: "Updates an existing docs/.scrolls/ project-memory system (STARTER.md, SPEC.md, HANDOFF.md, GAP_ANALYSIS.md, GAP_CONTEXT.md, PLAN.md, WISDOM.md, and any project-specific scrolls beyond that core set) to reflect what actually happened in the current session, following each file's own update rule instead of appending blindly. Use this whenever the user runs /update-scrolls, or asks to update the scrolls, refresh HANDOFF.md, write session handoff notes, record what was just done, close out or wrap up a session, log a new gap or trap, or update project memory / STARTER.md's docs. This is the counterpart to /setup-scrolls (which creates the system once) — use this one for every session afterward. Supports -p/--path for a custom docs location, -r/--reporoot to look under the git repository's top level regardless of which subdirectory you're in, and -l/--local to look explicitly in the current directory. Defaults to the current directory, but warns first if that differs from the repo root so a subdirectory invocation doesn't silently miss the real scrolls. If no scrolls folder is found, say so and point at /setup-scrolls instead of inventing files here."
+description: "Updates an existing docs/.scrolls/ project-memory system (STARTER.md, SPEC.md, HANDOFF.md, GAP_ANALYSIS.md, GAP_CONTEXT.md, PLAN.md, WISDOM.md, and any project-specific scrolls beyond that core set) to reflect what actually happened in the current session, following each file's own update rule instead of appending blindly. Use this whenever the user runs /update-scrolls, or asks to update the scrolls, refresh HANDOFF.md, write session handoff notes, record what was just done, close out or wrap up a session, log a new gap or trap, or update project memory / STARTER.md's docs. This is the counterpart to /setup-scrolls (which creates the system once) — use this one for every session afterward. Supports -p/--path for a custom docs location, -t/--reporoot to look under the git repository's top level regardless of which subdirectory you're in, -l/--local to look explicitly in the current directory, and -r/--recurse to search recursively for the scrolls folder if it isn't at the obvious exact location. Defaults to the current directory, but warns first if that differs from the repo root so a subdirectory invocation doesn't silently miss the real scrolls. If no scrolls folder is found, say so and point at /setup-scrolls instead of inventing files here."
 ---
 
 # Updating docs/.scrolls/
@@ -12,10 +12,11 @@ description: "Updates an existing docs/.scrolls/ project-memory system (STARTER.
 Read the invocation text for these, in any order — there's no real argv parser here, so pull them out of the plain text yourself:
 
 - **`-p <path>` / `--path=<path>` / `--path <path>`** — a custom docs folder to look in, relative to the current working directory unless given as an absolute path.
-- **`-r` / `--reporoot`** — look under the git repository's top level (`$(git rev-parse --show-toplevel)`) regardless of which subdirectory you actually invoked this from. Fails with a clear message if the current directory isn't inside a git repository.
-- **`-l` / `--local`** — look explicitly in the current working directory. This is what happens by default anyway when none of `-p`/`-r`/`-l` are given — the flag exists to say so on purpose, e.g. to skip the mismatch check below.
+- **`-t` / `--reporoot`** — look under the git repository's top level (`$(git rev-parse --show-toplevel)`) regardless of which subdirectory you actually invoked this from. Fails with a clear message if the current directory isn't inside a git repository.
+- **`-l` / `--local`** — look explicitly in the current working directory. This is what happens by default anyway when none of `-p`/`-t`/`-l` are given — the flag exists to say so on purpose, e.g. to skip the mismatch check below.
+- **`-r` / `--recurse`** — if the scrolls folder isn't at the obvious exact location (`BASE_DIR/docs/.scrolls` or `BASE_DIR/docs/scrolls`), search recursively under `BASE_DIR` for one instead of giving up. Off by default — matches the usual meaning of `-r` on tools like `grep`/`cp`/`rm`.
 
-There's no `-u`/`--unhide` option here — this skill locates whichever scrolls folder already exists rather than choosing between them (see step 1). `-p`, `-r`, and `-l` are three different ways to answer the same question ("where's the docs folder?") — pass at most one; if more than one is given, ask which was meant.
+There's no `-u`/`--unhide` option here — this skill locates whichever scrolls folder already exists rather than choosing between them (see step 1). `-p`, `-t`, and `-l` are three different ways to answer the same question ("where's the docs folder?") — pass at most one; if more than one is given, ask which was meant. `-r` is independent and combines freely with any of them (or with none).
 
 ## Steps
 
@@ -23,13 +24,18 @@ There's no `-u`/`--unhide` option here — this skill locates whichever scrolls 
 
 Compute `BASE_DIR`:
 
-- **`-r`/`--reporoot` given**: `BASE_DIR = $(git rev-parse --show-toplevel)`. If that fails (not inside a git repository), stop and tell the user — suggest `--path` instead.
+- **`-t`/`--reporoot` given**: `BASE_DIR = $(git rev-parse --show-toplevel)`. If that fails (not inside a git repository), stop and tell the user — suggest `--path` instead.
 - **`-l`/`--local` given**: `BASE_DIR = $(pwd)`.
 - **Nothing given** (the common case): `BASE_DIR = $(pwd)`. But first, if the current directory is inside a git repository, run `git rev-parse --show-toplevel` and compare it to `$(pwd)`. If they're the same, or this isn't a git repo, proceed with cwd as usual. If they differ, mention it before searching — running from here will only look under `$(pwd)/docs`, and a scrolls folder that lives at the repository root (`<repo-root>`) instead would be missed entirely (not just skipped — it'll look like the project was never set up). Ask if that's intended, defaulting to proceeding with cwd (this skill's documented default) if there's no strong preference.
 
 Then let `DOCS_BASE` be the `--path` value if `-p` was given, else `${BASE_DIR}/docs`. The scrolls folder under it may be named either `.scrolls` (hidden, the default from `/setup-scrolls`) or `scrolls` (after `/unhide-scrolls`, or `--unhide` at setup time) — check for `DOCS_BASE/.scrolls` first, then `DOCS_BASE/scrolls`. Whichever exists is `SCROLLS_PATH` for the rest of this skill.
 
-If neither exists: don't create one here. Tell the user this project (or this path) hasn't been set up yet and point them at `/setup-scrolls` — and if you resolved `BASE_DIR` to cwd (by default or `-l`) rather than the repo root, mention `-r`/`--reporoot` as something to try before assuming there's really nothing set up, in case the scrolls live at the repo root instead. If somehow *both* `.scrolls` and `scrolls` exist, stop and ask the user which one is current — that's an inconsistent state this skill shouldn't silently paper over.
+If neither exists at that exact spot:
+
+- **`-r`/`--recurse` was given**: search recursively under `BASE_DIR` instead — a bounded number of levels deep, pruning the same heavy/vendor directories `/hide-scrolls`/`/unhide-scrolls` prune (`node_modules`, `.git`, `vendor`, `dist`, `build`, `.venv`, `venv`, `__pycache__`, `target`, `.next`, `.cache`), for a directory named `.scrolls` or `scrolls` containing a `STARTER.md`. If exactly one turns up, that's `SCROLLS_PATH`. If more than one turns up (a monorepo with several independent scrolls setups under this `BASE_DIR`), list them and ask the user which one this session's update is actually about — don't guess, and don't update more than one, since a session's narrative belongs to a specific project, not every project it happens to be nested near.
+- **`-r` wasn't given, or the recursive search above also found nothing**: don't create one here. Tell the user this project (or this path) hasn't been set up yet and point them at `/setup-scrolls` — and if you resolved `BASE_DIR` to cwd (by default or `-l`) rather than the repo root, mention `-t`/`--reporoot` as something to try, and mention `-r`/`--recurse` if you haven't already used it, in case the scrolls live somewhere other than the exact expected spot.
+
+If somehow *both* `.scrolls` and `scrolls` exist at the exact `DOCS_BASE`, stop and ask the user which one is current — that's an inconsistent state this skill shouldn't silently paper over.
 
 ### 2. Read STARTER.md as the authoritative map
 
