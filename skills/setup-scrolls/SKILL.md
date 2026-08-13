@@ -1,36 +1,46 @@
 ---
 name: setup-scrolls
-description: "Sets up a minimal docs/.scrolls/ working-memory system for a project — a small set of cross-session memory files (STARTER.md, SPEC.md, HANDOFF.md, GAP_ANALYSIS.md, GAP_CONTEXT.md, PLAN.md, WISDOM.md) plus a CLAUDE.md pointer that tells future sessions to read STARTER.md first. Use this whenever the user runs /setup-scrolls, or asks to set up 'scrolls', a project-memory system, session handoff notes, a docs/.scrolls folder, or a CLAUDE.md that points new sessions at persistent project docs. Trigger even if the project has no docs/ folder or no CLAUDE.md yet — creating them is part of the job. Supports -p/--path to place the docs folder somewhere other than ./docs, and -u/--unhide to name the folder scrolls instead of .scrolls. Files are created relative to the current working directory, not this skill's own location."
+description: "Sets up a minimal docs/.scrolls/ working-memory system for a project — a small set of cross-session memory files (STARTER.md, SPEC.md, HANDOFF.md, GAP_ANALYSIS.md, GAP_CONTEXT.md, PLAN.md, WISDOM.md) plus a CLAUDE.md pointer that tells future sessions to read STARTER.md first. Use this whenever the user runs /setup-scrolls, or asks to set up 'scrolls', a project-memory system, session handoff notes, a docs/.scrolls folder, or a CLAUDE.md that points new sessions at persistent project docs. Trigger even if the project has no docs/ folder or no CLAUDE.md yet — creating them is part of the job. Supports -p/--path for a custom docs location, -r/--reporoot to pin everything to the git repository's top level regardless of which subdirectory you're in, -l/--local to pin it explicitly to the current directory, and -u/--unhide to name the folder scrolls instead of .scrolls. Defaults to the current directory, but warns first if that differs from the repo root so a subdirectory invocation doesn't silently create a second, disconnected scrolls system."
 ---
 
 # Setting up docs/.scrolls/
 
 `docs/.scrolls/` is a small set of markdown files that act as a project's working memory across sessions: what it does, what state it's in, what's known-missing and why, what's next, and what traps to avoid. A `CLAUDE.md` pointer sends every future session to `docs/.scrolls/STARTER.md` first, so state gets picked up instead of re-discovered from scratch each time. This skill scaffolds that system for a project that doesn't have it yet.
 
-**Everything is created relative to the current working directory** (the project root the user is in when they invoke this), not relative to this skill's own install location. This skill's `assets/templates/` directory holds the source templates — copy from there, never edit those files in place.
+This skill's own `assets/templates/` directory holds the source templates — copy from there, never edit those files in place.
 
 ## Options
 
 The user may pass these after `/setup-scrolls` as plain text, in any order — there's no real argv parser here, so read the invocation text yourself and pull out:
 
-- **`-p <path>` / `--path=<path>` / `--path <path>`** — the docs folder to place the scrolls folder inside, relative to the current working directory unless it's given as an absolute path (starts with `/`). Defaults to `docs`. Use this for monorepos or non-standard layouts, e.g. `--path=packages/api/docs` puts the scrolls at `packages/api/docs/.scrolls`.
+- **`-p <path>` / `--path=<path>` / `--path <path>`** — a custom docs folder, relative to the current working directory unless given as an absolute path (starts with `/`). Use this for monorepos or non-standard layouts, e.g. `--path=packages/api/docs` puts the scrolls at `packages/api/docs/.scrolls`. This is the one option where you're naming the docs folder directly rather than picking a base directory — see the CLAUDE.md placement note in step 4 for the tradeoff that comes with going deep.
+- **`-r` / `--reporoot`** — pin everything to the git repository's top level (`$(git rev-parse --show-toplevel)`), regardless of which subdirectory you actually invoked this from. Fails with a clear message if the current directory isn't inside a git repository — there's no repo root to find.
+- **`-l` / `--local`** — pin everything to the current working directory explicitly. This is what happens by default anyway when none of `-p`/`-r`/`-l` are given — the flag exists so you (or the user) can say so on purpose, e.g. to skip the mismatch check in step 1.
 - **`-u` / `--unhide`** — name the scrolls folder `scrolls` instead of the default `.scrolls`, so it isn't dotfile-hidden. Omit for the default (hidden).
 
-Compute two values from these before doing anything else:
+`-p`, `-r`, and `-l` are three different ways to answer the same question ("where does the `docs` folder go?") — pass at most one. If more than one is given, stop and ask which was meant.
+
+## Steps
+
+### 1. Resolve BASE_DIR and don't clobber existing work
+
+Compute `BASE_DIR` — the directory that will contain both the `docs` folder and `CLAUDE.md`:
+
+- **`-r`/`--reporoot` given**: `BASE_DIR = $(git rev-parse --show-toplevel)`. If that command fails (not inside a git repository), stop and tell the user — there's no repo root to pin to here; suggest `--path` instead.
+- **`-l`/`--local` given**, or **`-p`/`--path` given**: skip straight to computing `DOCS_BASE` below — `-l` uses `BASE_DIR = $(pwd)` and `-p` bypasses `BASE_DIR` entirely (see the note under `DOCS_BASE`).
+- **Nothing given** (the common case): `BASE_DIR = $(pwd)`. But first, if the current directory is inside a git repository, run `git rev-parse --show-toplevel` and compare it to `$(pwd)`. If they're the same, or this isn't a git repo, there's nothing to flag. If they differ, tell the user plainly: running from here will create the scrolls at `$(pwd)/docs/.scrolls`, separate from anything that might already exist at the repository root (`<repo-root>`), and ask whether that's what they want — the current directory (the default; proceed with it if there's no strong preference either way) or the repo root instead (equivalent to re-running with `-r`). Don't block indefinitely on this — cwd wins if it's a toss-up, since that's this skill's documented default.
+
+Then:
 
 ```
-DOCS_BASE   = the --path value, or "docs" if not given (trailing slash stripped)
-SCROLLS_DIR = "scrolls" if --unhide/-u was passed, else ".scrolls"
+DOCS_BASE    = the --path value if -p was given, else "${BASE_DIR}/docs"
+SCROLLS_DIR  = "scrolls" if --unhide/-u was passed, else ".scrolls"
 SCROLLS_PATH = "${DOCS_BASE}/${SCROLLS_DIR}"
 ```
 
 `SCROLLS_PATH` replaces every `docs/.scrolls` you'll see referenced below and in the templates — the rest of this skill talks about "the scrolls path" generically. If the user already has a hidden `.scrolls` set up and wants it converted to visible later, that's a separate, dedicated operation — point them at `/unhide-scrolls` rather than re-running this skill.
 
-## Steps
-
-### 1. Confirm the target and don't clobber existing work
-
-Target root = current working directory; scrolls go at `SCROLLS_PATH` under it. If `SCROLLS_PATH` already exists there with files in it, stop and ask the user whether they want you to fill in only the missing files or leave it alone — never overwrite an existing scroll file silently, since `HANDOFF.md`/`PLAN.md`/etc. may hold real accumulated state. The same caution applies to `CLAUDE.md`: never blow away existing content. If `--unhide` was passed but a `.scrolls` folder already exists at `DOCS_BASE` (or vice versa), don't create a second, parallel scrolls folder — tell the user and point at `/unhide-scrolls` instead.
+If `SCROLLS_PATH` already exists with files in it, stop and ask the user whether they want you to fill in only the missing files or leave it alone — never overwrite an existing scroll file silently, since `HANDOFF.md`/`PLAN.md`/etc. may hold real accumulated state. The same caution applies to `CLAUDE.md`: never blow away existing content. If `--unhide` was passed but a `.scrolls` folder already exists there (or vice versa), don't create a second, parallel scrolls folder — tell the user and point at `/unhide-scrolls` instead.
 
 ### 2. Gather just enough project context
 
@@ -44,7 +54,10 @@ If any of this is ambiguous (e.g. a monorepo with several `package.json`s), a si
 
 ### 3. Create the seven files
 
-Copy each file from `assets/templates/` into `SCROLLS_PATH` at the target root, substituting the `{{PROJECT_NAME}}`, `{{PROJECT_TAGLINE}}`, `{{QUICK_ORIENTATION}}`, and `{{SCROLLS_PATH}}` placeholders with what you gathered in step 2 and computed above:
+Copy each file from `assets/templates/` into `SCROLLS_PATH` on disk, substituting the `{{PROJECT_NAME}}`, `{{PROJECT_TAGLINE}}`, `{{QUICK_ORIENTATION}}`, and `{{SCROLLS_PATH}}` placeholders with what you gathered in step 2 and computed above. `SCROLLS_PATH` is an absolute filesystem path when it came from `-r`/`-l`/the default (both resolve through `BASE_DIR`, which is always absolute) — that's fine for the actual file writes, but **the text you substitute for `{{SCROLLS_PATH}}` inside the templates is not the same string**:
+
+- **`-r`/`-l`/default (`BASE_DIR`-derived)**: substitute the *short* form, `docs/${SCROLLS_DIR}` (e.g. `docs/.scrolls`) — never the absolute `SCROLLS_PATH`. This is what keeps the files portable: `CLAUDE.md` always ends up living at `BASE_DIR` too (step 4), so a reference relative to `BASE_DIR` is correct regardless of whether `BASE_DIR` was `$(pwd)` or the git root, and regardless of which machine or clone reads it later. Baking in an absolute path here would break the moment the repo is cloned somewhere else.
+- **`-p`/`--path`**: substitute the full `DOCS_BASE`-based `SCROLLS_PATH` as given, unchanged from before (e.g. `packages/api/docs/.scrolls`) — this path is already relative, and where `CLAUDE.md` ends up for this case is judgment-dependent (see step 4), so keep the existing behavior rather than guessing at a shorter form.
 
 | Template | → | Purpose |
 |---|---|---|
@@ -58,17 +71,22 @@ Copy each file from `assets/templates/` into `SCROLLS_PATH` at the target root, 
 
 This is the **minimal** set — exactly the six files `STARTER.md` walks through, plus `STARTER.md` itself. Don't invent extra scroll files (security reviews, architecture-decision records, subsystem deep-dives) up front; those get added later, organically, by whoever's doing that specific work, following the pattern `STARTER.md`'s own last section describes. Leave `{{PROJECT_TAGLINE}}` blank (drop the placeholder entirely, don't leave literal `{{...}}` text) if you found nothing worth using — it reads fine as `You're picking up work on **Foo**.` with no tagline clause.
 
-`STARTER.md` and `CLAUDE_MD_BLOCK.md` are the only templates containing `{{SCROLLS_PATH}}` — substitute it with the literal computed path (e.g. `docs/.scrolls`, `docs/scrolls`, `packages/api/docs/.scrolls`), not a placeholder string.
+`STARTER.md` and `CLAUDE_MD_BLOCK.md` are the only templates containing `{{SCROLLS_PATH}}` — substitute it per the rule above (short form for `-r`/`-l`/default, full `SCROLLS_PATH` for `-p`), not a placeholder string, and use the *same* substitution in both files.
 
 Templates are intentionally close to empty (placeholder bullets like "(none tracked yet)") — resist the urge to pre-populate `SPEC.md` with a guessed feature list or `PLAN.md` with invented tickets. A minimal scaffold's job is to hold the *shape*; the content accumulates from real sessions. The one exception is `STARTER.md`'s "Quick orientation" section, which is worth getting right since it's the one piece of static context every session leans on immediately.
 
 ### 4. Point CLAUDE.md at STARTER.md
 
-Read `assets/templates/CLAUDE_MD_BLOCK.md` and substitute `{{SCROLLS_PATH}}` in it the same way — that's the block to install. Note this block goes at the **project root**, which may differ from `DOCS_BASE`'s parent when `--path` points into a subdirectory (e.g. a monorepo package) — use whatever `CLAUDE.md` location the project's other tooling already expects (repo root is the safe default; ask if genuinely unclear).
+Read `assets/templates/CLAUDE_MD_BLOCK.md` and substitute `{{SCROLLS_PATH}}` in it the same way as `STARTER.md` — that's the block to install.
+
+- **`-r`/`-l`/default (`BASE_DIR`-derived)**: `CLAUDE.md` goes at `BASE_DIR` — the same directory that now contains `docs`. This is fixed and unambiguous: `BASE_DIR` is exactly what `-r`/`-l`/the mismatch check in step 1 resolved, so there's no separate "project root" judgment call to make here anymore.
+- **`-p`/`--path`**: where `CLAUDE.md` belongs is genuinely judgment-dependent, since a custom `--path` might point at an independent monorepo package (its own `CLAUDE.md`, short local references — closer to what `-l` would produce if you'd `cd`ed into that package first) or be one piece of a larger repo meant to stay under a single root `CLAUDE.md` referencing the full path. Use whatever `CLAUDE.md` location the project's other tooling already expects; if genuinely unclear, ask rather than guessing — this is the one case where a wrong guess is expensive (a broken reference baked into checked-in docs).
+
+Once you know where `CLAUDE.md` goes:
 
 - **No `CLAUDE.md` there yet**: create one containing exactly that block.
 - **`CLAUDE.md` exists but has no scrolls-path reference**: insert the block near the top of the file (before other instructions, since "read this first" only works if it's read first), separated by blank lines from surrounding content. If the file already opens with its own top-level heading, add the block's heading as a subsection instead of a second top-level `# Project instructions` — match the existing file's heading structure rather than fighting it.
-- **`CLAUDE.md` already references `SCROLLS_PATH/STARTER.md`**: leave it alone; note this to the user instead of duplicating the block.
+- **`CLAUDE.md` already references `SCROLLS_PATH/STARTER.md`** (or the short form, if that's what applies here): leave it alone; note this to the user instead of duplicating the block.
 
 ### 5. Report back
 

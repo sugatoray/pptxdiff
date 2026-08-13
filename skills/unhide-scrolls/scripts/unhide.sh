@@ -2,17 +2,28 @@
 # Finds .scrolls folders under one or more roots and renames each to
 # scrolls (visible), rewriting the path references inside the moved
 # folder and in any CLAUDE.md that mentions it. Reports (never
-# auto-edits) any other stray references found elsewhere in the repo.
+# auto-edits) any other stray references it finds nearby.
 #
-# Usage: unhide.sh [-p ROOT | --path=ROOT | --path ROOT] ...
+# Usage:
+#   unhide.sh [-p ROOT | --path=ROOT | --path ROOT] ...
+#   unhide.sh -r | --reporoot
+#   unhide.sh -l | --local
+#
 # -p/--path may be repeated to target multiple locations in one run.
-# Default root (if none given): $DEFAULT_SCROLLS_RELPATH if set, else
-# the current directory. Each root is searched a bounded number of
-# levels deep (common vendor/build dirs pruned) for directories
-# literally named ".scrolls" containing a STARTER.md — that guard
-# means passing a broad root (even ".") is safe: only real scrolls
-# folders match, and a root that IS a scrolls folder itself also
-# matches directly.
+# -r/-l each resolve to a single root (the git repo's top level, or the
+# current directory) and cannot be combined with -p or with each other.
+#
+# Default (no flags at all): $DEFAULT_SCROLLS_RELPATH if set, else the
+# current directory — and if that default is about to search only a
+# subdirectory of a git repo (not the repo's top level), a note is
+# printed pointing at -r as an alternative, since scrolls elsewhere in
+# the repo would otherwise be silently out of scope.
+#
+# Each root is searched a bounded number of levels deep (common
+# vendor/build dirs pruned) for directories literally named ".scrolls"
+# containing a STARTER.md — that guard means passing a broad root (even
+# ".") is safe: only real scrolls folders match, and a root that IS a
+# scrolls folder itself also matches directly.
 set -euo pipefail
 
 FROM_NAME=".scrolls"
@@ -21,16 +32,49 @@ MAXDEPTH=8
 PRUNE_NAMES=(.git node_modules vendor dist build .venv venv __pycache__ target .next .cache)
 
 roots=()
+mode=""   # "", "path", "reporoot", "local"
+
+conflict_check() {
+  if [ -n "$mode" ] && [ "$mode" != "$1" ]; then
+    echo "Cannot combine -p/--path with -r/--reporoot or -l/--local — pick one way to target a location." >&2
+    exit 2
+  fi
+  mode="$1"
+}
+
 while [ $# -gt 0 ]; do
   case "$1" in
-    -p) roots+=("$2"); shift 2 ;;
-    --path) roots+=("$2"); shift 2 ;;
-    --path=*) roots+=("${1#--path=}"); shift ;;
-    -p=*) roots+=("${1#-p=}"); shift ;;
+    -p) conflict_check path; roots+=("$2"); shift 2 ;;
+    --path) conflict_check path; roots+=("$2"); shift 2 ;;
+    --path=*) conflict_check path; roots+=("${1#--path=}"); shift ;;
+    -p=*) conflict_check path; roots+=("${1#-p=}"); shift ;;
+    -r|--reporoot)
+      conflict_check reporoot
+      repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || {
+        echo "-r/--reporoot requires being inside a git repository; none was detected here." >&2
+        exit 2
+      }
+      roots=("${repo_root}/docs")
+      shift
+      ;;
+    -l|--local)
+      conflict_check local
+      roots=("docs")
+      shift
+      ;;
     *) echo "Unrecognized argument: $1" >&2; exit 2 ;;
   esac
 done
+
 if [ ${#roots[@]} -eq 0 ]; then
+  if [ -z "${DEFAULT_SCROLLS_RELPATH:-}" ]; then
+    repo_root=$(git rev-parse --show-toplevel 2>/dev/null || true)
+    if [ -n "$repo_root" ] && [ "$repo_root" != "$(pwd)" ]; then
+      echo "Note: searching from $(pwd), not the repo root ($repo_root)." >&2
+      echo "Pass -r/--reporoot to search the repo root's docs instead, or -l/--local to pin this explicitly to $(pwd)/docs." >&2
+      echo >&2
+    fi
+  fi
   roots=("${DEFAULT_SCROLLS_RELPATH:-$(pwd)}")
 fi
 
@@ -61,8 +105,14 @@ normalize_path() {
 
 process_one() {
   local old_dir="$1"
-  local new_dir
-  new_dir="$(dirname "$old_dir")/${TO_NAME}"
+  local docs_dir base_dir docs_name new_dir short_old short_new
+
+  docs_dir="$(dirname "$old_dir")"        # .../docs
+  base_dir="$(dirname "$docs_dir")"        # whatever contains "docs" — where CLAUDE.md should live
+  docs_name="$(basename "$docs_dir")"      # normally "docs", but honors a custom --path basename
+  new_dir="${docs_dir}/${TO_NAME}"
+  short_old="${docs_name}/${FROM_NAME}"    # e.g. "docs/.scrolls" — the portable form setup-scrolls
+  short_new="${docs_name}/${TO_NAME}"      # writes for -r/-l/default (see setup-scrolls step 3)
 
   if [ -e "$new_dir" ]; then
     echo "SKIP: $old_dir -> $new_dir already exists"
@@ -79,35 +129,39 @@ process_one() {
   fi
   echo "Moved: $old_dir -> $new_dir"
 
-  local old_re
+  local old_re short_re
   old_re=$(escape_for_sed "$old_dir")
+  short_re=$(escape_for_sed "$short_old")
+
+  # A scrolls folder's own references (e.g. inside STARTER.md) may be written
+  # either as the full path from wherever this was invoked (old_dir) or as
+  # the short form relative to base_dir (short_old, what -r/-l/default use)
+  # — try both; whichever isn't present is simply a no-op substitution.
+  rewrite_file() {
+    sed -i -e "s#${old_re}#${new_dir}#g" -e "s#${short_re}#${short_new}#g" "$1"
+    echo "  Updated: $1"
+  }
 
   while IFS= read -r f; do
-    sed -i "s#${old_re}#${new_dir}#g" "$f"
-    echo "  Updated: $f"
-  done < <(grep -rlF -- "$old_dir" "$new_dir" 2>/dev/null || true)
+    rewrite_file "$f"
+  done < <(grep -rlF -e "$old_dir" -e "$short_old" "$new_dir" 2>/dev/null || true)
 
+  # Scoped to base_dir (the directory containing "docs"), not the whole repo:
+  # in a multi-location sweep, different scrolls folders can independently
+  # use the same short reference string, so a repo-wide search would offer
+  # up (and risk rewriting) an unrelated folder's CLAUDE.md.
   local claude_files
-  if [ "$in_git" -eq 1 ]; then
-    claude_files=$(git grep -lF -- "$old_dir" -- '*CLAUDE.md' 2>/dev/null || true)
-  else
-    claude_files=$(grep -rlF -- "$old_dir" . --include='CLAUDE.md' 2>/dev/null || true)
-  fi
+  claude_files=$(grep -rlF -e "$old_dir" -e "$short_old" "$base_dir" --include='CLAUDE.md' 2>/dev/null || true)
   if [ -n "$claude_files" ]; then
     while IFS= read -r f; do
       [ -z "$f" ] && continue
-      sed -i "s#${old_re}#${new_dir}#g" "$f"
-      echo "  Updated: $f"
+      rewrite_file "$f"
     done <<< "$claude_files"
   fi
 
-  echo "  Other references to '$old_dir' left for manual review:"
+  echo "  Other references (within $base_dir) left for manual review:"
   local leftover
-  if [ "$in_git" -eq 1 ]; then
-    leftover=$(git grep -lF -- "$old_dir" 2>/dev/null || true)
-  else
-    leftover=$(grep -rlF -- "$old_dir" . --exclude-dir=.git 2>/dev/null || true)
-  fi
+  leftover=$(grep -rlF -e "$old_dir" -e "$short_old" "$base_dir" --exclude-dir=.git 2>/dev/null || true)
   if [ -n "$leftover" ]; then
     echo "$leftover" | sed 's/^/    /'
   else
