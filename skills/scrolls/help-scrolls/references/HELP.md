@@ -2,6 +2,8 @@
 
 Scrolls are a small, checked-in `docs/.scrolls/` (or `docs/scrolls/`) file set that gives Claude cross-session memory for a project — what it does, what state it's in, what's known-missing, what's next, and what traps to avoid — plus a `CLAUDE.md` pointer that makes every future session read it first instead of re-discovering everything from scratch.
 
+**Prefer a formatted page over chat text?** `/help-scrolls -e` (or `--online`) serves this same content locally and opens it in your browser.
+
 ## Quick start
 
 ```
