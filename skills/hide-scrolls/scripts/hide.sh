@@ -1,22 +1,26 @@
 #!/usr/bin/env bash
-# Finds .scrolls folders under one or more roots and renames each to
-# scrolls (visible), rewriting the path references inside the moved
-# folder and in any CLAUDE.md that mentions it. Reports (never
+# Finds scrolls folders under one or more roots and renames each to
+# .scrolls (dotfile-hidden), rewriting the path references inside the
+# moved folder and in any CLAUDE.md that mentions it. Reports (never
 # auto-edits) any other stray references found elsewhere in the repo.
 #
-# Usage: unhide.sh [-p ROOT | --path=ROOT | --path ROOT] ...
+# The exact mirror of unhide-scrolls's unhide.sh, in the opposite
+# direction — see that script's header for the full option/discovery
+# rationale, which applies here unchanged.
+#
+# Usage: hide.sh [-p ROOT | --path=ROOT | --path ROOT] ...
 # -p/--path may be repeated to target multiple locations in one run.
 # Default root (if none given): $DEFAULT_SCROLLS_RELPATH if set, else
 # the current directory. Each root is searched a bounded number of
 # levels deep (common vendor/build dirs pruned) for directories
-# literally named ".scrolls" containing a STARTER.md — that guard
-# means passing a broad root (even ".") is safe: only real scrolls
-# folders match, and a root that IS a scrolls folder itself also
-# matches directly.
+# literally named "scrolls" containing a STARTER.md — that guard means
+# passing a broad root (even ".") is safe: only real scrolls folders
+# match, and a root that IS a scrolls folder itself also matches
+# directly.
 set -euo pipefail
 
-FROM_NAME=".scrolls"
-TO_NAME="scrolls"
+FROM_NAME="scrolls"
+TO_NAME=".scrolls"
 MAXDEPTH=8
 PRUNE_NAMES=(.git node_modules vendor dist build .venv venv __pycache__ target .next .cache)
 
