@@ -1,8 +1,8 @@
 class Pptxdiff < Formula
   desc "Local-first PowerPoint (.pptx) deck diff tool with CLI and browser UI"
   homepage "https://github.com/sugatoray/pptxdiff"
-  url "https://registry.npmjs.org/pptxdiff/-/pptxdiff-0.7.0.tgz"
-  sha256 "b7bc10ffee012efa1d4914e53b264b338dfbb15dea0714f31c6f664023bff272"
+  url "https://registry.npmjs.org/pptxdiff/-/pptxdiff-0.8.0.tgz"
+  sha256 "6bfcb3535d7c9ea3baacbf7e0e506c52fe63c91f00b692f1928eeb5e21e5c35f"
   license "Apache-2.0"
 
   livecheck do
