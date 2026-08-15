@@ -2,22 +2,22 @@
 
 Hard-won lessons for this project. Read this LAST, right before editing code, so it's freshest in mind.
 
-## Constraints
+## Constraints — respect and conform to them
 Things you must respect or conform to (external requirements, API contracts, platform limits).
 
 - (none recorded yet)
 
-## Traps
+## Traps — avoid them always
 Specific bugs that have bitten this project before — avoid repeating them.
 
 - (none recorded yet)
 
-## Ditches
+## Ditches — bad patterns or decisions to avoid
 Bad patterns or decisions to never take, and why they were rejected.
 
 - (none recorded yet)
 
-## Wisdom
+## Wisdom — best practices and Red/Green TDD
 Best practices worth reusing.
 
 - (none recorded yet)
