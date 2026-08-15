@@ -75,3 +75,7 @@ If it's unclear whether something shipped versus just started, treat it as unshi
 ### 6. Report what changed
 
 List which scrolls files were touched and a one-line reason for each. If a file was deliberately left alone despite session activity (e.g. nothing shipped, so `SPEC.md` didn't need a new entry), it's fine to just not mention it — no need to enumerate every file that wasn't touched.
+
+## Development
+
+`tests/` holds this script's Red/Green regression suite (bash + PowerShell), for maintaining `scripts/session_diff.sh`/`scripts/session_diff.ps1` themselves — it plays no part in carrying out a user's `/scrolls-update` request. Don't read or run it while executing this skill.

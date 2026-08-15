@@ -26,3 +26,7 @@ Read the invocation text for an optional **`-e` / `--online`** — instead of (o
 5. Keep the reference file's own tone and formatting when you present it (in chat or via the rendered page) — it's already written to be crisp; don't editorialize, pad, or re-explain what it already says clearly.
 
 If you notice the reference has drifted from what the other four skills actually do (a flag behaves differently than documented, a new flag exists that isn't listed), fix `references/HELP.md` itself rather than just answering around the gap — this file needs to stay accurate as `scrolls-setup`/`scrolls-update`/`scrolls-hide`/`scrolls-unhide` evolve, since it's the thing users are told to trust, in chat and on the rendered page alike.
+
+## Development
+
+`tests/` holds this script's Red/Green regression suite (bash + PowerShell), for maintaining `scripts/open_help.sh`/`scripts/open_help.ps1` themselves — it plays no part in carrying out a user's `/scrolls-help` request. Don't read or run it while executing this skill.

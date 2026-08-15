@@ -53,3 +53,7 @@ For each file the script lists under "Other references... left for manual review
 ### 3. Report back
 
 List each folder that was unhidden (old path → new path), what was auto-fixed for each (its own files, `CLAUDE.md`), any that were skipped and why (target already existed), and what you fixed manually in step 2, if anything.
+
+## Development
+
+`tests/` holds this script's Red/Green regression suite (bash + PowerShell), for maintaining `scripts/unhide.sh`/`scripts/unhide.ps1` themselves — it plays no part in carrying out a user's `/scrolls-unhide` request. Don't read or run it while executing this skill.

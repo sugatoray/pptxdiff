@@ -49,3 +49,7 @@ Each command lives in its own directory with a `SKILL.md` plus supporting
 `scripts/` (bash + PowerShell), `tests/` (bash + PowerShell, Red/Green TDD),
 and, for `/scrolls-setup`, `assets/templates/` for the scaffolded markdown
 files.
+
+`tests/` is development-only — it's for maintaining the bundled scripts, not
+part of using the skills. No `SKILL.md` references it, so it's never loaded
+while a `/scrolls-*` command is actually running.
