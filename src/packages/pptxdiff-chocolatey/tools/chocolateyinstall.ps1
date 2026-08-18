@@ -5,7 +5,7 @@ $npmPackageVersion = $env:chocolateyPackageVersion
 if ([string]::IsNullOrWhiteSpace($npmPackageVersion)) {
   # Fallback for manual `choco pack`/`choco install -s .` runs where Chocolatey
   # doesn't set the package-version environment variable (e.g. local testing).
-  $npmPackageVersion = '0.7.0'
+  $npmPackageVersion = '0.8.0'
 }
 
 $npmCmd = Get-Command npm -ErrorAction SilentlyContinue

@@ -161,12 +161,19 @@ load.utils:
 
 ############################## ..: COMMANDS pkg.*:.. ################################
 
+.PHONY: pkg.brew.sync
+pkg.brew.sync:
+	@## npm run sync:brew
+	@echo -e "\n✨ Update Homebrew formula... ⏳\n"
+	@cd $(NPM_PKG_DIR) && npm run sync:brew
+
 .PHONY: pkg.npm.bump.pptxdiff
 pkg.npm.bump.pptxdiff:
 	@## npm version patch
 	@echo -e "\n✨ Bumping NPM package version... ⏳\n"
 	@cd $(NPM_PKG_DIR) && npm version minor --no-git-tag-version
 
+.PHONY: pkg.npm.build
 pkg.npm.build:
 	@## npm run build:npm
 	@echo -e "\n✨ Building NPM package... ⏳\n"
